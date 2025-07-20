@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:grils_app/generated/assets.dart';
+import 'package:hexcolor/hexcolor.dart';
 import 'package:spine_flutter/spine_flutter.dart';
 import 'spine_animation_widget.dart'; // 导入 SpineAnimationWidget
 import 'girl01_page.dart'; // 导入 Girl01Page
@@ -47,45 +49,67 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   bool _isControllerReady = false;
   List<String> _availableAnimations = [];
   int _currentAnimationIndex = 0;
-  bool _showSpineAnimationWidget = false; // 添加状态变量
+  
+  // Takeoff 覆盖动画控制器
+  SpineWidgetController? _takeoffController;
+  bool _isTakeoffReady = false;
+  bool _showTakeoffOverlay = true;
   
   // 定义所有spine文件的信息
   final List<SpineAsset> _spineAssets = [
     SpineAsset(
       name: "Girl 01",
-      imagePath: "assets/spine/girl01.png",
+      imagePath: "assets/grils/Icon_girl_01_head_unlock.png",
       image2Path: "assets/spine/girl01_2.png",
       atlasFile: "assets/spine/girl01.atlas",
       skeletonFile: "assets/spine/girl01.skel",
     ),
     SpineAsset(
       name: "Girl 02", 
-      imagePath: "assets/spine/girl02.png",
+      imagePath: "assets/grils/Icon_girl_02_head_lock.png",
       image2Path: "assets/spine/girl02_2.png",
       atlasFile: "assets/spine/girl02.atlas",
       skeletonFile: "assets/spine/girl02.skel",
     ),
     SpineAsset(
       name: "Girl 03",
-      imagePath: "assets/spine/girl03.png",
+      imagePath: "assets/grils/Icon_girl_03_head_lock.png",
       image2Path: "assets/spine/girl03_2.png", 
       atlasFile: "assets/spine/girl03.atlas",
       skeletonFile: "assets/spine/girl03.skel",
-    ),
-    SpineAsset(
-      name: "Takeoff",
-      imagePath: "assets/spine/Takeoff.png",
-      image2Path: null,
-      atlasFile: "assets/spine/Takeoff.atlas",
-      skeletonFile: "assets/spine/Takeoff.skel",
     ),
   ];
 
   @override
   void initState() {
     super.initState();
+    // 设置全屏模式，隐藏状态栏
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
     _loadSpineInfo();
     _initializeSpineController();
+    _initializeTakeoffController();
+  }
+
+  void _initializeTakeoffController() {
+    try {
+      _takeoffController = SpineWidgetController(onInitialized: (controller) {
+        try {
+          controller.animationState.getData().setDefaultMix(0.2);
+          final animations = controller.skeleton.getData()?.getAnimations();
+          if (animations != null && animations.isNotEmpty) {
+            setState(() {
+              _isTakeoffReady = true;
+            });
+            // 播放第一个动画循环
+            controller.animationState.setAnimationByName(0, animations.first.getName(), true);
+          }
+        } catch (e) {
+          print("Takeoff animation initialization failed: $e");
+        }
+      });
+    } catch (e) {
+      print("Takeoff controller creation failed: $e");
+    }
   }
 
   void _initializeSpineController() {
@@ -179,7 +203,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
 
   @override
   void dispose() {
+    // 恢复系统UI显示
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _spineController = null;
+    _takeoffController = null;
     super.dispose();
   }
 
@@ -233,194 +260,103 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text('Spine Girls Preview - ${_spineAssets[_currentIndex].name}'),
-        actions: [
-          // IconButton(
-          //   icon: Icon(_isAnimating ? Icons.pause : Icons.play_arrow),
-          //   onPressed: _isAnimating ? _pauseAnimation : _resumeAnimation,
-          // ),
-          // IconButton(
-          //   icon: const Icon(Icons.refresh),
-          //   onPressed: _loadSpineInfo,
-          // ),
-          // // 添加测试 SpineAnimationWidget 的按钮
-          // IconButton(
-          //   icon: const Icon(Icons.animation),
-          //   onPressed: () {
-          //     setState(() {
-          //       _showSpineAnimationWidget = !_showSpineAnimationWidget;
-          //     });
-          //   },
-          // ),
-          // // 添加导航到 Girl01Page 的按钮
-          // IconButton(
-          //   icon: const Icon(Icons.person),
-          //   onPressed: () {
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(builder: (context) => const Girl01Page()),
-          //     );
-          //   },
-          // ),
-          // // 添加导航到 SimpleSpineTest 的按钮
-          // IconButton(
-          //   icon: const Icon(Icons.bug_report),
-          //   onPressed: () {
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(builder: (context) => const SimpleSpineTest()),
-          //     );
-          //   },
-          // ),
-          // // 添加导航到 SpineGalleryPage 的按钮
-          // IconButton(
-          //   icon: const Icon(Icons.photo_library),
-          //   onPressed: () {
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(builder: (context) => const SpineGalleryPage()),
-          //     );
-          //   },
-          // ),
-        ],
-      ),
       body: Stack(
         children: [
-          Column(
-            children: [
-              // 顶部控制区域 - 可滚动
-              Flexible(
-                child: SingleChildScrollView(
-              child: Column(
+          // Spine动画预览区域 - 全屏显示
+          _buildSpineWidget(),
+          
+          // Takeoff 手势覆盖动画
+          // if (_showTakeoffOverlay && _isTakeoffReady)
+          Center(
+            child: SizedBox(
+              height: 200,
+              child: SpineWidget.fromAsset(
+                "assets/spine/Takeoff.atlas",
+                "assets/spine/Takeoff.skel",
+                _takeoffController!,
+                boundsProvider: SetupPoseBounds(),
+              ),
+            ),
+          ),
+          
+          // 顶部控制区域浮动
+          Positioned(
+            top: 0, // 移除状态栏padding，直接设置为0
+            left: 0,
+            right: 0,
+            child: Container(
+              child: Stack(
                 children: [
-                  // 编号按钮行
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(_spineAssets.length, (index) {
-                        return ElevatedButton(
-                          onPressed: () => _loadSpineAsset(index),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _currentIndex == index 
-                                ? Theme.of(context).colorScheme.primary 
-                                : null,
-                            foregroundColor: _currentIndex == index 
-                                ? Theme.of(context).colorScheme.onPrimary 
-                                : null,
-                          ),
-                          child: Text('${index + 1}'),
-                        );
-                      }),
+                  Positioned(
+                    bottom: 0,
+                    left: 0, // 确保从左边开始
+                    right: 0, // 确保宽度扩展到父容器右边
+                    height: 40,
+                    child: Image.asset(
+                      Assets.imagesFrameHeartUp,
+                      fit: BoxFit.fitWidth,
+                      repeat: ImageRepeat.repeat,
                     ),
                   ),
-                  // 当前信息显示
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      children: [
-                        if (_availableAnimations.isNotEmpty)
-                          Text(
-                            '当前动画: ${_availableAnimations.isNotEmpty ? _availableAnimations[_currentAnimationIndex] : "无"}',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        // 添加 SpineAnimationWidget 状态显示
-                        // Text(
-                        //   'SpineAnimationWidget: ${_showSpineAnimationWidget ? "显示中" : "隐藏"}',
-                        //   style: Theme.of(context).textTheme.bodySmall,
-                        // ),
-                      ],
-                    ),
+                  Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            //imag
+                            Stack(
+                              children: [
+                                // score
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 20,top: 10),
+                                  child: Container(
+                                    padding: EdgeInsets.only(right: 30),
+                                      decoration: BoxDecoration(
+                                        color: HexColor("#FFF5E5"),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(left: 50),
+                                        child: Text('10', style: TextStyle(color:HexColor("#95756A"),fontWeight: FontWeight.bold,)),
+                                      ),
+                                  ),
+                                ),
+                                Image.asset(Assets.imagesIconHeart2x,height: 50),
+                              ],
+                            ),
+
+                            Image.asset(Assets.imagesBtnHeartBack,height: 50),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: List.generate(_spineAssets.length, (index) {
+                          return GestureDetector(
+                            onTap: () => _loadSpineAsset(index),
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              child: ClipOval(
+                                child: Image.asset(
+
+                                  _spineAssets[index].imagePath ,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                      SizedBox(height: 10,),
+                    ],
                   ),
-                  
-                  // 图片切换按钮（如果有第二张图片）
-                  // if (_spineAssets[_currentIndex].image2Path != null)
-                  //   Padding(
-                  //     padding: const EdgeInsets.all(8.0),
-                  //     child: ElevatedButton(
-                  //       onPressed: () {
-                  //         setState(() {
-                  //           _showSecondImage = !_showSecondImage;
-                  //         });
-                  //       },
-                  //       child: Text(_showSecondImage ? '显示图片1' : '显示图片2'),
-                  //     ),
-                  //   ),
                 ],
               ),
             ),
           ),
-          
-          // Spine动画预览区域 - 固定高度
-          Expanded(
-            flex: 4,
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(8),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.blue.shade50,
-                    Colors.purple.shade50,
-                  ],
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: _buildSpineWidget(),
-              ),
-            ),
-          ),
-              
-          
-          // 底部控制区域
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // 动画控制按钮
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: _isControllerReady ? (_isAnimating ? _pauseAnimation : _resumeAnimation) : null,
-                      icon: Icon(_isAnimating ? Icons.pause : Icons.play_arrow),
-                      label: Text(_isAnimating ? '暂停' : '播放'),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _isControllerReady ? _stopAnimation : null,
-                      icon: const Icon(Icons.stop),
-                      label: const Text('停止'),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _isControllerReady ? _nextAnimation : null,
-                      icon: const Icon(Icons.skip_next),
-                      label: const Text('下一个'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                if (_availableAnimations.isNotEmpty)
-                  Text(
-                    '可用动画: ${_availableAnimations.join(", ")}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                    textAlign: TextAlign.center,
-                  ),
-              ],
-            ),
-          ),
-            ],
-          ),
-          
-          // 添加 SpineAnimationWidget 覆盖层
-          if (_showSpineAnimationWidget)
-            SpineAnimationWidget(
-              assetName: _spineAssets[_currentIndex].name.toLowerCase().replaceAll(' ', ''),
-            ),
         ],
       ),
     );
@@ -441,17 +377,11 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     }
 
     try {
-      return Center(
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width,
-          height: MediaQuery.of(context).size.height * 0.8,
-          child: SpineWidget.fromAsset(
-            _spineAssets[_currentIndex].atlasFile,
-            _spineAssets[_currentIndex].skeletonFile,
-            _spineController!,
-            boundsProvider: SetupPoseBounds(),
-          ),
-        ),
+      return SpineWidget.fromAsset(
+        _spineAssets[_currentIndex].atlasFile,
+        _spineAssets[_currentIndex].skeletonFile,
+        _spineController!,
+        boundsProvider: SetupPoseBounds(),
       );
     } catch (e) {
       return Center(
