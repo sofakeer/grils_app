@@ -347,10 +347,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
 
       // 根据当前选择的皮肤索引应用皮肤
       final skinNames = [
-        "bra/bra_${_currentSkinIndices[0]! + 1}",
-        "pants/pants_${_currentSkinIndices[1]! + 1}",
-        "hands/hands_${_currentSkinIndices[2]! + 1}",
-        "socks/socks_${_currentSkinIndices[3]! + 1}",
+        "bra/bra${_currentSkinIndices[0]! + 1}",
+        "pants/pants${_currentSkinIndices[1]! + 1}",
+        "hands/hands${_currentSkinIndices[2]! + 1}",
+        "socks/socks${_currentSkinIndices[3]! + 1}",
       ];
 
       print("=== Applying Girl01 underwear skins ===");
