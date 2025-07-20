@@ -1069,7 +1069,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                   ],
                 ),
               ),
-                         if (_currentIdleIndex == 4)
+                         // 只有在underwear模式且选中了某个按钮时才显示底部皮肤选择区域
+                         if (_currentIdleIndex == 4 && _selectedUnderwearButton != -1)
                Positioned(
                  left: 0,
                  right: 0,
@@ -1419,21 +1420,16 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   
   // 判断underwear按钮是否应该显示选中状态
   bool _isUnderwearButtonSelected(int buttonIndex) {
-    // 如果当前选中的按钮是这个，或者这个按钮对应的皮肤不是默认的1号皮肤，则显示选中状态
-    return _selectedUnderwearButton == buttonIndex || (_currentSkinIndices[buttonIndex] ?? 0) > 0;
+    // 只有当前选中的按钮才显示选中状态（单选模式）
+    return _selectedUnderwearButton == buttonIndex;
   }
   
   // 构建皮肤选择列表
   Widget _buildSkinSelectionList() {
+    // 只有在选中某个按钮时才显示皮肤选择界面
     if (_selectedUnderwearButton == -1) {
-      // 没有选中按钮时，显示所有部位的当前皮肤
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(4, (index) {
-          return _buildSkinButton(index, _currentSkinIndices[index] ?? 0);
-        }),
-      );
+      // 没有选中按钮时，不显示任何内容
+      return Container();
     } else {
       // 选中某个按钮时，显示该部位的所有皮肤选项
       return SingleChildScrollView(
