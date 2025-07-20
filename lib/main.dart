@@ -116,15 +116,23 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   }
 
   void _initializeTakeoffController() {
+    // 先销毁旧的Takeoff控制器，防止内存泄漏
+    if (_takeoffController != null) {
+      // _takeoffController!.dispose();
+      _takeoffController = null;
+    }
+    
     try {
       _takeoffController = SpineWidgetController(onInitialized: (controller) {
         try {
           controller.animationState.getData().setDefaultMix(0.2);
           final animations = controller.skeleton.getData()?.getAnimations();
           if (animations != null && animations.isNotEmpty) {
-            setState(() {
-              _isTakeoffReady = true;
-            });
+            if (mounted) {
+              setState(() {
+                _isTakeoffReady = true;
+              });
+            }
             // 播放第一个动画循环
             controller.animationState.setAnimationByName(0, animations.first.getName(), true);
           }
@@ -138,6 +146,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   }
 
   void _initializeSpineController() {
+    // 先销毁旧的控制器，防止内存泄漏
+    if (_spineController != null) {
+      // _spineController!.dispose();
+      _spineController = null;
+    }
+    
     try {
       _spineController = SpineWidgetController(onInitialized: (controller) {
         try {
@@ -150,45 +164,68 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
             _availableAnimations = animations.map((a) => a.getName()).toList();
             print("Available animations: $_availableAnimations");
             
-            // 根据当前女孩设置默认皮肤状态
-            if (_currentIndex == 0 && _spineAssets[_currentIndex].name == "Girl 01") {
-              _setGirl01DefaultSkin(controller);
-            } else if (_currentIndex == 1 && _spineAssets[_currentIndex].name == "Girl 02") {
-              _setGirl02DefaultSkin(controller);
-            } else if (_currentIndex == 2 && _spineAssets[_currentIndex].name == "Girl 03") {
-              _setGirl03DefaultSkin(controller);
-            }
+            // 设置默认皮肤状态
+            _setDefaultSkinForCurrentGirl(controller);
             
-            setState(() {
-              _isLoading = false;
-              _isControllerReady = true; // 标记控制器已准备好
-            });
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                _isControllerReady = true; // 标记控制器已准备好
+              });
+            }
 
             // 播放第一个动画
             if (_availableAnimations.isNotEmpty) {
               _playAnimation(_availableAnimations.first, true);
+              // 播放动画后再次确保皮肤设置正确
+              Future.delayed(Duration(milliseconds: 100), () {
+                if (mounted && _spineController != null) {
+                  _setDefaultSkinForCurrentGirl(_spineController!);
+                }
+              });
             }
           } else {
             print("No animations found in spine file");
-            setState(() {
-              _isLoading = false;
-              _errorMessage = "未找到动画";
-            });
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                _errorMessage = "未找到动画";
+              });
+            }
           }
         } catch (e) {
           print("Animation initialization failed: $e");
-          setState(() {
-            _isLoading = false;
-            _errorMessage = "动画初始化失败: $e";
-          });
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorMessage = "动画初始化失败: $e";
+            });
+          }
         }
       });
     } catch (e) {
       print("Controller creation failed: $e");
-      setState(() {
-        _isLoading = false;
-        _errorMessage = "控制器创建失败: $e";
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = "控制器创建失败: $e";
+        });
+      }
+    }
+  }
+  
+  // 根据当前女孩设置默认皮肤状态
+  void _setDefaultSkinForCurrentGirl(SpineWidgetController controller) {
+    print("Setting default skin for current girl: ${_spineAssets[_currentIndex].name} (index: $_currentIndex)");
+    
+    if (_currentIndex == 0 && _spineAssets[_currentIndex].name == "Girl 01") {
+      _setGirl01DefaultSkin(controller);
+    } else if (_currentIndex == 1 && _spineAssets[_currentIndex].name == "Girl 02") {
+      _setGirl02DefaultSkin(controller);
+    } else if (_currentIndex == 2 && _spineAssets[_currentIndex].name == "Girl 03") {
+      _setGirl03DefaultSkin(controller);
+    } else {
+      print("No default skin configuration for: ${_spineAssets[_currentIndex].name}");
     }
   }
   
@@ -357,6 +394,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       setState(() {
         _isAnimating = true;
       });
+      
+      // 播放动画后确保皮肤设置正确
+      Future.delayed(Duration(milliseconds: 50), () {
+        if (mounted && _spineController != null) {
+          _setDefaultSkinForCurrentGirl(_spineController!);
+        }
+      });
     }
   }
 
@@ -400,8 +444,18 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     // 恢复系统UI显示
     // SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pageController.dispose();
-    _spineController = null;
-    _takeoffController = null;
+    
+    // 正确销毁Spine控制器
+    if (_spineController != null) {
+      // _spineController!.dispose();
+      _spineController = null;
+    }
+    
+    if (_takeoffController != null) {
+      // _takeoffController!.dispose();
+      _takeoffController = null;
+    }
+    
     super.dispose();
   }
 
