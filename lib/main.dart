@@ -11,6 +11,12 @@ import 'spine_gallery_page.dart'; // 导入 SpineGalleryPage
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initSpineFlutter(enableMemoryDebugging: false);
+  
+  // 设置全屏模式
+  // SystemChrome.setEnabledSystemUIMode(
+  //   SystemUiMode.edgeToEdge,
+  //   overlays: [SystemUiOverlay.top],
+  // );
 
   runApp(const MyApp());
 }
@@ -27,6 +33,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const SpinePreviewPage(),
+      debugShowCheckedModeBanner: false, // 移除调试标记
     );
   }
 }
@@ -54,6 +61,15 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   SpineWidgetController? _takeoffController;
   bool _isTakeoffReady = false;
   bool _showTakeoffOverlay = true;
+  
+  // 心形数量
+  int _heartCount = 5;
+  
+  // 弹窗状态
+  bool _showHeartDialog = false;
+  
+  // 页面切换动画控制器
+  late PageController _pageController;
   
   // 定义所有spine文件的信息
   final List<SpineAsset> _spineAssets = [
@@ -83,8 +99,17 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   @override
   void initState() {
     super.initState();
-    // 设置全屏模式，隐藏状态栏
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+    // // 设置全屏模式，隐藏状态栏和导航栏
+    // SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    // // 设置状态栏透明
+    // SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+    //   statusBarColor: Colors.transparent,
+    //   systemNavigationBarColor: Colors.transparent,
+    // ));
+    
+    // 初始化页面控制器
+    _pageController = PageController(initialPage: _currentIndex);
+    
     _loadSpineInfo();
     _initializeSpineController();
     _initializeTakeoffController();
@@ -125,6 +150,15 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
             _availableAnimations = animations.map((a) => a.getName()).toList();
             print("Available animations: $_availableAnimations");
             
+            // 根据当前女孩设置默认皮肤状态
+            if (_currentIndex == 0 && _spineAssets[_currentIndex].name == "Girl 01") {
+              _setGirl01DefaultSkin(controller);
+            } else if (_currentIndex == 1 && _spineAssets[_currentIndex].name == "Girl 02") {
+              _setGirl02DefaultSkin(controller);
+            } else if (_currentIndex == 2 && _spineAssets[_currentIndex].name == "Girl 03") {
+              _setGirl03DefaultSkin(controller);
+            }
+            
             setState(() {
               _isLoading = false;
               _isControllerReady = true; // 标记控制器已准备好
@@ -155,6 +189,165 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         _isLoading = false;
         _errorMessage = "控制器创建失败: $e";
       });
+    }
+  }
+  
+  // 设置Girl01的默认皮肤状态
+  void _setGirl01DefaultSkin(SpineWidgetController controller) {
+    try {
+      final data = controller.skeletonData;
+      final skeleton = controller.skeleton;
+      
+      // 创建自定义皮肤
+      final customSkin = Skin("girl01-default-skin");
+      
+      // 添加默认皮肤状态
+      final braSkin = data.findSkin("bra/bra_none");
+      final handsSkin = data.findSkin("hands/hands_none");
+      final pantsSkin = data.findSkin("pants/pants_none");
+      final socksSkin = data.findSkin("socks/socks_none");
+      
+      if (braSkin != null) {
+        customSkin.addSkin(braSkin);
+        print("Added bra/bra_none skin");
+      } else {
+        print("bra/bra_none skin not found");
+      }
+      
+      if (handsSkin != null) {
+        customSkin.addSkin(handsSkin);
+        print("Added hands/hands_none skin");
+      } else {
+        print("hands/hands_none skin not found");
+      }
+      
+      if (pantsSkin != null) {
+        customSkin.addSkin(pantsSkin);
+        print("Added pants/pants_none skin");
+      } else {
+        print("pants/pants_none skin not found");
+      }
+      
+      if (socksSkin != null) {
+        customSkin.addSkin(socksSkin);
+        print("Added socks/socks_none skin");
+      } else {
+        print("socks/socks_none skin not found");
+      }
+      
+      // 应用自定义皮肤
+      skeleton.setSkin(customSkin);
+      skeleton.setSlotsToSetupPose();
+      
+      print("Girl01 default skin applied successfully");
+    } catch (e) {
+      print("Failed to set Girl01 default skin: $e");
+    }
+  }
+  
+  // 设置Girl02的默认皮肤状态
+  void _setGirl02DefaultSkin(SpineWidgetController controller) {
+    try {
+      final data = controller.skeletonData;
+      final skeleton = controller.skeleton;
+      
+      // 创建自定义皮肤
+      final customSkin = Skin("girl02-default-skin");
+      
+      // 添加默认皮肤状态
+      final braSkin = data.findSkin("bra/bra_none");
+      final handsSkin = data.findSkin("hands/hands_none");
+      final headSkin = data.findSkin("head/head_none");
+      final socksSkin = data.findSkin("socks/socks_none");
+      
+      if (braSkin != null) {
+        customSkin.addSkin(braSkin);
+        print("Added bra/bra_none skin");
+      } else {
+        print("bra/bra_none skin not found");
+      }
+      
+      if (handsSkin != null) {
+        customSkin.addSkin(handsSkin);
+        print("Added hands/hands_none skin");
+      } else {
+        print("hands/hands_none skin not found");
+      }
+      
+      if (headSkin != null) {
+        customSkin.addSkin(headSkin);
+        print("Added head/head_none skin");
+      } else {
+        print("head/head_none skin not found");
+      }
+      
+      if (socksSkin != null) {
+        customSkin.addSkin(socksSkin);
+        print("Added socks/socks_none skin");
+      } else {
+        print("socks/socks_none skin not found");
+      }
+      
+      // 应用自定义皮肤
+      skeleton.setSkin(customSkin);
+      skeleton.setSlotsToSetupPose();
+      
+      print("Girl02 default skin applied successfully");
+    } catch (e) {
+      print("Failed to set Girl02 default skin: $e");
+    }
+  }
+  
+  // 设置Girl03的默认皮肤状态
+  void _setGirl03DefaultSkin(SpineWidgetController controller) {
+    try {
+      final data = controller.skeletonData;
+      final skeleton = controller.skeleton;
+      
+      // 创建自定义皮肤
+      final customSkin = Skin("girl03-default-skin");
+      
+      // 添加默认皮肤状态
+      final braSkin = data.findSkin("bra/bra_none");
+      final headSkin = data.findSkin("head/head_none");
+      final pantsSkin = data.findSkin("pants/pants_none");
+      final socksSkin = data.findSkin("socks/socks_none");
+      
+      if (braSkin != null) {
+        customSkin.addSkin(braSkin);
+        print("Added bra/bra_none skin");
+      } else {
+        print("bra/bra_none skin not found");
+      }
+      
+      if (headSkin != null) {
+        customSkin.addSkin(headSkin);
+        print("Added head/head_none skin");
+      } else {
+        print("head/head_none skin not found");
+      }
+      
+      if (pantsSkin != null) {
+        customSkin.addSkin(pantsSkin);
+        print("Added pants/pants_none skin");
+      } else {
+        print("pants/pants_none skin not found");
+      }
+      
+      if (socksSkin != null) {
+        customSkin.addSkin(socksSkin);
+        print("Added socks/socks_none skin");
+      } else {
+        print("socks/socks_none skin not found");
+      }
+      
+      // 应用自定义皮肤
+      skeleton.setSkin(customSkin);
+      skeleton.setSlotsToSetupPose();
+      
+      print("Girl03 default skin applied successfully");
+    } catch (e) {
+      print("Failed to set Girl03 default skin: $e");
     }
   }
 
@@ -201,10 +394,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     }
   }
 
+
   @override
   void dispose() {
     // 恢复系统UI显示
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    _pageController.dispose();
     _spineController = null;
     _takeoffController = null;
     super.dispose();
@@ -260,10 +455,29 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
+      resizeToAvoidBottomInset: false,
+      extendBodyBehindAppBar: true,
+      extendBody: true,
+      body: Container(
+        width: MediaQuery.of(context).size.width,
+        height: MediaQuery.of(context).size.height,
+        color: Colors.transparent,
+        child: Stack(
         children: [
-          // Spine动画预览区域 - 全屏显示
-          _buildSpineWidget(),
+          // Spine动画预览区域 - 全屏显示，支持左右滑动
+          PageView.builder(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+              _loadSpineAsset(index);
+            },
+            itemCount: _spineAssets.length,
+            itemBuilder: (context, index) {
+              return _buildSpineWidgetForIndex(index);
+            },
+          ),
           
           // Takeoff 手势覆盖动画
           // if (_showTakeoffOverlay && _isTakeoffReady)
@@ -281,7 +495,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
           
           // 顶部控制区域浮动
           Positioned(
-            top: 0, // 移除状态栏padding，直接设置为0
+            top: MediaQuery.of(context).padding.top, // 避开状态栏
             left: 0,
             right: 0,
             child: Container(
@@ -335,14 +549,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: List.generate(_spineAssets.length, (index) {
                           return GestureDetector(
-                            onTap: () => _loadSpineAsset(index),
+                            onTap: () => _switchToGirl(index),
                             child: Container(
                               width: 80,
                               height: 80,
                               child: ClipOval(
                                 child: Image.asset(
-
-                                  _spineAssets[index].imagePath ,
+                                  _spineAssets[index].imagePath,
                                   fit: BoxFit.cover,
                                 ),
                               ),
@@ -357,7 +570,134 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
               ),
             ),
           ),
+
+          Positioned(
+            left: 0,
+              right: 0,
+              bottom: 100,
+              child: Column(
+                children: [
+                  // 爱心图标和数量显示
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(Assets.imagesIconHeart2x, height: 50),
+                      SizedBox(width: 8), // 间距
+                      // x 字符 - 发光字效果
+                      Center(
+                        child: Text(
+                          'x',
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            shadows: [
+                              // 外层红色发光 - 更粗
+                              Shadow(
+                                color: Colors.red,
+                                offset: Offset(0, 0),
+                                blurRadius: 15,
+                              ),
+                              // 中层红色发光
+                              Shadow(
+                                color: Colors.red.withOpacity(0.8),
+                                offset: Offset(0, 0),
+                                blurRadius: 10,
+                              ),
+                              // 内层橙色发光 - 更粗
+                              Shadow(
+                                color: Colors.orange,
+                                offset: Offset(0, 0),
+                                blurRadius: 8,
+                              ),
+                              // 中层橙色发光
+                              Shadow(
+                                color: Colors.orange.withOpacity(0.8),
+                                offset: Offset(0, 0),
+                                blurRadius: 5,
+                              ),
+                              // 白色核心发光 - 更粗
+                              Shadow(
+                                color: Colors.white.withOpacity(0.9),
+                                offset: Offset(0, 0),
+                                blurRadius: 4,
+                              ),
+                              // 白色内发光
+                              Shadow(
+                                color: Colors.white.withOpacity(0.6),
+                                offset: Offset(0, 0),
+                                blurRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 4), // 小间距
+                      // 数字 - 发光字效果
+                      Center(
+                        child: Text(
+                          '$_heartCount',
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            shadows: [
+                              // 外层红色发光 - 更粗
+                              Shadow(
+                                color: Colors.red,
+                                offset: Offset(0, 0),
+                                blurRadius: 15,
+                              ),
+                              // 中层红色发光
+                              Shadow(
+                                color: Colors.red.withOpacity(0.8),
+                                offset: Offset(0, 0),
+                                blurRadius: 10,
+                              ),
+                              // 内层橙色发光 - 更粗
+                              Shadow(
+                                color: Colors.orange,
+                                offset: Offset(0, 0),
+                                blurRadius: 8,
+                              ),
+                              // 中层橙色发光
+                              Shadow(
+                                color: Colors.orange.withOpacity(0.8),
+                                offset: Offset(0, 0),
+                                blurRadius: 5,
+                              ),
+                              // 白色核心发光 - 更粗
+                              Shadow(
+                                color: Colors.white.withOpacity(0.9),
+                                offset: Offset(0, 0),
+                                blurRadius: 4,
+                              ),
+                              // 白色内发光
+                              Shadow(
+                                color: Colors.white.withOpacity(0.6),
+                                offset: Offset(0, 0),
+                                blurRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 10), // 间距
+                  GestureDetector(
+                    //onTap: _handleTakeoffClick,
+                    child: Image.asset(Assets.imagesBtnTakeoff, height: 80),
+                  ),
+                ],
+              ),
+          ),
+          
+          // 心形不足弹窗
+          if (_showHeartDialog)
+            _buildHeartDialog(),
         ],
+        ),
       ),
     );
   }
@@ -365,7 +705,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   Widget _buildSpineWidget() {
     if (_spineController == null) {
       return const Center(
-        child: Column(
+        child: Column( 
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(),
@@ -377,11 +717,15 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     }
 
     try {
-      return SpineWidget.fromAsset(
-        _spineAssets[_currentIndex].atlasFile,
-        _spineAssets[_currentIndex].skeletonFile,
-        _spineController!,
-        boundsProvider: SetupPoseBounds(),
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        child: SpineWidget.fromAsset(
+          _spineAssets[_currentIndex].atlasFile,
+          _spineAssets[_currentIndex].skeletonFile,
+          _spineController!,
+          boundsProvider: SetupPoseBounds(),
+        ),
       );
     } catch (e) {
       return Center(
@@ -447,6 +791,292 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     // 重新初始化Spine控制器
     _initializeSpineController();
     _loadSpineInfo();
+  }
+  
+  // 处理脱衣按钮点击
+  void _handleTakeoffClick() {
+    if (_heartCount < 10) {
+      // 心形不够，显示弹窗
+      setState(() {
+        _showHeartDialog = true;
+      });
+    } else {
+      // 心形足够，执行脱衣逻辑
+      _heartCount -= 10;
+      // 这里可以添加脱衣动画或其他逻辑
+    }
+  }
+  
+  // 关闭弹窗
+  void _closeHeartDialog() {
+    setState(() {
+      _showHeartDialog = false;
+    });
+  }
+  
+  // 录制视频获得心形
+  void _recordVideoForHearts() {
+    // 这里可以添加录制视频的逻辑
+    // 暂时直接给10个心形
+    setState(() {
+      _heartCount += 10;
+      _showHeartDialog = false;
+    });
+  }
+  
+  // 切换到指定女孩
+  void _switchToGirl(int index) {
+    if (index != _currentIndex) {
+      _pageController.animateToPage(
+        index,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+  
+  // 为指定索引构建Spine Widget
+  Widget _buildSpineWidgetForIndex(int index) {
+    if (_spineController == null) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('正在加载Spine动画...'),
+          ],
+        ),
+      );
+    }
+
+    try {
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        child: SpineWidget.fromAsset(
+          _spineAssets[index].atlasFile,
+          _spineAssets[index].skeletonFile,
+          _spineController!,
+          boundsProvider: SetupPoseBounds(),
+        ),
+      );
+    } catch (e) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Failed to load Spine animation',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Error: $e',
+              style: const TextStyle(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _isLoading = true;
+                  _isControllerReady = false;
+                  _availableAnimations = [];
+                  _currentAnimationIndex = 0;
+                });
+                _initializeSpineController();
+                _loadSpineInfo();
+              },
+              child: const Text('重试'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+  
+  // 构建心形不足弹窗
+  Widget _buildHeartDialog() {
+    return Container(
+      color: Colors.black.withOpacity(0.5), // 半透明背景
+      child: Center(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.6,
+          decoration: BoxDecoration(
+            border: Border.all(
+              width: 3,
+            ),
+          ),
+          child: Stack(
+            children: [
+              // 背景图片
+              ClipRRect(
+                borderRadius: BorderRadius.circular(17),
+                child: Image.asset(
+                  Assets.imagesPopBack,
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              
+              // 内容
+              Column(
+                children: [
+                  // 顶部标题栏
+                  Container(
+                    width: double.infinity,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.purple,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(17),
+                        topRight: Radius.circular(17),
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Get More',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  // 中间内容区域
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // 心形和数量显示
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 30, vertical: 20),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Image.asset(Assets.imagesIconHeart2x, height: 40),
+                                SizedBox(width: 10),
+                                Text(
+                                  'x10',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: HexColor("#95756A"),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          SizedBox(height: 30),
+                          
+                          // 录制视频按钮
+                          GestureDetector(
+                            onTap: _recordVideoForHearts,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                borderRadius: BorderRadius.circular(25),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 5,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // 视频图标（使用文字代替）
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.play_arrow,
+                                        color: Colors.red,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: 15),
+                                  Text(
+                                    'GET',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              
+              // 关闭按钮
+              Positioned(
+                top: 10,
+                right: 10,
+                child: GestureDetector(
+                  onTap: _closeHeartDialog,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 3,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
