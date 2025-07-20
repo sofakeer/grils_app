@@ -10,7 +10,7 @@ import 'models/girl_state.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initSpineFlutter(enableMemoryDebugging: false);
-  
+
   // 设置全屏模式
   // SystemChrome.setEnabledSystemUIMode(
   //   SystemUiMode.edgeToEdge,
@@ -55,36 +55,44 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   bool _isControllerReady = false;
   List<String> _availableAnimations = [];
   int _currentAnimationIndex = 0;
-  
+
   // Takeoff 覆盖动画控制器
   SpineWidgetController? _takeoffController;
   bool _isTakeoffReady = false;
   bool _showTakeoffOverlay = true;
-  
+
   // 心形数量
   int _heartCount = 5;
-  
+
   // 弹窗状态
   bool _showHeartDialog = false;
-  
+
   // 页面切换动画控制器
   late PageController _pageController;
-  
+
   // 女孩状态管理
   late List<GirlState> _girlStates;
-  
+
   // 音频播放器
   late AudioPlayer _audioPlayer;
-  
+
   // 动画计时器
   Timer? _animationTimer;
-  
+
   // 当前idle动画索引
   int _currentIdleIndex = 0;
-  
+
   // 当前选中的underwear按钮索引 (-1表示未选中)
   int _selectedUnderwearButton = -1;
   
+  // 每个部位的当前皮肤索引 (0-3, 对应1-4号皮肤)
+  Map<int, int> _currentSkinIndices = {
+    0: 0, // bra: 默认1号皮肤
+    1: 0, // pants: 默认1号皮肤  
+    2: 0, // hands: 默认1号皮肤
+    3: 0, // socks: 默认1号皮肤
+  };
+
   // 定义所有spine文件的信息
   final List<SpineAsset> _spineAssets = [
     SpineAsset(
@@ -95,7 +103,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       skeletonFile: "assets/spine/girl01.skel",
     ),
     SpineAsset(
-      name: "Girl 02", 
+      name: "Girl 02",
       imagePath: "assets/grils/Icon_girl_02_head_lock.png",
       image2Path: "assets/spine/girl02_2.png",
       atlasFile: "assets/spine/girl02.atlas",
@@ -104,7 +112,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     SpineAsset(
       name: "Girl 03",
       imagePath: "assets/grils/Icon_girl_03_head_lock.png",
-      image2Path: "assets/spine/girl03_2.png", 
+      image2Path: "assets/spine/girl03_2.png",
       atlasFile: "assets/spine/girl03.atlas",
       skeletonFile: "assets/spine/girl03.skel",
     ),
@@ -120,24 +128,24 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     //   statusBarColor: Colors.transparent,
     //   systemNavigationBarColor: Colors.transparent,
     // ));
-    
+
     // 初始化页面控制器
     _pageController = PageController(initialPage: _currentIndex);
-    
+
     // 初始化女孩状态
     _girlStates = [
       GirlState(girlIndex: 0, maxSkinLevels: GirlState.getMaxSkinLevels(0)),
       GirlState(girlIndex: 1, maxSkinLevels: GirlState.getMaxSkinLevels(1)),
       GirlState(girlIndex: 2, maxSkinLevels: GirlState.getMaxSkinLevels(2)),
     ];
-    
+
     // 初始化音频播放器
     _audioPlayer = AudioPlayer();
-    
+
     _loadSpineInfo();
     _initializeSpineController();
     _initializeTakeoffController();
-    
+
     // 启动idle动画循环
     _startIdleAnimationCycle();
   }
@@ -148,7 +156,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       // _takeoffController!.dispose();
       _takeoffController = null;
     }
-    
+
     try {
       _takeoffController = SpineWidgetController(onInitialized: (controller) {
         try {
@@ -178,7 +186,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       // _spineController!.dispose();
       _spineController = null;
     }
-    
+
     try {
       _spineController = SpineWidgetController(onInitialized: (controller) {
         try {
@@ -190,13 +198,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
           if (animations != null && animations.isNotEmpty) {
             _availableAnimations = animations.map((a) => a.getName()).toList();
             print("Available animations: $_availableAnimations");
-            
+
             // 设置默认皮肤状态
             _setDefaultSkinForCurrentGirl(controller);
-            
+
             // 调试：列出所有可用皮肤
             _listAvailableSkins(controller);
-            
+
             if (mounted) {
               setState(() {
                 _isLoading = false;
@@ -207,7 +215,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
             // 播放当前女孩的idle动画
             if (_availableAnimations.isNotEmpty) {
               _playCurrentIdleAnimation();
-              
+
               // 重新启动动画循环
               _startIdleAnimationCycle();
             }
@@ -240,11 +248,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       }
     }
   }
-  
+
   // 根据当前女孩设置默认皮肤状态
   void _setDefaultSkinForCurrentGirl(SpineWidgetController controller) {
-    print("Setting default skin for current girl: ${_spineAssets[_currentIndex].name} (index: $_currentIndex, underwear mode: ${_currentIdleIndex == 4})");
-    
+    print(
+        "Setting default skin for current girl: ${_spineAssets[_currentIndex].name} (index: $_currentIndex, underwear mode: ${_currentIdleIndex == 4})");
+
     if (_currentIndex == 0 && _spineAssets[_currentIndex].name == "Girl 01") {
       if (_currentIdleIndex == 4) {
         // underwear模式，设置内衣皮肤
@@ -254,131 +263,130 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         _setGirl01DefaultSkin(controller);
       }
     } else if (_currentIndex == 1 && _spineAssets[_currentIndex].name == "Girl 02") {
-      _setGirl02DefaultSkin(controller);
+      if (_currentIdleIndex == 4) {
+        // underwear模式，设置内衣皮肤
+        _setGirl02UnderwearSkin(controller);
+      } else {
+        // 普通模式，设置默认皮肤
+        _setGirl02DefaultSkin(controller);
+      }
     } else if (_currentIndex == 2 && _spineAssets[_currentIndex].name == "Girl 03") {
-      _setGirl03DefaultSkin(controller);
+      if (_currentIdleIndex == 4) {
+        // underwear模式，设置内衣皮肤
+        _setGirl03UnderwearSkin(controller);
+      } else {
+        // 普通模式，设置默认皮肤
+        _setGirl03DefaultSkin(controller);
+      }
     } else {
       print("No default skin configuration for: ${_spineAssets[_currentIndex].name}");
     }
   }
-  
+
   // 设置Girl01的默认皮肤状态
   void _setGirl01DefaultSkin(SpineWidgetController controller) {
     try {
       final data = controller.skeletonData;
       final skeleton = controller.skeleton;
-      
+
       // 创建自定义皮肤
       final customSkin = Skin("girl01-default-skin");
-      
+
       // 添加默认皮肤状态
       final braSkin = data.findSkin("bra/bra_none");
       final handsSkin = data.findSkin("hands/hands_none");
       final pantsSkin = data.findSkin("pants/pants_none");
       final socksSkin = data.findSkin("socks/socks_none");
-      
+
       if (braSkin != null) {
         customSkin.addSkin(braSkin);
         print("Added bra/bra_none skin");
       } else {
         print("bra/bra_none skin not found");
       }
-      
+
       if (handsSkin != null) {
         customSkin.addSkin(handsSkin);
         print("Added hands/hands_none skin");
       } else {
         print("hands/hands_none skin not found");
       }
-      
+
       if (pantsSkin != null) {
         customSkin.addSkin(pantsSkin);
         print("Added pants/pants_none skin");
       } else {
         print("pants/pants_none skin not found");
       }
-      
+
       if (socksSkin != null) {
         customSkin.addSkin(socksSkin);
         print("Added socks/socks_none skin");
       } else {
         print("socks/socks_none skin not found");
       }
-      
+
       // 应用自定义皮肤
       skeleton.setSkin(customSkin);
       skeleton.setSlotsToSetupPose();
-      
+
       print("Girl01 default skin applied successfully");
     } catch (e) {
       print("Failed to set Girl01 default skin: $e");
     }
   }
-  
+
   // 设置Girl01的underwear皮肤状态
   void _setGirl01UnderwearSkin(SpineWidgetController controller) {
     try {
       final data = controller.skeletonData;
       final skeleton = controller.skeleton;
-      
+
       // 创建自定义内衣皮肤
       final customSkin = Skin("girl01-underwear-skin");
-      
-      // 尝试多种可能的皮肤名称
-      final possibleSkins = [
-        // 内衣相关
-        "bra/bra_underwear", "bra/bra_01", "bra/bra_02", "bra/bra_03", "bra/bra_04",
-        // 手部相关  
-        "hands/hands_underwear", "hands/hands_01", "hands/hands_02", "hands/hands_03", "hands/hands_04",
-        // 裤子相关
-        "pants/pants_underwear", "pants/pants_01", "pants/pants_02", "pants/pants_03", "pants/pants_04",
-        // 袜子/腿部相关
-        "socks/socks_underwear", "socks/socks_01", "socks/socks_02", "socks/socks_03", "socks/socks_04",
-        // 可能的身体部位
-        "body/body_underwear", "body/body_01", "body/body_02", "body/body_03", "body/body_04",
-        // 腿部
-        "leg/leg_underwear", "leg/leg_01", "leg/leg_02", "leg/leg_03", "leg/leg_04",
-        "legs/legs_underwear", "legs/legs_01", "legs/legs_02", "legs/legs_03", "legs/legs_04",
+
+      // 根据当前选择的皮肤索引应用皮肤
+      final skinNames = [
+        "bra/bra_${_currentSkinIndices[0]! + 1}",
+        "pants/pants_${_currentSkinIndices[1]! + 1}",
+        "hands/hands_${_currentSkinIndices[2]! + 1}",
+        "socks/socks_${_currentSkinIndices[3]! + 1}",
       ];
-      
-      print("=== Trying to find underwear skins ===");
-      for (String skinName in possibleSkins) {
+
+      print("=== Applying Girl01 underwear skins ===");
+      for (String skinName in skinNames) {
         final skin = data.findSkin(skinName);
         if (skin != null) {
           customSkin.addSkin(skin);
           print("✓ Added skin: $skinName");
+        } else {
+          print("✗ Skin not found: $skinName");
         }
       }
-      
-      // 如果上面没找到合适的，使用完整的皮肤（非none版本）
-      final fallbackSkins = [
-        "bra/bra_01", "hands/hands_01", "pants/pants_01", "socks/socks_01"
-      ];
-      
-      for (String skinName in fallbackSkins) {
-        final skin = data.findSkin(skinName);
-        if (skin != null) {
-          customSkin.addSkin(skin);
-          print("✓ Added fallback skin: $skinName");
-        }
-      }
-      
+
       // 应用自定义皮肤
       skeleton.setSkin(customSkin);
       skeleton.setSlotsToSetupPose();
-      
+
       print("Girl01 underwear skin applied successfully");
     } catch (e) {
       print("Failed to set Girl01 underwear skin: $e");
     }
   }
   
+  // 应用当前选择的皮肤
+  void _applyCurrentSkins() {
+    if (_spineController != null && _isControllerReady && _currentIdleIndex == 4) {
+      _setDefaultSkinForCurrentGirl(_spineController!);
+    }
+  }
+
   // 调试方法：列出所有可用的皮肤
   void _listAvailableSkins(SpineWidgetController controller) {
     try {
       final data = controller.skeletonData;
       final skins = data.getSkins();
-      
+
       print("=== Available Skins ===");
       for (var skin in skins) {
         print("Skin: ${skin.getName()}");
@@ -388,110 +396,186 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       print("Failed to list skins: $e");
     }
   }
-  
+
   // 设置Girl02的默认皮肤状态
   void _setGirl02DefaultSkin(SpineWidgetController controller) {
     try {
       final data = controller.skeletonData;
       final skeleton = controller.skeleton;
-      
+
       // 创建自定义皮肤
       final customSkin = Skin("girl02-default-skin");
-      
+
       // 添加默认皮肤状态
       final braSkin = data.findSkin("bra/bra_none");
       final handsSkin = data.findSkin("hands/hands_none");
       final headSkin = data.findSkin("head/head_none");
       final socksSkin = data.findSkin("socks/socks_none");
-      
+
       if (braSkin != null) {
         customSkin.addSkin(braSkin);
         print("Added bra/bra_none skin");
       } else {
         print("bra/bra_none skin not found");
       }
-      
+
       if (handsSkin != null) {
         customSkin.addSkin(handsSkin);
         print("Added hands/hands_none skin");
       } else {
         print("hands/hands_none skin not found");
       }
-      
+
       if (headSkin != null) {
         customSkin.addSkin(headSkin);
         print("Added head/head_none skin");
       } else {
         print("head/head_none skin not found");
       }
-      
+
       if (socksSkin != null) {
         customSkin.addSkin(socksSkin);
         print("Added socks/socks_none skin");
       } else {
         print("socks/socks_none skin not found");
       }
-      
+
       // 应用自定义皮肤
       skeleton.setSkin(customSkin);
       skeleton.setSlotsToSetupPose();
-      
+
       print("Girl02 default skin applied successfully");
     } catch (e) {
       print("Failed to set Girl02 default skin: $e");
     }
   }
-  
+
   // 设置Girl03的默认皮肤状态
   void _setGirl03DefaultSkin(SpineWidgetController controller) {
     try {
       final data = controller.skeletonData;
       final skeleton = controller.skeleton;
-      
+
       // 创建自定义皮肤
       final customSkin = Skin("girl03-default-skin");
-      
+
       // 添加默认皮肤状态
       final braSkin = data.findSkin("bra/bra_none");
       final headSkin = data.findSkin("head/head_none");
       final pantsSkin = data.findSkin("pants/pants_none");
       final socksSkin = data.findSkin("socks/socks_none");
-      
+
       if (braSkin != null) {
         customSkin.addSkin(braSkin);
         print("Added bra/bra_none skin");
       } else {
         print("bra/bra_none skin not found");
       }
-      
+
       if (headSkin != null) {
         customSkin.addSkin(headSkin);
         print("Added head/head_none skin");
       } else {
         print("head/head_none skin not found");
       }
-      
+
       if (pantsSkin != null) {
         customSkin.addSkin(pantsSkin);
         print("Added pants/pants_none skin");
       } else {
         print("pants/pants_none skin not found");
       }
-      
+
       if (socksSkin != null) {
         customSkin.addSkin(socksSkin);
         print("Added socks/socks_none skin");
       } else {
         print("socks/socks_none skin not found");
       }
-      
+
       // 应用自定义皮肤
       skeleton.setSkin(customSkin);
       skeleton.setSlotsToSetupPose();
-      
+
       print("Girl03 default skin applied successfully");
     } catch (e) {
       print("Failed to set Girl03 default skin: $e");
+    }
+  }
+  
+  // 设置Girl02的underwear皮肤状态
+  void _setGirl02UnderwearSkin(SpineWidgetController controller) {
+    try {
+      final data = controller.skeletonData;
+      final skeleton = controller.skeleton;
+
+      // 创建自定义内衣皮肤
+      final customSkin = Skin("girl02-underwear-skin");
+
+      // 根据当前选择的皮肤索引应用皮肤
+      final skinNames = [
+        "bra/bra_${_currentSkinIndices[0]! + 1}",
+        "hands/hands_${_currentSkinIndices[2]! + 1}",
+        "head/head_${_currentSkinIndices[2]! + 1}", // Girl02使用head而不是pants
+        "socks/socks_${_currentSkinIndices[3]! + 1}",
+      ];
+
+      print("=== Applying Girl02 underwear skins ===");
+      for (String skinName in skinNames) {
+        final skin = data.findSkin(skinName);
+        if (skin != null) {
+          customSkin.addSkin(skin);
+          print("✓ Added skin: $skinName");
+        } else {
+          print("✗ Skin not found: $skinName");
+        }
+      }
+
+      // 应用自定义皮肤
+      skeleton.setSkin(customSkin);
+      skeleton.setSlotsToSetupPose();
+
+      print("Girl02 underwear skin applied successfully");
+    } catch (e) {
+      print("Failed to set Girl02 underwear skin: $e");
+    }
+  }
+  
+  // 设置Girl03的underwear皮肤状态
+  void _setGirl03UnderwearSkin(SpineWidgetController controller) {
+    try {
+      final data = controller.skeletonData;
+      final skeleton = controller.skeleton;
+
+      // 创建自定义内衣皮肤
+      final customSkin = Skin("girl03-underwear-skin");
+
+      // 根据当前选择的皮肤索引应用皮肤
+      final skinNames = [
+        "bra/bra_${_currentSkinIndices[0]! + 1}",
+        "head/head_${_currentSkinIndices[2]! + 1}", // Girl03使用head而不是hands
+        "pants/pants_${_currentSkinIndices[1]! + 1}",
+        "socks/socks_${_currentSkinIndices[3]! + 1}",
+      ];
+
+      print("=== Applying Girl03 underwear skins ===");
+      for (String skinName in skinNames) {
+        final skin = data.findSkin(skinName);
+        if (skin != null) {
+          customSkin.addSkin(skin);
+          print("✓ Added skin: $skinName");
+        } else {
+          print("✗ Skin not found: $skinName");
+        }
+      }
+
+      // 应用自定义皮肤
+      skeleton.setSkin(customSkin);
+      skeleton.setSlotsToSetupPose();
+
+      print("Girl03 underwear skin applied successfully");
+    } catch (e) {
+      print("Failed to set Girl03 underwear skin: $e");
     }
   }
 
@@ -501,7 +585,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       setState(() {
         _isAnimating = true;
       });
-      
+
       // 皮肤只在控制器初始化时设置一次即可，不需要每次播放动画都重新设置
     }
   }
@@ -539,15 +623,15 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       _playAnimation(_availableAnimations[_currentAnimationIndex], true);
     }
   }
-  
+
   // 启动idle动画循环
   void _startIdleAnimationCycle() {
     _animationTimer?.cancel();
-    
+
     // 不需要定时器，Spine动画会自己循环播放
     // 只在初始化时播放一次即可
   }
-  
+
   // 播放当前iddle动画
   void _playCurrentIdleAnimation() {
     // 使用用户选择的动画索引
@@ -571,16 +655,17 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         animationName = 'idle_underwear';
       }
     }
-    
+
     if (_spineController != null && _isControllerReady) {
-      print("Playing current idle animation: $animationName (index: $_currentIdleIndex, special: ${_girlStates[0].isPlayingSpecial})");
-      
+      print(
+          "Playing current idle animation: $animationName (index: $_currentIdleIndex, special: ${_girlStates[0].isPlayingSpecial})");
+
       // 清除所有动画轨道，确保没有残留动画
       _spineController!.animationState.clearTracks();
-      
+
       // 播放新动画
       _spineController!.animationState.setAnimationByName(0, animationName, true);
-      
+
       // 根据当前模式设置正确的皮肤
       Future.delayed(Duration(milliseconds: 50), () {
         if (mounted && _spineController != null) {
@@ -589,24 +674,25 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       });
     }
   }
-  
+
   // 播放特殊动画
   void _playSpecialAnimation() async {
-    if (_currentIndex == 0) { // 仅Girl01支持特殊动画
+    if (_currentIndex == 0) {
+      // 仅Girl01支持特殊动画
       setState(() {
         _girlStates[0] = _girlStates[0].copyWith(isPlayingSpecial: true);
       });
-      
+
       // 播放音效
       try {
         await _audioPlayer.play(AssetSource(AudioAssets.getSpecialAudio(0)));
       } catch (e) {
         print("Audio playback failed: $e");
       }
-      
+
       // 播放特殊动画
       _playCurrentIdleAnimation();
-      
+
       // 3秒后恢复到用户当前选择的idle动画
       Future.delayed(Duration(seconds: 3), () {
         if (mounted) {
@@ -620,30 +706,29 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     }
   }
 
-
   @override
   void dispose() {
     // 恢复系统UI显示
     // SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pageController.dispose();
-    
+
     // 停止动画计时器
     _animationTimer?.cancel();
-    
+
     // 销毁音频播放器
     _audioPlayer.dispose();
-    
+
     // 正确销毁Spine控制器
     if (_spineController != null) {
       // _spineController!.dispose();
       _spineController = null;
     }
-    
+
     if (_takeoffController != null) {
       // _takeoffController!.dispose();
       _takeoffController = null;
     }
-    
+
     super.dispose();
   }
 
@@ -669,11 +754,11 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     final lines = content.split('\n');
     final info = <String, dynamic>{};
     final regions = <Map<String, dynamic>>[];
-    
+
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i].trim();
       if (line.isEmpty) continue;
-      
+
       if (line.endsWith('.png')) {
         info['texture'] = line;
       } else if (line.startsWith('size:')) {
@@ -687,10 +772,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         regions.add(region);
       }
     }
-    
+
     info['regions'] = regions;
     info['regionCount'] = regions.length;
-    
+
     return info;
   }
 
@@ -705,120 +790,129 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         height: MediaQuery.of(context).size.height,
         color: Colors.transparent,
         child: Stack(
-        children: [
-          // Spine动画预览区域 - 全屏显示，禁用左右滑动
-          PageView.builder(
-            controller: _pageController,
-            physics: NeverScrollableScrollPhysics(), // 禁用滚动
-            onPageChanged: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-              _loadSpineAsset(index);
-              
-              // 重新启动动画循环
-              _startIdleAnimationCycle();
-            },
-            itemCount: _spineAssets.length,
-            itemBuilder: (context, index) {
-              return _buildSpineWidgetForIndex(index);
-            },
-          ),
-          
-          // Takeoff 手势覆盖动画
-          // 只在非underwear模式下显示，确保不会遮挡underwear动画
-          if (_currentIdleIndex != 4 && _isTakeoffReady)
-            Center(
-              child: SizedBox(
-                height: 200,
-                child: SpineWidget.fromAsset(
-                  "assets/spine/Takeoff.atlas",
-                  "assets/spine/Takeoff.skel",
-                  _takeoffController!,
-                  boundsProvider: SetupPoseBounds(),
+          children: [
+            // Spine动画预览区域 - 全屏显示，禁用左右滑动
+            PageView.builder(
+              controller: _pageController,
+              physics: NeverScrollableScrollPhysics(),
+              // 禁用滚动
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+                _loadSpineAsset(index);
+
+                // 重新启动动画循环
+                _startIdleAnimationCycle();
+              },
+              itemCount: _spineAssets.length,
+              itemBuilder: (context, index) {
+                return _buildSpineWidgetForIndex(index);
+              },
+            ),
+
+            // Takeoff 手势覆盖动画
+            // 只在非underwear模式下显示，确保不会遮挡underwear动画
+            if (_currentIdleIndex != 4)
+              Center(
+                child: SizedBox(
+                  height: 200,
+                  child: SpineWidget.fromAsset(
+                    "assets/spine/Takeoff.atlas",
+                    "assets/spine/Takeoff.skel",
+                    _takeoffController!,
+                    boundsProvider: SetupPoseBounds(),
+                  ),
                 ),
               ),
-            ),
-          
-          // 顶部控制区域浮动
-          Positioned(
-            top: MediaQuery.of(context).padding.top, // 避开状态栏
-            left: 0,
-            right: 0,
-            child: Container(
-              child: Stack(
-                children: [
-                  Positioned(
-                    bottom: 0,
-                    left: 0, // 确保从左边开始
-                    right: 0, // 确保宽度扩展到父容器右边
-                    height: 40,
-                    child: Image.asset(
-                      Assets.imagesFrameHeartUp,
-                      fit: BoxFit.fitWidth,
-                      repeat: ImageRepeat.repeat,
+
+            // 顶部控制区域浮动
+            Positioned(
+              top: MediaQuery.of(context).padding.top, // 避开状态栏
+              left: 0,
+              right: 0,
+              child: Container(
+                child: Stack(
+                  children: [
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      // 确保从左边开始
+                      right: 0,
+                      // 确保宽度扩展到父容器右边
+                      height: 40,
+                      child: Image.asset(
+                        Assets.imagesFrameHeartUp,
+                        fit: BoxFit.fitWidth,
+                        repeat: ImageRepeat.repeat,
+                      ),
                     ),
-                  ),
-                  Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            //imag
-                            Stack(
-                              children: [
-                                // score
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 20,top: 10),
-                                  child: Container(
-                                    padding: EdgeInsets.only(right: 30),
+                    Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              //imag
+                              Stack(
+                                children: [
+                                  // score
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 20, top: 10),
+                                    child: Container(
+                                      padding: EdgeInsets.only(right: 30),
                                       decoration: BoxDecoration(
                                         color: HexColor("#FFF5E5"),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Padding(
                                         padding: const EdgeInsets.only(left: 50),
-                                        child: Text('10', style: TextStyle(color:HexColor("#95756A"),fontWeight: FontWeight.bold,)),
+                                        child: Text('10',
+                                            style: TextStyle(
+                                              color: HexColor("#95756A"),
+                                              fontWeight: FontWeight.bold,
+                                            )),
                                       ),
+                                    ),
                                   ),
-                                ),
-                                Image.asset(Assets.imagesIconHeart2x,height: 50),
-                              ],
-                            ),
-
-                            Image.asset(Assets.imagesBtnHeartBack,height: 50),
-                          ],
-                        ),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: List.generate(4, (index) {
-                          return Container(
-                            width: 80,
-                            height: 80,
-                            child: ClipOval(
-                              child: Image.asset(
-                                index < 3
-                                    ? _spineAssets[index].imagePath
-                                    : 'assets/grils/Icon_girl_04_head_unlock.png',
-                                fit: BoxFit.cover,
+                                  Image.asset(Assets.imagesIconHeart2x, height: 50),
+                                ],
                               ),
-                            ),
-                          );
-                        }),
-                      ),
-                      SizedBox(height: 10,),
-                    ],
-                  ),
-                ],
+
+                              Image.asset(Assets.imagesBtnHeartBack, height: 50),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: List.generate(4, (index) {
+                            return Container(
+                              width: 80,
+                              height: 80,
+                              child: ClipOval(
+                                child: Image.asset(
+                                  index < 3
+                                      ? _spineAssets[index].imagePath
+                                      : 'assets/grils/Icon_girl_04_head_unlock.png',
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        SizedBox(
+                          height: 10,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          if (_currentIdleIndex != 4)
-            Positioned(
-              left: 0,
+            if (_currentIdleIndex != 4)
+              Positioned(
+                left: 0,
                 right: 0,
                 bottom: 100,
                 child: Column(
@@ -932,23 +1026,40 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                     ),
                     SizedBox(height: 10), // 间距
                     // 脱衣按钮 - 只在非underwear状态显示
-                  
+
                     GestureDetector(
                       onTap: _nextIdleAnimation,
                       child: Image.asset(Assets.imagesBtnTakeoff, height: 80),
                     ),
                   ],
                 ),
-            ),
-          
-          // 心形不足弹窗
-          if (_showHeartDialog)
-            _buildHeartDialog(),
-            
-          // Underwear状态下的四周按钮
-          if (_currentIdleIndex == 4)
-            _buildUnderwearButtons(),
-        ],
+              ),
+                         if (_currentIdleIndex == 4)
+               Positioned(
+                 left: 0,
+                 right: 0,
+                 bottom: 20,
+                 child: Container(
+                   height: 150,
+                   alignment: Alignment.center,
+                   decoration: BoxDecoration(
+                     image: DecorationImage(
+                       image: AssetImage('assets/images/Frame_heart_bottom.png'),
+                       fit: BoxFit.cover,
+                     ),
+                   ),
+                   child: Padding(
+                     padding: const EdgeInsets.only(top: 20, bottom: 30),
+                     child: _buildSkinSelectionList(),
+                   ),
+                 ),
+               ),
+            // 心形不足弹窗
+            if (_showHeartDialog) _buildHeartDialog(),
+
+            // Underwear状态下的四周按钮
+            if (_currentIdleIndex == 4) _buildUnderwearButtons(),
+          ],
         ),
       ),
     );
@@ -957,7 +1068,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   Widget _buildSpineWidget() {
     if (_spineController == null) {
       return const Center(
-        child: Column( 
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(),
@@ -1040,15 +1151,15 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       _currentAnimationIndex = 0;
       // 注意：不重置_currentIdleIndex，保持用户选择的动画状态
     });
-    
+
     // 停止之前的动画循环
     _animationTimer?.cancel();
-    
+
     // 重新初始化Spine控制器
     _initializeSpineController();
     _loadSpineInfo();
   }
-  
+
   // 处理脱衣按钮点击
   void _handleTakeoffClick() {
     if (_heartCount < 10) {
@@ -1062,14 +1173,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       // 这里可以添加脱衣动画或其他逻辑
     }
   }
-  
+
   // 关闭弹窗
   void _closeHeartDialog() {
     setState(() {
       _showHeartDialog = false;
     });
   }
-  
+
   // 录制视频获得心形
   void _recordVideoForHearts() {
     // 这里可以添加录制视频的逻辑
@@ -1079,7 +1190,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       _showHeartDialog = false;
     });
   }
-  
+
   // 切换到指定女孩
   void _switchToGirl(int index) {
     if (index != _currentIndex) {
@@ -1090,24 +1201,25 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       );
     }
   }
-  
+
   // 处理手势点击 - 触发特殊动画
   void _handleGirlTap() {
-    if (_currentIndex == 0) { // 仅Girl01支持点击事件
+    if (_currentIndex == 0) {
+      // 仅Girl01支持点击事件
       _playSpecialAnimation();
     }
   }
-  
+
   // 切换到下一个idle动画
   void _nextIdleAnimation() {
     setState(() {
       _currentIdleIndex = (_currentIdleIndex + 1) % 5; // 循环切换 0-4 (0-3是idle_01-04, 4是idle_underwear)
     });
-    
+
     // 播放对应的idle动画
     _playCurrentIdleAnimation();
   }
-  
+
   // 为指定索引构建Spine Widget
   Widget _buildSpineWidgetForIndex(int index) {
     if (_spineController == null) {
@@ -1177,7 +1289,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       );
     }
   }
-  
+
   // 构建Underwear状态下的四周按钮
   Widget _buildUnderwearButtons() {
     return Stack(
@@ -1189,14 +1301,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(0),
             child: Image.asset(
-              _selectedUnderwearButton == 0 
-                ? 'assets/images/Btn_bra_selected.png'
-                : 'assets/images/Btn_bra_normal.png',
+              _selectedUnderwearButton == 0 ? 'assets/images/Btn_bra_selected.png' : 'assets/images/Btn_bra_normal.png',
               height: 80,
             ),
           ),
         ),
-        
+
         // 左侧按钮 - 内裤
         Positioned(
           left: 20,
@@ -1204,29 +1314,29 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(1),
             child: Image.asset(
-              _selectedUnderwearButton == 1 
-                ? 'assets/images/Btn_pants_selected.png'
-                : 'assets/images/Btn_pants_normal.png',
+              _selectedUnderwearButton == 1
+                  ? 'assets/images/Btn_pants_selected.png'
+                  : 'assets/images/Btn_pants_normal.png',
               height: 80,
             ),
           ),
         ),
-        
-        // 右侧按钮 - 手
+
+        // 右侧按钮 - 根据女孩类型显示不同按钮
         Positioned(
           right: 20,
           top: MediaQuery.of(context).size.height * 0.4,
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(2),
             child: Image.asset(
-              _selectedUnderwearButton == 2 
-                ? 'assets/images/Btn_hand_selected.png'
-                : 'assets/images/Btn_hand_normal.png',
+              _selectedUnderwearButton == 2
+                  ? (_currentIndex == 0 ? 'assets/images/Btn_hand_selected.png' : 'assets/images/Btn_head_selected.png')
+                  : (_currentIndex == 0 ? 'assets/images/Btn_hand_normal.png' : 'assets/images/Btn_head_normal.png'),
               height: 80,
             ),
           ),
         ),
-        
+
         // 右侧按钮 - 腿
         Positioned(
           right: 20,
@@ -1234,9 +1344,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(3),
             child: Image.asset(
-              _selectedUnderwearButton == 3 
-                ? 'assets/images/Btn_socks_selected.png'
-                : 'assets/images/Btn_socks_normal.png',
+              _selectedUnderwearButton == 3
+                  ? 'assets/images/Btn_socks_selected.png'
+                  : 'assets/images/Btn_socks_normal.png',
               height: 80,
             ),
           ),
@@ -1244,8 +1354,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       ],
     );
   }
-  
-  // 处理underwear按钮点击
+
+    // 处理underwear按钮点击
   void _onUnderwearButtonTap(int buttonIndex) {
     setState(() {
       if (_selectedUnderwearButton == buttonIndex) {
@@ -1261,6 +1371,111 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     print("Underwear button $buttonIndex tapped, selected: $_selectedUnderwearButton");
   }
   
+  // 构建皮肤选择列表
+  Widget _buildSkinSelectionList() {
+    if (_selectedUnderwearButton == -1) {
+      // 没有选中按钮时，显示所有部位的当前皮肤
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(4, (index) {
+          return _buildSkinButton(index, _currentSkinIndices[index] ?? 0);
+        }),
+      );
+    } else {
+      // 选中某个按钮时，显示该部位的所有皮肤选项
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(4, (skinIndex) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: _buildSkinButton(_selectedUnderwearButton, skinIndex),
+            );
+          }),
+        ),
+      );
+    }
+  }
+  
+  // 构建单个皮肤按钮
+  Widget _buildSkinButton(int buttonType, int skinIndex) {
+    String imagePath = _getSkinButtonImagePath(buttonType, skinIndex);
+    
+    return GestureDetector(
+      onTap: () => _onSkinButtonTap(buttonType, skinIndex),
+      child: Image.asset(
+        imagePath,
+        height: 80,
+        width: 80,
+      ),
+    );
+  }
+  
+  // 获取皮肤按钮图片路径
+  String _getSkinButtonImagePath(int buttonType, int skinIndex) {
+    String girlPrefix = "Btn_gril01"; // 默认Girl01 (注意：实际文件名是gril01，不是girl01)
+    if (_currentIndex == 1) girlPrefix = "Btn_gril02";
+    if (_currentIndex == 2) girlPrefix = "Btn_gril03";
+    
+    String partName = _getPartName(buttonType);
+    String skinNumber = (skinIndex + 1).toString();
+    
+    // 判断是否解锁（这里可以根据实际逻辑调整）
+    bool isUnlocked = skinIndex == 0; // 默认1号皮肤解锁
+    
+    String lockStatus = isUnlocked ? "unlock" : "lock";
+    
+    return "assets/images/Girl01_chage_Btn_All/${girlPrefix}_${partName}_${skinNumber}_${lockStatus}.png";
+  }
+  
+  // 获取部位名称
+  String _getPartName(int buttonType) {
+    if (_currentIndex == 0) {
+      // Girl01: bra, pants, hands, socks
+      switch (buttonType) {
+        case 0: return "bra";
+        case 1: return "pants";
+        case 2: return "hands";
+        case 3: return "socks";
+        default: return "bra";
+      }
+    } else if (_currentIndex == 1) {
+      // Girl02: bra, pants, head, socks
+      switch (buttonType) {
+        case 0: return "bra";
+        case 1: return "pants";
+        case 2: return "head";
+        case 3: return "socks";
+        default: return "bra";
+      }
+    } else if (_currentIndex == 2) {
+      // Girl03: bra, pants, head, socks
+      switch (buttonType) {
+        case 0: return "bra";
+        case 1: return "pants";
+        case 2: return "head";
+        case 3: return "socks";
+        default: return "bra";
+      }
+    }
+    return "bra";
+  }
+  
+  // 处理皮肤按钮点击
+  void _onSkinButtonTap(int buttonType, int skinIndex) {
+    setState(() {
+      _currentSkinIndices[buttonType] = skinIndex;
+    });
+    
+    // 应用新的皮肤
+    _applyCurrentSkins();
+    
+    print("Skin button tapped: type=$buttonType, skin=$skinIndex");
+  }
+
   // 构建心形不足弹窗
   Widget _buildHeartDialog() {
     return Container(
@@ -1286,7 +1501,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                   fit: BoxFit.cover,
                 ),
               ),
-              
+
               // 内容
               Column(
                 children: [
@@ -1312,7 +1527,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                       ),
                     ),
                   ),
-                  
+
                   // 中间内容区域
                   Expanded(
                     child: Padding(
@@ -1343,9 +1558,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                               ],
                             ),
                           ),
-                          
+
                           SizedBox(height: 30),
-                          
+
                           // 录制视频按钮
                           GestureDetector(
                             onTap: _recordVideoForHearts,
@@ -1400,7 +1615,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                   ),
                 ],
               ),
-              
+
               // 关闭按钮
               Positioned(
                 top: 10,

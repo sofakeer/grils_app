@@ -70,6 +70,9 @@ flutter:
     - assets/spine/
     - assets/grils/
     - assets/images/
+    - assets/images/Girl01_chage_Btn_All/
+    - assets/images/Girl02_chage_Btn_All/
+    - assets/images/Girl03_chage_Btn_All/
     - assets/audio/
 
   # An image asset can refer to one or more resolution-specific "variants", see
