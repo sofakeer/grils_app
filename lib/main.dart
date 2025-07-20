@@ -3,10 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:spine_flutter/spine_flutter.dart';
-import 'spine_animation_widget.dart'; // 导入 SpineAnimationWidget
-import 'girl01_page.dart'; // 导入 Girl01Page
-import 'simple_spine_test.dart'; // 导入 SimpleSpineTest
-import 'spine_gallery_page.dart'; // 导入 SpineGalleryPage
+import 'package:audioplayers/audioplayers.dart';
+import 'dart:async';
+import 'models/girl_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,6 +70,21 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   // 页面切换动画控制器
   late PageController _pageController;
   
+  // 女孩状态管理
+  late List<GirlState> _girlStates;
+  
+  // 音频播放器
+  late AudioPlayer _audioPlayer;
+  
+  // 动画计时器
+  Timer? _animationTimer;
+  
+  // 当前idle动画索引
+  int _currentIdleIndex = 0;
+  
+  // 当前选中的underwear按钮索引 (-1表示未选中)
+  int _selectedUnderwearButton = -1;
+  
   // 定义所有spine文件的信息
   final List<SpineAsset> _spineAssets = [
     SpineAsset(
@@ -110,9 +124,22 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     // 初始化页面控制器
     _pageController = PageController(initialPage: _currentIndex);
     
+    // 初始化女孩状态
+    _girlStates = [
+      GirlState(girlIndex: 0, maxSkinLevels: GirlState.getMaxSkinLevels(0)),
+      GirlState(girlIndex: 1, maxSkinLevels: GirlState.getMaxSkinLevels(1)),
+      GirlState(girlIndex: 2, maxSkinLevels: GirlState.getMaxSkinLevels(2)),
+    ];
+    
+    // 初始化音频播放器
+    _audioPlayer = AudioPlayer();
+    
     _loadSpineInfo();
     _initializeSpineController();
     _initializeTakeoffController();
+    
+    // 启动idle动画循环
+    _startIdleAnimationCycle();
   }
 
   void _initializeTakeoffController() {
@@ -174,15 +201,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
               });
             }
 
-            // 播放第一个动画
+            // 播放当前女孩的idle动画
             if (_availableAnimations.isNotEmpty) {
-              _playAnimation(_availableAnimations.first, true);
-              // 播放动画后再次确保皮肤设置正确
-              Future.delayed(Duration(milliseconds: 100), () {
-                if (mounted && _spineController != null) {
-                  _setDefaultSkinForCurrentGirl(_spineController!);
-                }
-              });
+              _playCurrentIdleAnimation();
+              
+              // 重新启动动画循环
+              _startIdleAnimationCycle();
             }
           } else {
             print("No animations found in spine file");
@@ -437,6 +461,74 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       _playAnimation(_availableAnimations[_currentAnimationIndex], true);
     }
   }
+  
+  // 启动idle动画循环
+  void _startIdleAnimationCycle() {
+    _animationTimer?.cancel();
+    
+    // 仅对Girl01在普通模式下启动循环
+    if (_currentIndex == 0 && _girlStates[0].mode == GirlMode.normal) {
+      _animationTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+        if (mounted && _isControllerReady && !_girlStates[0].isPlayingSpecial) {
+          _playCurrentIdleAnimation();
+        }
+      });
+    }
+  }
+  
+  // 播放当前iddle动画
+  void _playCurrentIdleAnimation() {
+    // 使用用户选择的动画索引
+    String animationName;
+    if (_currentIdleIndex < 4) {
+      // 0-3: idle_01 到 idle_04
+      animationName = 'idle_0${_currentIdleIndex + 1}';
+    } else {
+      // 4: idle_underwear
+      animationName = 'idle_underwear';
+    }
+    
+    if (_spineController != null && _isControllerReady) {
+      print("Playing current idle animation: $animationName");
+      _spineController!.animationState.setAnimationByName(0, animationName, true);
+      
+      // 确保皮肤设置正确
+      Future.delayed(Duration(milliseconds: 50), () {
+        if (mounted && _spineController != null) {
+          _setDefaultSkinForCurrentGirl(_spineController!);
+        }
+      });
+    }
+  }
+  
+  // 播放特殊动画
+  void _playSpecialAnimation() async {
+    if (_currentIndex == 0) { // 仅Girl01支持特殊动画
+      setState(() {
+        _girlStates[0] = _girlStates[0].copyWith(isPlayingSpecial: true);
+      });
+      
+      // 播放音效
+      try {
+        await _audioPlayer.play(AssetSource(AudioAssets.getSpecialAudio(0)));
+      } catch (e) {
+        print("Audio playback failed: $e");
+      }
+      
+      // 播放特殊动画
+      _playCurrentIdleAnimation();
+      
+      // 3秒后恢复普通动画
+      Future.delayed(Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() {
+            _girlStates[0] = _girlStates[0].copyWith(isPlayingSpecial: false);
+          });
+          _playCurrentIdleAnimation();
+        }
+      });
+    }
+  }
 
 
   @override
@@ -444,6 +536,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     // 恢复系统UI显示
     // SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pageController.dispose();
+    
+    // 停止动画计时器
+    _animationTimer?.cancel();
+    
+    // 销毁音频播放器
+    _audioPlayer.dispose();
     
     // 正确销毁Spine控制器
     if (_spineController != null) {
@@ -518,14 +616,18 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         color: Colors.transparent,
         child: Stack(
         children: [
-          // Spine动画预览区域 - 全屏显示，支持左右滑动
+          // Spine动画预览区域 - 全屏显示，禁用左右滑动
           PageView.builder(
             controller: _pageController,
+            physics: NeverScrollableScrollPhysics(), // 禁用滚动
             onPageChanged: (index) {
               setState(() {
                 _currentIndex = index;
               });
               _loadSpineAsset(index);
+              
+              // 重新启动动画循环
+              _startIdleAnimationCycle();
             },
             itemCount: _spineAssets.length,
             itemBuilder: (context, index) {
@@ -535,17 +637,18 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
           
           // Takeoff 手势覆盖动画
           // if (_showTakeoffOverlay && _isTakeoffReady)
-          Center(
-            child: SizedBox(
-              height: 200,
-              child: SpineWidget.fromAsset(
-                "assets/spine/Takeoff.atlas",
-                "assets/spine/Takeoff.skel",
-                _takeoffController!,
-                boundsProvider: SetupPoseBounds(),
+          if (_currentIdleIndex != 4)
+            Center(
+              child: SizedBox(
+                height: 200,
+                child: SpineWidget.fromAsset(
+                  "assets/spine/Takeoff.atlas",
+                  "assets/spine/Takeoff.skel",
+                  _takeoffController!,
+                  boundsProvider: SetupPoseBounds(),
+                ),
               ),
             ),
-          ),
           
           // 顶部控制区域浮动
           Positioned(
@@ -601,17 +704,16 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: List.generate(_spineAssets.length, (index) {
-                          return GestureDetector(
-                            onTap: () => _switchToGirl(index),
-                            child: Container(
-                              width: 80,
-                              height: 80,
-                              child: ClipOval(
-                                child: Image.asset(
-                                  _spineAssets[index].imagePath,
-                                  fit: BoxFit.cover,
-                                ),
+                        children: List.generate(4, (index) {
+                          return Container(
+                            width: 80,
+                            height: 80,
+                            child: ClipOval(
+                              child: Image.asset(
+                                index < 3
+                                    ? _spineAssets[index].imagePath
+                                    : 'assets/grils/Icon_girl_04_head_unlock.png',
+                                fit: BoxFit.cover,
                               ),
                             ),
                           );
@@ -624,132 +726,138 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
               ),
             ),
           ),
-
-          Positioned(
-            left: 0,
-              right: 0,
-              bottom: 100,
-              child: Column(
-                children: [
-                  // 爱心图标和数量显示
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset(Assets.imagesIconHeart2x, height: 50),
-                      SizedBox(width: 8), // 间距
-                      // x 字符 - 发光字效果
-                      Center(
-                        child: Text(
-                          'x',
-                          style: TextStyle(
-                            fontSize: 48,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            shadows: [
-                              // 外层红色发光 - 更粗
-                              Shadow(
-                                color: Colors.red,
-                                offset: Offset(0, 0),
-                                blurRadius: 15,
-                              ),
-                              // 中层红色发光
-                              Shadow(
-                                color: Colors.red.withOpacity(0.8),
-                                offset: Offset(0, 0),
-                                blurRadius: 10,
-                              ),
-                              // 内层橙色发光 - 更粗
-                              Shadow(
-                                color: Colors.orange,
-                                offset: Offset(0, 0),
-                                blurRadius: 8,
-                              ),
-                              // 中层橙色发光
-                              Shadow(
-                                color: Colors.orange.withOpacity(0.8),
-                                offset: Offset(0, 0),
-                                blurRadius: 5,
-                              ),
-                              // 白色核心发光 - 更粗
-                              Shadow(
-                                color: Colors.white.withOpacity(0.9),
-                                offset: Offset(0, 0),
-                                blurRadius: 4,
-                              ),
-                              // 白色内发光
-                              Shadow(
-                                color: Colors.white.withOpacity(0.6),
-                                offset: Offset(0, 0),
-                                blurRadius: 2,
-                              ),
-                            ],
+          if (_currentIdleIndex != 4)
+            Positioned(
+              left: 0,
+                right: 0,
+                bottom: 100,
+                child: Column(
+                  children: [
+                    // 爱心图标和数量显示
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(Assets.imagesIconHeart2x, height: 50),
+                        SizedBox(width: 8), // 间距
+                        // x 字符 - 发光字效果
+                        Center(
+                          child: Text(
+                            'x',
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              shadows: [
+                                // 外层红色发光 - 更粗
+                                Shadow(
+                                  color: Colors.red,
+                                  offset: Offset(0, 0),
+                                  blurRadius: 15,
+                                ),
+                                // 中层红色发光
+                                Shadow(
+                                  color: Colors.red.withOpacity(0.8),
+                                  offset: Offset(0, 0),
+                                  blurRadius: 10,
+                                ),
+                                // 内层橙色发光 - 更粗
+                                Shadow(
+                                  color: Colors.orange,
+                                  offset: Offset(0, 0),
+                                  blurRadius: 8,
+                                ),
+                                // 中层橙色发光
+                                Shadow(
+                                  color: Colors.orange.withOpacity(0.8),
+                                  offset: Offset(0, 0),
+                                  blurRadius: 5,
+                                ),
+                                // 白色核心发光 - 更粗
+                                Shadow(
+                                  color: Colors.white.withOpacity(0.9),
+                                  offset: Offset(0, 0),
+                                  blurRadius: 4,
+                                ),
+                                // 白色内发光
+                                Shadow(
+                                  color: Colors.white.withOpacity(0.6),
+                                  offset: Offset(0, 0),
+                                  blurRadius: 2,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      SizedBox(width: 4), // 小间距
-                      // 数字 - 发光字效果
-                      Center(
-                        child: Text(
-                          '$_heartCount',
-                          style: TextStyle(
-                            fontSize: 48,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            shadows: [
-                              // 外层红色发光 - 更粗
-                              Shadow(
-                                color: Colors.red,
-                                offset: Offset(0, 0),
-                                blurRadius: 15,
-                              ),
-                              // 中层红色发光
-                              Shadow(
-                                color: Colors.red.withOpacity(0.8),
-                                offset: Offset(0, 0),
-                                blurRadius: 10,
-                              ),
-                              // 内层橙色发光 - 更粗
-                              Shadow(
-                                color: Colors.orange,
-                                offset: Offset(0, 0),
-                                blurRadius: 8,
-                              ),
-                              // 中层橙色发光
-                              Shadow(
-                                color: Colors.orange.withOpacity(0.8),
-                                offset: Offset(0, 0),
-                                blurRadius: 5,
-                              ),
-                              // 白色核心发光 - 更粗
-                              Shadow(
-                                color: Colors.white.withOpacity(0.9),
-                                offset: Offset(0, 0),
-                                blurRadius: 4,
-                              ),
-                              // 白色内发光
-                              Shadow(
-                                color: Colors.white.withOpacity(0.6),
-                                offset: Offset(0, 0),
-                                blurRadius: 2,
-                              ),
-                            ],
+                        SizedBox(width: 4), // 小间距
+                        // 数字 - 发光字效果
+                        Center(
+                          child: Text(
+                            '$_heartCount',
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              shadows: [
+                                // 外层红色发光 - 更粗
+                                Shadow(
+                                  color: Colors.red,
+                                  offset: Offset(0, 0),
+                                  blurRadius: 15,
+                                ),
+                                // 中层红色发光
+                                Shadow(
+                                  color: Colors.red.withOpacity(0.8),
+                                  offset: Offset(0, 0),
+                                  blurRadius: 10,
+                                ),
+                                // 内层橙色发光 - 更粗
+                                Shadow(
+                                  color: Colors.orange,
+                                  offset: Offset(0, 0),
+                                  blurRadius: 8,
+                                ),
+                                // 中层橙色发光
+                                Shadow(
+                                  color: Colors.orange.withOpacity(0.8),
+                                  offset: Offset(0, 0),
+                                  blurRadius: 5,
+                                ),
+                                // 白色核心发光 - 更粗
+                                Shadow(
+                                  color: Colors.white.withOpacity(0.9),
+                                  offset: Offset(0, 0),
+                                  blurRadius: 4,
+                                ),
+                                // 白色内发光
+                                Shadow(
+                                  color: Colors.white.withOpacity(0.6),
+                                  offset: Offset(0, 0),
+                                  blurRadius: 2,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 10), // 间距
-                  GestureDetector(
-                    //onTap: _handleTakeoffClick,
-                    child: Image.asset(Assets.imagesBtnTakeoff, height: 80),
-                  ),
-                ],
-              ),
-          ),
+                      ],
+                    ),
+                    SizedBox(height: 10), // 间距
+                    // 脱衣按钮 - 只在非underwear状态显示
+                  
+                    GestureDetector(
+                      onTap: _nextIdleAnimation,
+                      child: Image.asset(Assets.imagesBtnTakeoff, height: 80),
+                    ),
+                  ],
+                ),
+            ),
           
           // 心形不足弹窗
           if (_showHeartDialog)
             _buildHeartDialog(),
+            
+          // Underwear状态下的四周按钮
+          if (_currentIdleIndex == 4)
+            _buildUnderwearButtons(),
         ],
         ),
       ),
@@ -842,6 +950,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       _currentAnimationIndex = 0;
     });
     
+    // 停止之前的动画循环
+    _animationTimer?.cancel();
+    
     // 重新初始化Spine控制器
     _initializeSpineController();
     _loadSpineInfo();
@@ -889,6 +1000,23 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     }
   }
   
+  // 处理手势点击 - 触发特殊动画
+  void _handleGirlTap() {
+    if (_currentIndex == 0) { // 仅Girl01支持点击事件
+      _playSpecialAnimation();
+    }
+  }
+  
+  // 切换到下一个idle动画
+  void _nextIdleAnimation() {
+    setState(() {
+      _currentIdleIndex = (_currentIdleIndex + 1) % 5; // 循环切换 0-4 (0-3是idle_01-04, 4是idle_underwear)
+    });
+    
+    // 播放对应的idle动画
+    _playCurrentIdleAnimation();
+  }
+  
   // 为指定索引构建Spine Widget
   Widget _buildSpineWidgetForIndex(int index) {
     if (_spineController == null) {
@@ -908,11 +1036,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       return Container(
         width: double.infinity,
         height: double.infinity,
-        child: SpineWidget.fromAsset(
-          _spineAssets[index].atlasFile,
-          _spineAssets[index].skeletonFile,
-          _spineController!,
-          boundsProvider: SetupPoseBounds(),
+        child: GestureDetector(
+          onTap: _handleGirlTap,
+          child: SpineWidget.fromAsset(
+            _spineAssets[index].atlasFile,
+            _spineAssets[index].skeletonFile,
+            _spineController!,
+            boundsProvider: SetupPoseBounds(),
+          ),
         ),
       );
     } catch (e) {
@@ -954,6 +1085,89 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         ),
       );
     }
+  }
+  
+  // 构建Underwear状态下的四周按钮
+  Widget _buildUnderwearButtons() {
+    return Stack(
+      children: [
+        // 左侧按钮 - 内衣
+        Positioned(
+          left: 20,
+          top: MediaQuery.of(context).size.height * 0.4,
+          child: GestureDetector(
+            onTap: () => _onUnderwearButtonTap(0),
+            child: Image.asset(
+              _selectedUnderwearButton == 0 
+                ? 'assets/images/Btn_bra_selected.png'
+                : 'assets/images/Btn_bra_normal.png',
+              height: 80,
+            ),
+          ),
+        ),
+        
+        // 左侧按钮 - 内裤
+        Positioned(
+          left: 20,
+          top: MediaQuery.of(context).size.height * 0.6,
+          child: GestureDetector(
+            onTap: () => _onUnderwearButtonTap(1),
+            child: Image.asset(
+              _selectedUnderwearButton == 1 
+                ? 'assets/images/Btn_pants_selected.png'
+                : 'assets/images/Btn_pants_normal.png',
+              height: 80,
+            ),
+          ),
+        ),
+        
+        // 右侧按钮 - 手
+        Positioned(
+          right: 20,
+          top: MediaQuery.of(context).size.height * 0.4,
+          child: GestureDetector(
+            onTap: () => _onUnderwearButtonTap(2),
+            child: Image.asset(
+              _selectedUnderwearButton == 2 
+                ? 'assets/images/Btn_hand_selected.png'
+                : 'assets/images/Btn_hand_normal.png',
+              height: 80,
+            ),
+          ),
+        ),
+        
+        // 右侧按钮 - 腿
+        Positioned(
+          right: 20,
+          top: MediaQuery.of(context).size.height * 0.6,
+          child: GestureDetector(
+            onTap: () => _onUnderwearButtonTap(3),
+            child: Image.asset(
+              _selectedUnderwearButton == 3 
+                ? 'assets/images/Btn_socks_selected.png'
+                : 'assets/images/Btn_socks_normal.png',
+              height: 80,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // 处理underwear按钮点击
+  void _onUnderwearButtonTap(int buttonIndex) {
+    setState(() {
+      if (_selectedUnderwearButton == buttonIndex) {
+        // 如果点击的是已选中的按钮，则取消选中
+        _selectedUnderwearButton = -1;
+      } else {
+        // 否则选中新按钮
+        _selectedUnderwearButton = buttonIndex;
+      }
+    });
+    
+    // 这里可以添加相应的动画或逻辑
+    print("Underwear button $buttonIndex tapped, selected: $_selectedUnderwearButton");
   }
   
   // 构建心形不足弹窗

@@ -129,6 +129,7 @@ class Assets {
   static const String imagesIconHeart2x = 'assets/images/Icon_heart@2x.png';
   static const String imagesImgClothSelected = 'assets/images/Img_cloth_selected.png';
   static const String imagesLabelAd = 'assets/images/Label_ad.png';
+  static const String imagesLabelAd3x = 'assets/images/Label_ad@3x.png';
   static const String imagesPopBack = 'assets/images/Pop_back.png';
   static const String imagesPopBtnGreen = 'assets/images/Pop_Btn_green.png';
   static const String imagesPopFrameMiddle = 'assets/images/Pop_Frame_middle.png';
