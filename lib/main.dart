@@ -380,6 +380,38 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       _setDefaultSkinForCurrentGirl(_spineController!);
     }
   }
+  
+  // 重新开始游戏
+  void _restartGame() {
+    setState(() {
+      // 重置所有状态
+      _currentIdleIndex = 0; // 回到第一个idle动画
+      _selectedUnderwearButton = -1; // 重置选中状态
+      _heartCount = 10; // 重置心形数量
+      _showHeartDialog = false; // 关闭弹窗
+      
+      // 重置所有皮肤为默认状态
+      _currentSkinIndices = {
+        0: 0, // bra: 默认皮肤
+        1: 0, // pants: 默认皮肤  
+        2: 0, // hands/head: 默认皮肤
+        3: 0, // socks: 默认皮肤
+      };
+      
+      // 重置女孩状态
+      for (int i = 0; i < _girlStates.length; i++) {
+        _girlStates[i] = _girlStates[i].copyWith(
+          isPlayingSpecial: false,
+          mode: GirlMode.normal,
+        );
+      }
+    });
+    
+    // 重新播放默认动画
+    _playCurrentIdleAnimation();
+    
+    print("Game restarted - all states reset to default");
+  }
 
   // 调试方法：列出所有可用的皮肤
   void _listAvailableSkins(SpineWidgetController controller) {
@@ -880,7 +912,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                                 ],
                               ),
 
-                              Image.asset(Assets.imagesBtnHeartBack, height: 50),
+                              GestureDetector(
+                              onTap: _restartGame,
+                              child: Image.asset(Assets.imagesBtnHeartBack, height: 50),
+                            ),
                             ],
                           ),
                         ),
@@ -1210,12 +1245,23 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     }
   }
 
-  // 切换到下一个idle动画
+    // 切换到下一个idle动画
   void _nextIdleAnimation() {
     setState(() {
       _currentIdleIndex = (_currentIdleIndex + 1) % 5; // 循环切换 0-4 (0-3是idle_01-04, 4是idle_underwear)
     });
-
+    
+    // 如果进入underwear状态，重置所有皮肤为1号皮肤
+    if (_currentIdleIndex == 4) {
+      _currentSkinIndices = {
+        0: 0, // bra: 1号皮肤
+        1: 0, // pants: 1号皮肤  
+        2: 0, // hands/head: 1号皮肤
+        3: 0, // socks: 1号皮肤
+      };
+      _selectedUnderwearButton = -1; // 重置选中状态
+    }
+    
     // 播放对应的idle动画
     _playCurrentIdleAnimation();
   }
@@ -1301,7 +1347,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(0),
             child: Image.asset(
-              _selectedUnderwearButton == 0 ? 'assets/images/Btn_bra_selected.png' : 'assets/images/Btn_bra_normal.png',
+              _isUnderwearButtonSelected(0) ? 'assets/images/Btn_bra_selected.png' : 'assets/images/Btn_bra_normal.png',
               height: 80,
             ),
           ),
@@ -1314,7 +1360,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(1),
             child: Image.asset(
-              _selectedUnderwearButton == 1
+              _isUnderwearButtonSelected(1)
                   ? 'assets/images/Btn_pants_selected.png'
                   : 'assets/images/Btn_pants_normal.png',
               height: 80,
@@ -1329,7 +1375,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(2),
             child: Image.asset(
-              _selectedUnderwearButton == 2
+              _isUnderwearButtonSelected(2)
                   ? (_currentIndex == 0 ? 'assets/images/Btn_hand_selected.png' : 'assets/images/Btn_head_selected.png')
                   : (_currentIndex == 0 ? 'assets/images/Btn_hand_normal.png' : 'assets/images/Btn_head_normal.png'),
               height: 80,
@@ -1344,7 +1390,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(3),
             child: Image.asset(
-              _selectedUnderwearButton == 3
+              _isUnderwearButtonSelected(3)
                   ? 'assets/images/Btn_socks_selected.png'
                   : 'assets/images/Btn_socks_normal.png',
               height: 80,
@@ -1369,6 +1415,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     
     // 这里可以添加相应的动画或逻辑
     print("Underwear button $buttonIndex tapped, selected: $_selectedUnderwearButton");
+  }
+  
+  // 判断underwear按钮是否应该显示选中状态
+  bool _isUnderwearButtonSelected(int buttonIndex) {
+    // 如果当前选中的按钮是这个，或者这个按钮对应的皮肤不是默认的1号皮肤，则显示选中状态
+    return _selectedUnderwearButton == buttonIndex || (_currentSkinIndices[buttonIndex] ?? 0) > 0;
   }
   
   // 构建皮肤选择列表
@@ -1403,13 +1455,27 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   // 构建单个皮肤按钮
   Widget _buildSkinButton(int buttonType, int skinIndex) {
     String imagePath = _getSkinButtonImagePath(buttonType, skinIndex);
+    bool isSelected = _currentSkinIndices[buttonType] == skinIndex;
     
     return GestureDetector(
       onTap: () => _onSkinButtonTap(buttonType, skinIndex),
-      child: Image.asset(
-        imagePath,
-        height: 80,
-        width: 80,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 皮肤按钮图片
+          Image.asset(
+            imagePath,
+            height: 80,
+            width: 80,
+          ),
+          // 选中状态的边框
+          if (isSelected)
+            Image.asset(
+              'assets/images/Img_cloth_selected.png',
+              height: 80,
+              width: 80,
+            ),
+        ],
       ),
     );
   }
