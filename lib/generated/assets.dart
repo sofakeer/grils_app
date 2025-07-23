@@ -6,6 +6,12 @@ class Assets {
   static const String assetsSpineGirl02 = 'assets/spine/girl02.atlas';
   static const String assetsSpineGirl03 = 'assets/spine/girl03.atlas';
   static const String assetsSpineTakeoff = 'assets/spine/Takeoff.atlas';
+  static const String audioGirl1Special = 'assets/audio/girl1_special.mp3';
+  static const String audioGirl1Underwear = 'assets/audio/girl1_underwear.mp3';
+  static const String audioGirl2Special = 'assets/audio/girl2_special.mp3';
+  static const String audioGirl2Underwear = 'assets/audio/girl2_underwear.mp3';
+  static const String audioGirl3Special = 'assets/audio/girl3_special.mp3';
+  static const String audioGirl3Underwear = 'assets/audio/girl3_underwear.mp3';
   static const String girl01ChageBtnAllBtnGril01Bra1Lock = 'assets/images/Girl01_chage_Btn_All/Btn_gril01_bra_1_lock.png';
   static const String girl01ChageBtnAllBtnGril01Bra1Unlock = 'assets/images/Girl01_chage_Btn_All/Btn_gril01_bra_1_unlock.png';
   static const String girl01ChageBtnAllBtnGril01Bra2Lock = 'assets/images/Girl01_chage_Btn_All/Btn_gril01_bra_2_lock.png';

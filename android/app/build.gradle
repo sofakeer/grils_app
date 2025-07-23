@@ -35,6 +35,20 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.debug
+            
+            // 暂时禁用代码压缩，避免Spine动画在Release模式下的问题
+            minifyEnabled false
+            shrinkResources false
+            
+            // 如果需要启用代码压缩，使用以下配置
+            // minifyEnabled true
+            // proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // shrinkResources true
+        }
+        
+        debug {
+            // Debug模式不启用混淆，便于调试
+            minifyEnabled false
         }
     }
 }

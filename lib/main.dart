@@ -1247,24 +1247,53 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   }
 
     // 切换到下一个idle动画
-  void _nextIdleAnimation() {
-    setState(() {
-      _currentIdleIndex = (_currentIdleIndex + 1) % 5; // 循环切换 0-4 (0-3是idle_01-04, 4是idle_underwear)
-    });
-    
-    // 如果进入underwear状态，重置所有皮肤为1号皮肤
-    if (_currentIdleIndex == 4) {
-      _currentSkinIndices = {
-        0: 0, // bra: 1号皮肤
-        1: 0, // pants: 1号皮肤  
-        2: 0, // hands/head: 1号皮肤
-        3: 0, // socks: 1号皮肤
-      };
-      _selectedUnderwearButton = -1; // 重置选中状态
+  void _nextIdleAnimation() async {
+    if (_currentIdleIndex < 4 && _spineController != null && _isControllerReady) {
+      // 1. 获取当前idle编号
+      int takeoffIndex = _currentIdleIndex + 1; // idle_01 -> take_off_01
+      String takeoffName = 'take_off_0$takeoffIndex';
+      // 2. 获取动画时长
+      final animation = _spineController!.skeleton.getData()!.findAnimation(takeoffName);
+      double duration = 1.0; // 默认1秒
+      if (animation != null) {
+        duration = animation.getDuration();
+      }
+      // 3. 播放takeoff动画（不循环）
+      _spineController!.animationState.setAnimationByName(0, takeoffName, false);
+      setState(() {
+        _isAnimating = true;
+      });
+      // 4. 等待动画播完后切换到下一个idle
+      await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+      setState(() {
+        _currentIdleIndex = (_currentIdleIndex + 1) % 5;
+      });
+      if (_currentIdleIndex == 4) {
+        _currentSkinIndices = {
+          0: 0,
+          1: 0,
+          2: 0,
+          3: 0,
+        };
+        _selectedUnderwearButton = -1;
+      }
+      _playCurrentIdleAnimation();
+    } else {
+      // underwear模式或异常，直接切换
+      setState(() {
+        _currentIdleIndex = (_currentIdleIndex + 1) % 5;
+      });
+      if (_currentIdleIndex == 4) {
+        _currentSkinIndices = {
+          0: 0,
+          1: 0,
+          2: 0,
+          3: 0,
+        };
+        _selectedUnderwearButton = -1;
+      }
+      _playCurrentIdleAnimation();
     }
-    
-    // 播放对应的idle动画
-    _playCurrentIdleAnimation();
   }
 
   // 为指定索引构建Spine Widget
@@ -1527,14 +1556,27 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   }
   
   // 处理皮肤按钮点击
-  void _onSkinButtonTap(int buttonType, int skinIndex) {
+  void _onSkinButtonTap(int buttonType, int skinIndex) async {
     setState(() {
       _currentSkinIndices[buttonType] = skinIndex;
     });
-    
+
+    // underwear阶段切换皮肤时，先播放idlesp_underwear动画
+    if (_currentIdleIndex == 4 && _spineController != null && _isControllerReady) {
+      String animName = 'idlesp_underwear';
+      final animation = _spineController!.skeleton.getData()!.findAnimation(animName);
+      double duration = 1.0;
+      if (animation != null) {
+        duration = animation.getDuration();
+      }
+      _spineController!.animationState.setAnimationByName(0, animName, false);
+      setState(() {
+        _isAnimating = true;
+      });
+      await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+    }
     // 应用新的皮肤
     _applyCurrentSkins();
-    
     print("Skin button tapped: type=$buttonType, skin=$skinIndex");
   }
 
