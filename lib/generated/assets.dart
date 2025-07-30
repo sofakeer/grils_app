@@ -2,6 +2,8 @@
 class Assets {
   Assets._();
 
+  static const String assetsSpineBtnTakeoff = 'assets/spine/btn_takeoff.atlas';
+  static const String assetsSpineDraw = 'assets/spine/Draw.atlas';
   static const String assetsSpineGirl01 = 'assets/spine/girl01.atlas';
   static const String assetsSpineGirl02 = 'assets/spine/girl02.atlas';
   static const String assetsSpineGirl03 = 'assets/spine/girl03.atlas';
@@ -140,6 +142,8 @@ class Assets {
   static const String imagesPopBtnGreen = 'assets/images/Pop_Btn_green.png';
   static const String imagesPopFrameMiddle = 'assets/images/Pop_Frame_middle.png';
   static const String imagesToastNeedmoreheart = 'assets/images/Toast_needmoreheart.png';
+  static const String spineBtnTakeoff = 'assets/spine/btn_takeoff.png';
+  static const String spineDraw = 'assets/spine/Draw.png';
   static const String spineGirl01 = 'assets/spine/girl01.png';
   static const String spineGirl012 = 'assets/spine/girl01_2.png';
   static const String spineGirl02 = 'assets/spine/girl02.png';
