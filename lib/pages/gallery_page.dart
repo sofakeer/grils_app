@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
-import 'package:hexcolor/hexcolor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:grils_app/pages/photo_detail_page.dart';
+import 'package:grils_app/widgets/common_header.dart';
+import 'package:grils_app/services/user_service.dart';
 
 class GalleryPage extends StatefulWidget {
   const GalleryPage({super.key});
@@ -23,6 +24,9 @@ class _GalleryPageState extends State<GalleryPage>
   
   List<bool> _unlockedImages = [];
   double _scrollProgress = 0.0;
+  
+  // 用户服务
+  late UserService _userService;
 
   @override
   void initState() {
@@ -30,6 +34,7 @@ class _GalleryPageState extends State<GalleryPage>
     _initializeAnimations();
     _loadUnlockData();
     _setupScrollListener();
+    _initializeUserService();
   }
 
   void _initializeAnimations() {
@@ -57,6 +62,11 @@ class _GalleryPageState extends State<GalleryPage>
         _scrollProgress = maxScroll > 0 ? currentScroll / maxScroll : 0.0;
       });
     });
+  }
+
+  Future<void> _initializeUserService() async {
+    _userService = UserService.instance;
+    await _userService.initialize();
   }
 
   Future<void> _loadUnlockData() async {
@@ -128,21 +138,26 @@ class _GalleryPageState extends State<GalleryPage>
               ),
               child: Stack(
                 children: [
+                  // 公共头部
+                  CommonHeader(
+                    onBackPressed: _close,
+                  ),
+
                   // 主要内容区域
                   Positioned(
-                    top: MediaQuery.of(context).padding.top + 60,
+                    top: MediaQuery.of(context).padding.top + 80,
                     left: 0,
-                    right: 0,
-                    bottom: 80,
+                    right: 10,
+                    bottom:10,
                     child: Column(
                       children: [
                         // 图片网格
                         Expanded(
                           child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 20),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: GridView.builder(
                               controller: _scrollController,
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 4,
                                 childAspectRatio: 0.75,
                                 crossAxisSpacing: 10,
@@ -159,28 +174,6 @@ class _GalleryPageState extends State<GalleryPage>
                     ),
                   ),
 
-                  // 顶部关闭按钮
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 10,
-                    right: 20,
-                    child: GestureDetector(
-                      onTap: _close,
-                      child: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                    ),
-                  ),
-
                   // 右侧滚动条
                   Positioned(
                     right: 5,
@@ -189,25 +182,25 @@ class _GalleryPageState extends State<GalleryPage>
                     child: _buildScrollBar(),
                   ),
 
-                  // // 底部统计信息
+                  // 底部统计信息
                   // Positioned(
                   //   bottom: 20,
                   //   left: 0,
                   //   right: 0,
                   //   child: Container(
-                  //     padding: EdgeInsets.symmetric(horizontal: 20),
+                  //     padding: const EdgeInsets.symmetric(horizontal: 20),
                   //     child: Row(
                   //       mainAxisAlignment: MainAxisAlignment.center,
                   //       children: [
                   //         Container(
-                  //           padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  //           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   //           decoration: BoxDecoration(
                   //             color: Colors.black.withOpacity(0.6),
                   //             borderRadius: BorderRadius.circular(20),
                   //           ),
                   //           child: Text(
                   //             '已解锁: ${_unlockedImages.where((unlocked) => unlocked).length}/$totalImages',
-                  //             style: TextStyle(
+                  //             style: const TextStyle(
                   //               color: Colors.white,
                   //               fontSize: 16,
                   //               fontWeight: FontWeight.bold,

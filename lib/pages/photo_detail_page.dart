@@ -208,40 +208,40 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // 图片计数
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${_currentIndex + 1}/$totalImages',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                      // // 图片计数
+                      // Container(
+                      //   padding: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                      //   decoration: BoxDecoration(
+                      //     color: Colors.black.withOpacity(0.6),
+                      //     borderRadius: BorderRadius.circular(20),
+                      //   ),
+                      //   child: Text(
+                      //     '${_currentIndex + 1}/$totalImages',
+                      //     style: TextStyle(
+                      //       color: Colors.white,
+                      //       fontSize: 16,
+                      //       fontWeight: FontWeight.bold,
+                      //     ),
+                      //   ),
+                      // ),
                       
-                      // 关闭按钮
-                      GestureDetector(
-                        onTap: _close,
-                        child: Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                      ),
+                      // // 关闭按钮
+                      // GestureDetector(
+                      //   onTap: _close,
+                      //   child: Container(
+                      //     width: 50,
+                      //     height: 50,
+                      //     decoration: BoxDecoration(
+                      //       color: Colors.black.withOpacity(0.6),
+                      //       shape: BoxShape.circle,
+                      //     ),
+                      //     child: Icon(
+                      //       Icons.close,
+                      //       color: Colors.white,
+                      //       size: 28,
+                      //     ),
+                      //   ),
+                      // ),
                     ],
                   ),
                 ),
@@ -254,7 +254,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                     child: GestureDetector(
                       onTap: _previousPhoto,
                       child: Container(
-                        width: 60,
+                        width: 35,
                         height: 60,
                         decoration: BoxDecoration(
                           image: DecorationImage(
@@ -273,7 +273,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                     child: GestureDetector(
                       onTap: _nextPhoto,
                       child: Container(
-                        width: 60,
+                        width: 35,
                         height: 60,
                         decoration: BoxDecoration(
                           image: DecorationImage(
@@ -459,11 +459,11 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
               // 水印 (只有解锁的图片才显示)
               if (isUnlocked)
                 Positioned(
-                  bottom: 20,
-                  right: 20,
+                  top: 280,
+                  right: 80,
                   child: Container(
-                    width: 100,
-                    height: 50,
+                    width: 200,
+                    height: 200,
                     decoration: BoxDecoration(
                       image: DecorationImage(
                         image: AssetImage(Assets.gallaryGallaryWatermark),

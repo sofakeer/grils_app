@@ -8,23 +8,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:grils_app/main.dart';
+import 'package:grils_app/widgets/common_header.dart';
+import 'package:grils_app/services/user_service.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('CommonHeader displays coin and heart count', (WidgetTester tester) async {
+    // 初始化用户服务
+    await UserService.instance.initialize();
+    
+    // Build our CommonHeader widget and trigger a frame.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: const CommonHeader( ),
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that the coin count is displayed (默认值1000)
+    expect(find.text('1000'), findsOneWidget);
+    
+    // Verify that the heart count is displayed (默认值50)
+    expect(find.text('50'), findsOneWidget);
+    
+    // Verify that the title is displayed
+    expect(find.text('测试标题'), findsOneWidget);
   });
 }
