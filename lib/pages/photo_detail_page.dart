@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'dart:io';
 
 class PhotoDetailPage extends StatefulWidget {
   final int imageIndex;
@@ -106,25 +112,151 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
     });
   }
 
-  void _downloadPhoto() {
-    // 模拟观看广告解锁下载
-    setState(() {
-      _showUnlockDialog = true;
-    });
-    _unlockAnimationController.forward();
-    
-    // 这里可以添加实际的下载逻辑
-    Future.delayed(Duration(seconds: 2), () {
+  Future<void> _downloadPhoto() async {
+    try {
+      print('开始下载图片流程...');
+      
+      // 模拟观看广告
+      setState(() {
+        _showUnlockDialog = true;
+      });
+      _unlockAnimationController.forward();
+      
+      // 延迟2秒模拟广告时间
+      await Future.delayed(Duration(seconds: 2));
+      
+      // 保存图片到应用目录
+      await _saveImageToGallery();
+      
+      if (mounted) {
+        _closeUnlockDialog();
+      }
+    } catch (e) {
+      print('下载图片失败: $e');
       if (mounted) {
         _closeUnlockDialog();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('图片已保存到相册'),
+            content: Text('保存失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<bool> _requestPermission() async {
+    try {
+      print('开始请求存储权限...');
+      
+      // 检查当前权限状态
+      var photosStatus = await Permission.photos.status;
+      var storageStatus = await Permission.storage.status;
+      var mediaImagesStatus = await Permission.photos.status; // READ_MEDIA_IMAGES
+      
+      print('当前权限状态:');
+      print('photos: $photosStatus');
+      print('storage: $storageStatus');
+      print('mediaImages: $mediaImagesStatus');
+      
+      // 如果已经有权限，直接返回true
+      if (photosStatus.isGranted || storageStatus.isGranted) {
+        print('已有存储权限，直接返回true');
+        return true;
+      }
+      
+      // 请求权限 - 按优先级尝试
+      print('开始请求权限...');
+      
+      // 1. 先尝试请求 photos 权限 (Android 13+)
+      var photosResult = await Permission.photos.request();
+      print('photos权限请求结果: $photosResult');
+      if (photosResult.isGranted) {
+        print('photos权限获取成功');
+        return true;
+      }
+      
+      // 2. 再尝试请求 storage 权限 (Android 13以下)
+      var storageResult = await Permission.storage.request();
+      print('storage权限请求结果: $storageResult');
+      if (storageResult.isGranted) {
+        print('storage权限获取成功');
+        return true;
+      }
+      
+      // 3. 如果权限被拒绝，显示详细提示
+      print('所有权限都被拒绝');
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('需要存储权限'),
+              content: Text('保存图片需要访问存储权限。请在设置中开启相册访问权限。'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('取消'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    openAppSettings();
+                  },
+                  child: Text('去设置'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+      
+      return false;
+    } catch (e) {
+      print('权限请求失败: $e');
+      return false;
+    }
+  }
+
+  Future<void> _saveImageToGallery() async {
+    try {
+      final imageNumber = (_currentIndex + 1).toString().padLeft(2, '0');
+      final imagePath = 'assets/images/grils_list/Bg_$imageNumber.png';
+      
+      print('开始保存图片: $imagePath');
+      
+      // 加载图片数据
+      final byteData = await rootBundle.load(imagePath);
+      final uint8List = byteData.buffer.asUint8List();
+      
+      print('图片数据加载成功，大小: ${uint8List.length} bytes');
+      
+      // 获取应用文档目录
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = 'girl_image_$imageNumber.png';
+      final file = File('${directory.path}/$fileName');
+      
+      // 保存文件
+      await file.writeAsBytes(uint8List);
+      
+      print('图片保存到: ${file.path}');
+      
+      // 显示成功消息
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('图片已保存到: ${file.path}'),
             backgroundColor: Colors.green,
           ),
         );
       }
-    });
+      
+    } catch (e) {
+      print('保存图片失败: $e');
+      rethrow;
+    }
   }
 
   void _closeUnlockDialog() {
@@ -180,24 +312,26 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
             offset: Offset(0, MediaQuery.of(context).size.height * _slideAnimation.value),
             child: Stack(
               children: [
-                // 主要图片显示区域
-                PageView.builder(
-                  controller: _pageController,
-                  itemCount: totalImages,
-                  onPageChanged: (index) async {
-                    setState(() {
-                      _currentIndex = index;
-                    });
-                    
-                    // 检查当前图片是否解锁
-                    final unlocked = await _checkPhotoUnlocked(index);
-                    setState(() {
-                      _isUnlocked = unlocked;
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    return _buildPhotoView(index);
-                  },
+                // 主要图片显示区域 - 全屏显示
+                Positioned.fill(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: totalImages,
+                    onPageChanged: (index) async {
+                      setState(() {
+                        _currentIndex = index;
+                      });
+                      
+                      // 检查当前图片是否解锁
+                      final unlocked = await _checkPhotoUnlocked(index);
+                      setState(() {
+                        _isUnlocked = unlocked;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      return _buildPhotoView(index);
+                    },
+                  ),
                 ),
 
                 // 顶部控制栏
@@ -206,42 +340,20 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                   left: 20,
                   right: 20,
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      // // 图片计数
-                      // Container(
-                      //   padding: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                      //   decoration: BoxDecoration(
-                      //     color: Colors.black.withOpacity(0.6),
-                      //     borderRadius: BorderRadius.circular(20),
-                      //   ),
-                      //   child: Text(
-                      //     '${_currentIndex + 1}/$totalImages',
-                      //     style: TextStyle(
-                      //       color: Colors.white,
-                      //       fontSize: 16,
-                      //       fontWeight: FontWeight.bold,
-                      //     ),
-                      //   ),
-                      // ),
-                      
-                      // // 关闭按钮
-                      // GestureDetector(
-                      //   onTap: _close,
-                      //   child: Container(
-                      //     width: 50,
-                      //     height: 50,
-                      //     decoration: BoxDecoration(
-                      //       color: Colors.black.withOpacity(0.6),
-                      //       shape: BoxShape.circle,
-                      //     ),
-                      //     child: Icon(
-                      //       Icons.close,
-                      //       color: Colors.white,
-                      //       size: 28,
-                      //     ),
-                      //   ),
-                      // ),
+                      // 关闭按钮
+                      GestureDetector(
+                        onTap: _close,
+                        child: Container(
+                          width: 50,
+                          height: 50,
+                          child: Image.asset(
+                            Assets.imagesBtnClose,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -295,7 +407,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                       child: GestureDetector(
                         onTap: _downloadPhoto,
                         child: Container(
-                          width: 150,
+                          width: 180,
                           height: 60,
                           decoration: BoxDecoration(
                             image: DecorationImage(
@@ -307,14 +419,10 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.play_arrow,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
+                                Image(image: AssetImage(Assets.imagesLabelAd),width: 30,height: 30),
                                 SizedBox(width: 5),
                                 Text(
-                                  '下载',
+                                  'Download',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 18,
@@ -351,57 +459,52 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
           height: double.infinity,
           child: Stack(
             children: [
-              // 图片内容
-              Center(
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.9,
-                    maxHeight: MediaQuery.of(context).size.height * 0.8,
-                  ),
-                  child: isUnlocked
-                    ? Image.asset(
-                        'assets/images/grils_list/Bg_$imageNumber.png',
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 300,
-                            height: 400,
-                            color: Colors.grey[800],
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.image_not_supported,
-                                    color: Colors.white,
-                                    size: 50,
-                                  ),
-                                  SizedBox(height: 10),
-                                  Text(
-                                    '图片加载失败',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      )
-                    : Container(
-                        width: 300,
-                        height: 400,
-                        decoration: BoxDecoration(
+              // 图片内容 - 全屏显示
+              Positioned.fill(
+                child: isUnlocked
+                  ? Image.asset(
+                      'assets/images/grils_list/Bg_$imageNumber.png',
+                      fit: BoxFit.cover, // 全屏覆盖
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
                           color: Colors.grey[800],
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 2,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.image_not_supported,
+                                  color: Colors.white,
+                                  size: 50,
+                                ),
+                                SizedBox(height: 10),
+                                Text(
+                                  '图片加载失败',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        child: Center(
+                        );
+                      },
+                    )
+                  : Container(
+                      color: Colors.black87,
+                      child: Center(
+                        child: Container(
+                          width: 300,
+                          height: 400,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[800],
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 2,
+                            ),
+                          ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -453,21 +556,24 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                           ),
                         ),
                       ),
-                ),
+                    ),
               ),
 
               // 水印 (只有解锁的图片才显示)
               if (isUnlocked)
                 Positioned(
-                  top: 280,
+                  top: 190,
                   right: 80,
-                  child: Container(
-                    width: 200,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage(Assets.gallaryGallaryWatermark),
-                        fit: BoxFit.contain,
+                  child: Opacity(
+                    opacity: 0.3,
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: AssetImage(Assets.gallaryGallaryWatermark),
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
                   ),

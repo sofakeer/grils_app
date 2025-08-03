@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:grils_app/pages/photo_detail_page.dart';
 import 'package:grils_app/widgets/common_header.dart';
 import 'package:grils_app/services/user_service.dart';
+import 'dart:async';
 
 class GalleryPage extends StatefulWidget {
   const GalleryPage({super.key});
@@ -27,6 +28,10 @@ class _GalleryPageState extends State<GalleryPage>
   
   // 用户服务
   late UserService _userService;
+  
+  // 性能优化相关
+  Timer? _scrollDebounceTimer;
+  bool _isScrolling = false;
 
   @override
   void initState() {
@@ -56,10 +61,21 @@ class _GalleryPageState extends State<GalleryPage>
 
   void _setupScrollListener() {
     _scrollController.addListener(() {
-      final maxScroll = _scrollController.position.maxScrollExtent;
-      final currentScroll = _scrollController.position.pixels;
-      setState(() {
-        _scrollProgress = maxScroll > 0 ? currentScroll / maxScroll : 0.0;
+      // 防抖处理，减少setState调用频率
+      _scrollDebounceTimer?.cancel();
+      _scrollDebounceTimer = Timer(Duration(milliseconds: 16), () {
+        if (mounted) {
+          final maxScroll = _scrollController.position.maxScrollExtent;
+          final currentScroll = _scrollController.position.pixels;
+          final newProgress = maxScroll > 0 ? currentScroll / maxScroll : 0.0;
+          
+          // 只有进度变化明显时才更新
+          if ((newProgress - _scrollProgress).abs() > 0.01) {
+            setState(() {
+              _scrollProgress = newProgress;
+            });
+          }
+        }
       });
     });
   }
@@ -116,6 +132,7 @@ class _GalleryPageState extends State<GalleryPage>
   void dispose() {
     _animationController.dispose();
     _scrollController.dispose();
+    _scrollDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -157,6 +174,8 @@ class _GalleryPageState extends State<GalleryPage>
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: GridView.builder(
                               controller: _scrollController,
+                              // 性能优化：添加缓存扩展
+                              cacheExtent: 500,
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 4,
                                 childAspectRatio: 0.75,
@@ -226,92 +245,70 @@ class _GalleryPageState extends State<GalleryPage>
     
     return GestureDetector(
       onTap: () => _openPhotoDetail(index),
-      child: Container(
-        child: Stack(
-          children: [
-            // 背景框架
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
-                image: DecorationImage(
-                  image: AssetImage(
-                    isUnlocked 
-                      ? Assets.gallaryGallaryFrameUnlock
-                      : Assets.gallaryGallaryFrameLock
-                  ),
-                  fit: BoxFit.fill,
-                ),
-              ),
-            ),
-
-            // 图片内容
-            Center(
-              child: Container(
-                width: double.infinity,
-                height: double.infinity,
-                margin: EdgeInsets.only(left: 3.5,right: 3.5,bottom: 4,top: 2),
+      child: RepaintBoundary( // 性能优化：减少重绘
+        child: Container(
+          child: Stack(
+            children: [
+              // 背景框架
+              Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(6),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: isUnlocked
-                    ? Image.asset(
-                        'assets/images/grils_list/Bg_$imageNumber.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey[300],
-                            child: Icon(
-                              Icons.image_not_supported,
-                              color: Colors.grey[600],
-                            ),
-                          );
-                        },
-                      )
-                    : Container(color: Colors.transparent),
+                  image: DecorationImage(
+                    image: AssetImage(
+                      isUnlocked 
+                        ? Assets.gallaryGallaryFrameUnlock
+                        : Assets.gallaryGallaryFrameLock
+                    ),
+                    fit: BoxFit.fill,
+                  ),
                 ),
               ),
-            ),
 
-            // 图片序号
-            // Positioned(
-            //   bottom: 2,
-            //   right: 2,
-            //   child: Container(
-            //     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            //     decoration: BoxDecoration(
-            //       color: Colors.black.withOpacity(0.7),
-            //       borderRadius: BorderRadius.circular(10),
-            //     ),
-            //     child: Text(
-            //       imageNumber,
-            //       style: TextStyle(
-            //         color: Colors.white,
-            //         fontSize: 10,
-            //         fontWeight: FontWeight.bold,
-            //       ),
-            //     ),
-            //   ),
-            // ),
-
-            // 新图片标识 (如果是最近解锁的)
-            if (isUnlocked && index >= totalImages - 5)
-              Positioned(
-                top: 2,
-                left: 2,
+              // 图片内容
+              Center(
                 child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage(Assets.newPhotoNewPhotoIconNew),
-                      fit: BoxFit.contain,
+                  width: double.infinity,
+                  height: double.infinity,
+                  margin: EdgeInsets.only(left: 3.5, right: 3.5, bottom: 4, top: 2),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: isUnlocked
+                      ? Image.asset(
+                          'assets/images/grils_list/Bg_$imageNumber.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[300],
+                              child: Icon(
+                                Icons.image_not_supported,
+                                color: Colors.grey[600],
+                              ),
+                            );
+                          },
+                        )
+                      : Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
+
+              // 新图片标识 (如果是最近解锁的)
+              if (isUnlocked && index >= totalImages - 5)
+                Positioned(
+                  top: 2,
+                  left: 2,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage(Assets.newPhotoNewPhotoIconNew),
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

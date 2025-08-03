@@ -45,5 +45,10 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- 相册访问权限 -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>需要访问相册权限来保存图片</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>需要访问相册权限来保存图片</string>
 </dict>
 </plist>
