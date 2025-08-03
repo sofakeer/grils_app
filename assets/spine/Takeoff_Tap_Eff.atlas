@@ -1,0 +1,12 @@
+Takeoff_Tap_Eff.png
+size:245,352
+filter:Linear,Linear
+NewPhoto_Unlock_dot
+bounds:2,2,123,121
+offsets:1,7,128,128
+rotate:90
+NewPhoto_Unlock_heart
+bounds:2,127,238,223
+takeoff_halo
+bounds:125,7,118,118
+offsets:5,8,128,128

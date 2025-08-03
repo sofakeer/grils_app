@@ -95,7 +95,7 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                   height: MediaQuery.of(context).size.height * 0.6,
                   decoration: BoxDecoration(
                     image: DecorationImage(
-                      image: AssetImage(Assets.imagesPopPopFrameMiddle),
+                      image: AssetImage(Assets.popPopBtnBlue),
                       fit: BoxFit.fill,
                     ),
                   ),
@@ -207,7 +207,7 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                                 height: 40,
                                 decoration: BoxDecoration(
                                   image: DecorationImage(
-                                    image: AssetImage(Assets.imagesPopPopBtnBlue),
+                                    image: AssetImage(Assets.popPopBtnBlue),
                                     fit: BoxFit.fill,
                                   ),
                                 ),
@@ -232,7 +232,7 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                                 height: 40,
                                 decoration: BoxDecoration(
                                   image: DecorationImage(
-                                    image: AssetImage(Assets.imagesPopPopBtnGreen),
+                                    image: AssetImage(Assets.popPopBtnGreen),
                                     fit: BoxFit.fill,
                                   ),
                                 ),

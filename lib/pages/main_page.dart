@@ -157,7 +157,7 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Image.asset(
-                          Assets.imagesMainMainIconCoin,
+                          Assets.mainMainIconCoin,
                           height: 30,
                         ),
                         SizedBox(width: 8),
@@ -216,7 +216,7 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
                     child: Container(
                       margin: EdgeInsets.only(bottom: 20),
                       child: Image.asset(
-                        Assets.imagesMainMainBtnSign,
+                        Assets.mainMainBtnSign,
                         height: 80,
                       ),
                     ),
@@ -228,7 +228,7 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
                     child: Container(
                       margin: EdgeInsets.only(bottom: 20),
                       child: Image.asset(
-                        Assets.imagesMainMainBtnGameskin,
+                        Assets.mainMainBtnGameskin,
                         height: 80,
                       ),
                     ),
@@ -240,7 +240,7 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
                     child: Stack(
                       children: [
                         Image.asset(
-                          Assets.imagesMainMainFrameGallary,
+                          Assets.mainMainFrameGallary,
                           height: 120,
                         ),
                         Positioned(
@@ -284,7 +284,7 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
                     child: Container(
                       margin: EdgeInsets.only(bottom: 40),
                       child: Image.asset(
-                        Assets.imagesMainMainBtnSetting,
+                        Assets.mainMainBtnSetting,
                         height: 80,
                       ),
                     ),
@@ -322,7 +322,7 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
                     alignment: Alignment.center,
                     children: [
                       Image.asset(
-                        Assets.imagesMainMainBtnGamestart,
+                        Assets.mainMainBtnGamestart,
                         height: 100,
                       ),
                       Positioned(

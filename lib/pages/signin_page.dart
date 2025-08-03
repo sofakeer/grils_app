@@ -221,7 +221,7 @@ class _SignInPageState extends State<SignInPage>
                         height: MediaQuery.of(context).size.height * 0.8,
                         decoration: BoxDecoration(
                           image: DecorationImage(
-                            image: AssetImage(Assets.imagesSignSignFrameBg),
+                            image: AssetImage(Assets.signSignFrameBg),
                             fit: BoxFit.fill,
                           ),
                         ),
@@ -285,7 +285,7 @@ class _SignInPageState extends State<SignInPage>
                                           height: 50,
                                           decoration: BoxDecoration(
                                             image: DecorationImage(
-                                              image: AssetImage(Assets.imagesPopPopBtnGreen),
+                                              image: AssetImage(Assets.popPopBtnGreen),
                                               fit: BoxFit.fill,
                                             ),
                                           ),
@@ -310,7 +310,7 @@ class _SignInPageState extends State<SignInPage>
                                           height: 50,
                                           decoration: BoxDecoration(
                                             image: DecorationImage(
-                                              image: AssetImage(Assets.imagesSignSignBtnDouble),
+                                              image: AssetImage(Assets.signSignBtnDouble),
                                               fit: BoxFit.fill,
                                             ),
                                           ),
@@ -370,7 +370,7 @@ class _SignInPageState extends State<SignInPage>
                             height: 50,
                             decoration: BoxDecoration(
                               image: DecorationImage(
-                                image: AssetImage(Assets.imagesSignSignBtnClose),
+                                image: AssetImage(Assets.signSignBtnClose),
                                 fit: BoxFit.fill,
                               ),
                             ),
@@ -400,19 +400,19 @@ class _SignInPageState extends State<SignInPage>
     String frameAsset;
     if (isDay7) {
       if (isSigned) {
-        frameAsset = Assets.imagesSignSignFrameDay7Finish;
+        frameAsset = Assets.signSignFrameDay7Finish;
       } else if (isToday) {
-        frameAsset = Assets.imagesSignSignFrameDay7Selected;
+        frameAsset = Assets.signSignFrameDay7Selected;
       } else {
-        frameAsset = Assets.imagesSignSignFrameDay7Normal;
+        frameAsset = Assets.signSignFrameDay7Normal;
       }
     } else {
       if (isSigned) {
-        frameAsset = Assets.imagesSignSignFrameDayFinish;
+        frameAsset = Assets.signSignFrameDayFinish;
       } else if (isToday) {
-        frameAsset = Assets.imagesSignSignFrameDaySelected;
+        frameAsset = Assets.signSignFrameDaySelected;
       } else {
-        frameAsset = Assets.imagesSignSignFrameDayNormal;
+        frameAsset = Assets.signSignFrameDayNormal;
       }
     }
 
@@ -441,7 +441,7 @@ class _SignInPageState extends State<SignInPage>
           // 奖励图标和数量
           if (reward['coins'] > 0) ...[
             Image.asset(
-              Assets.imagesMainMainIconCoin,
+              Assets.mainMainIconCoin,
               height: 20,
             ),
             Text(
@@ -474,7 +474,7 @@ class _SignInPageState extends State<SignInPage>
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(Assets.imagesMainMainIconCoin, height: 15),
+                Image.asset(Assets.mainMainIconCoin, height: 15),
                 Text('+${reward['coins']}', style: TextStyle(fontSize: 8, color: isToday ? Colors.white : Colors.black)),
                 SizedBox(width: 5),
                 Image.asset(Assets.imagesIconHeart2x, height: 15),
@@ -499,7 +499,7 @@ class _SignInPageState extends State<SignInPage>
               height: MediaQuery.of(context).size.height * 0.5,
               decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage(Assets.imagesPopPopFrameMiddle),
+                  image: AssetImage(Assets.popPopBtnBlue),
                   fit: BoxFit.fill,
                 ),
               ),
@@ -523,7 +523,7 @@ class _SignInPageState extends State<SignInPage>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (_rewardCoins > 0) ...[
-                        Image.asset(Assets.imagesMainMainIconCoin, height: 50),
+                        Image.asset(Assets.mainMainIconCoin, height: 50),
                         SizedBox(width: 10),
                         Text(
                           '+$_rewardCoins',
@@ -561,7 +561,7 @@ class _SignInPageState extends State<SignInPage>
                       height: 50,
                       decoration: BoxDecoration(
                         image: DecorationImage(
-                          image: AssetImage(Assets.imagesPopPopBtnGreen),
+                          image: AssetImage(Assets.popPopBtnGreen),
                           fit: BoxFit.fill,
                         ),
                       ),

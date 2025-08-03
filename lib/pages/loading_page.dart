@@ -114,7 +114,7 @@ class _LoadingPageState extends State<LoadingPage>
         height: double.infinity,
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage(Assets.imagesLoadingLoadingBg),
+            image: AssetImage(Assets.loadingLoadingBg),
             fit: BoxFit.cover,
           ),
         ),
@@ -127,7 +127,7 @@ class _LoadingPageState extends State<LoadingPage>
               right: 0,
               child: Center(
                 child: Image.asset(
-                  Assets.imagesLoadingLoadingLogo,
+                  Assets.loadingLoadingBg,
                   height: 200,
                 ),
               ),
@@ -140,7 +140,7 @@ class _LoadingPageState extends State<LoadingPage>
               right: 0,
               child: Center(
                 child: Image.asset(
-                  Assets.imagesLoadingLoadingText,
+                  Assets.loadingLoadingText,
                   height: 50,
                 ),
               ),
@@ -168,7 +168,7 @@ class _LoadingPageState extends State<LoadingPage>
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
                             image: DecorationImage(
-                              image: AssetImage(Assets.imagesLoadingLoadingSliderbarBg),
+                              image: AssetImage(Assets.loadingLoadingSliderbarBg),
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -183,7 +183,7 @@ class _LoadingPageState extends State<LoadingPage>
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
                                 image: DecorationImage(
-                                  image: AssetImage(Assets.imagesLoadingLoadingSliderbarTop),
+                                  image: AssetImage(Assets.loadingLoadingSliderbarTop),
                                   fit: BoxFit.cover,
                                 ),
                               ),

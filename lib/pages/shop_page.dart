@@ -220,7 +220,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
               height: double.infinity,
               decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage(Assets.imagesShopShopBg),
+                  image: AssetImage(Assets.shopShopBg),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -292,7 +292,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
           Container(
             height: 60,
             child: Image.asset(
-              Assets.imagesShopShopTitle,
+              Assets.shopShopTitle,
               fit: BoxFit.contain,
             ),
           ),
@@ -309,7 +309,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Image.asset(
-                  Assets.imagesMainMainIconCoin,
+                  Assets.mainMainIconCoin,
                   height: 30,
                 ),
                 SizedBox(width: 8),
@@ -341,7 +341,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
             height: double.infinity,
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage(Assets.imagesShopShopSwitchBg),
+                image: AssetImage(Assets.shopShopSwitchBg),
                 fit: BoxFit.fill,
               ),
             ),
@@ -360,7 +360,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                   height: 50,
                   decoration: BoxDecoration(
                     image: DecorationImage(
-                      image: AssetImage(Assets.imagesShopShopSwitchBar),
+                      image: AssetImage(Assets.shopShopSwitchBar),
                       fit: BoxFit.fill,
                     ),
                   ),
@@ -381,8 +381,8 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                     child: Center(
                       child: Image.asset(
                         _isTubeSelected 
-                          ? Assets.imagesShopShopSwitchTextTubeSelected
-                          : Assets.imagesShopShopSwitchTextTubeUnselected,
+                          ? Assets.shopShopSwitchTextTubeSelected
+                          : Assets.shopShopSwitchTextTubeUnselected,
                         height: 30,
                       ),
                     ),
@@ -399,8 +399,8 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                     child: Center(
                       child: Image.asset(
                         _isTubeSelected 
-                          ? Assets.imagesShopShopSwitchTextBallUnselected
-                          : Assets.imagesShopShopSwitchTextBallSelected,
+                          ? Assets.shopShopSwitchTextBallUnselected
+                          : Assets.shopShopSwitchTextBallSelected,
                         height: 30,
                       ),
                     ),
@@ -450,7 +450,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
       child: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage(Assets.imagesShopShopFrame),
+            image: AssetImage(Assets.shopShopFrame),
             fit: BoxFit.fill,
           ),
         ),
@@ -485,7 +485,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                 child: Container(
                   decoration: BoxDecoration(
                     image: DecorationImage(
-                      image: AssetImage(Assets.imagesShopShopImgSelected),
+                      image: AssetImage(Assets.shopShopImgSelected),
                       fit: BoxFit.fill,
                     ),
                   ),
@@ -509,7 +509,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                     children: [
                       if (!isUnlocked) ...[
                         Image.asset(
-                          Assets.imagesMainMainIconCoin,
+                          Assets.mainMainIconCoin,
                           height: 16,
                         ),
                         SizedBox(width: 4),
@@ -557,7 +557,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                       height: 30,
                       decoration: BoxDecoration(
                         image: DecorationImage(
-                          image: AssetImage(Assets.imagesShopShopBtnBuy),
+                          image: AssetImage(Assets.shopShopBtnBuy),
                           fit: BoxFit.fill,
                         ),
                       ),

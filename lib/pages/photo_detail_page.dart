@@ -258,7 +258,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                         height: 60,
                         decoration: BoxDecoration(
                           image: DecorationImage(
-                            image: AssetImage(Assets.imagesGallaryGallaryBtnPrevious),
+                            image: AssetImage(Assets.gallaryGallaryBtnPrevious),
                             fit: BoxFit.fill,
                           ),
                         ),
@@ -277,7 +277,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                         height: 60,
                         decoration: BoxDecoration(
                           image: DecorationImage(
-                            image: AssetImage(Assets.imagesGallaryGallaryBtnNext),
+                            image: AssetImage(Assets.gallaryGallaryBtnNext),
                             fit: BoxFit.fill,
                           ),
                         ),
@@ -299,7 +299,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                           height: 60,
                           decoration: BoxDecoration(
                             image: DecorationImage(
-                              image: AssetImage(Assets.imagesGallaryGallaryBtnDownload),
+                              image: AssetImage(Assets.gallaryGallaryBtnDownload),
                               fit: BoxFit.fill,
                             ),
                           ),
@@ -466,7 +466,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                     height: 50,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage(Assets.imagesGallaryGallaryWatermark),
+                        image: AssetImage(Assets.gallaryGallaryWatermark),
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -491,7 +491,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
               height: MediaQuery.of(context).size.height * 0.4,
               decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage(Assets.imagesPopPopFrameMiddle),
+                  image: AssetImage(Assets.popPopAsk),
                   fit: BoxFit.fill,
                 ),
               ),
@@ -504,7 +504,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                     height: 80,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage(Assets.imagesNewPhotoNewPhotoIconNew),
+                        image: AssetImage(Assets.newPhotoNewPhotoIconNew),
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -542,7 +542,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                       height: 50,
                       decoration: BoxDecoration(
                         image: DecorationImage(
-                          image: AssetImage(Assets.imagesPopPopBtnGreen),
+                          image: AssetImage(Assets.popPopBtnGreen),
                           fit: BoxFit.fill,
                         ),
                       ),

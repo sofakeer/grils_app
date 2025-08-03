@@ -108,7 +108,7 @@ class _SettingsPageState extends State<SettingsPage>
                     height: MediaQuery.of(context).size.height * 0.6,
                     decoration: BoxDecoration(
                       image: DecorationImage(
-                        image: AssetImage(Assets.imagesPopPopFrameMiddle),
+                        image: AssetImage(Assets.popPopAsk),
                         fit: BoxFit.fill,
                       ),
                     ),
@@ -196,7 +196,7 @@ class _SettingsPageState extends State<SettingsPage>
                               height: 50,
                               decoration: BoxDecoration(
                                 image: DecorationImage(
-                                  image: AssetImage(Assets.imagesSettingSettingBtnBlue),
+                                  image: AssetImage(Assets.settingSettingBtnBlue),
                                   fit: BoxFit.fill,
                                 ),
                               ),

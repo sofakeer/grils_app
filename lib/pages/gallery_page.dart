@@ -122,7 +122,7 @@ class _GalleryPageState extends State<GalleryPage>
               height: double.infinity,
               decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage(Assets.imagesGallaryGallaryBg),
+                  image: AssetImage(Assets.gallaryGallaryBg),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -270,8 +270,8 @@ class _GalleryPageState extends State<GalleryPage>
                 image: DecorationImage(
                   image: AssetImage(
                     isUnlocked 
-                      ? Assets.imagesGallaryGallaryFrameUnlock
-                      : Assets.imagesGallaryGallaryFrameLock
+                      ? Assets.gallaryGallaryFrameUnlock
+                      : Assets.gallaryGallaryFrameLock
                   ),
                   fit: BoxFit.fill,
                 ),
@@ -348,7 +348,7 @@ class _GalleryPageState extends State<GalleryPage>
                   height: 20,
                   decoration: BoxDecoration(
                     image: DecorationImage(
-                      image: AssetImage(Assets.imagesNewPhotoNewPhotoIconNew),
+                      image: AssetImage(Assets.newPhotoNewPhotoIconNew),
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -366,7 +366,7 @@ class _GalleryPageState extends State<GalleryPage>
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(7.5),
         image: DecorationImage(
-          image: AssetImage(Assets.imagesGallaryGallarySliderBg),
+          image: AssetImage(Assets.gallaryGallarySliderBg),
           fit: BoxFit.fill,
         ),
       ),
@@ -383,7 +383,7 @@ class _GalleryPageState extends State<GalleryPage>
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(7.5),
                 image: DecorationImage(
-                  image: AssetImage(Assets.imagesGallaryGallarySliderDot),
+                  image: AssetImage(Assets.gallaryGallarySliderDot),
                   fit: BoxFit.fill,
                 ),
               ),

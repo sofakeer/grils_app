@@ -75,15 +75,26 @@ flutter:
     - assets/images/Girl01_chage_Btn_All/
     - assets/images/Girl02_chage_Btn_All/
     - assets/images/Girl03_chage_Btn_All/
-    - assets/images/Loading/
-    - assets/images/Main/
-    - assets/images/Pop/
     - assets/images/Setting/
     - assets/images/Sign/
     - assets/images/shop/
     - assets/images/gallary/
     - assets/images/grils_list/
-    - assets/audio/
+    - assets/images/assets/audio/
+    - assets/images/ball_bottle/
+    - assets/images/gallary/
+    - assets/images/game/
+    - assets/images/grils_list/
+    - assets/images/Loading/
+    - assets/images/Main/
+    - assets/images/NewPhoto/
+    - assets/images/Pop/
+    - assets/images/Setting/
+    - assets/images/shop/
+    - assets/images/Sign/
+    - assets/images/special/
+    - assets/images/Wincoin/
+    - assets/images/WinHeart/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
