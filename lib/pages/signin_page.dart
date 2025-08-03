@@ -7,6 +7,17 @@ import 'dart:math';
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
 
+  // 添加静态方法用于显示弹窗
+  static Future<void> showSignInDialog(BuildContext context) {
+    return showDialog(
+      context: context,
+      barrierDismissible: false, // 点击背景不关闭
+      builder: (BuildContext context) {
+        return const SignInPage();
+      },
+    );
+  }
+
   @override
   State<SignInPage> createState() => _SignInPageState();
 }
@@ -201,9 +212,9 @@ class _SignInPageState extends State<SignInPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black.withOpacity(0.5),
-      body: Stack(
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Stack(
         children: [
           // 主签到界面
           AnimatedBuilder(

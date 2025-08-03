@@ -136,26 +136,6 @@ class _GalleryPageState extends State<GalleryPage>
                     bottom: 80,
                     child: Column(
                       children: [
-                        // 标题
-                        Container(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Text(
-                            '美女图鉴',
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withOpacity(0.5),
-                                  offset: Offset(2, 2),
-                                  blurRadius: 4,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
                         // 图片网格
                         Expanded(
                           child: Padding(
@@ -209,35 +189,35 @@ class _GalleryPageState extends State<GalleryPage>
                     child: _buildScrollBar(),
                   ),
 
-                  // 底部统计信息
-                  Positioned(
-                    bottom: 20,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.6),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '已解锁: ${_unlockedImages.where((unlocked) => unlocked).length}/$totalImages',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  // // 底部统计信息
+                  // Positioned(
+                  //   bottom: 20,
+                  //   left: 0,
+                  //   right: 0,
+                  //   child: Container(
+                  //     padding: EdgeInsets.symmetric(horizontal: 20),
+                  //     child: Row(
+                  //       mainAxisAlignment: MainAxisAlignment.center,
+                  //       children: [
+                  //         Container(
+                  //           padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  //           decoration: BoxDecoration(
+                  //             color: Colors.black.withOpacity(0.6),
+                  //             borderRadius: BorderRadius.circular(20),
+                  //           ),
+                  //           child: Text(
+                  //             '已解锁: ${_unlockedImages.where((unlocked) => unlocked).length}/$totalImages',
+                  //             style: TextStyle(
+                  //               color: Colors.white,
+                  //               fontSize: 16,
+                  //               fontWeight: FontWeight.bold,
+                  //             ),
+                  //           ),
+                  //         ),
+                  //       ],
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),
@@ -254,13 +234,6 @@ class _GalleryPageState extends State<GalleryPage>
     return GestureDetector(
       onTap: () => _openPhotoDetail(index),
       child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.3),
-            width: 2,
-          ),
-        ),
         child: Stack(
           children: [
             // 背景框架
@@ -283,12 +256,12 @@ class _GalleryPageState extends State<GalleryPage>
               child: Container(
                 width: double.infinity,
                 height: double.infinity,
-                margin: EdgeInsets.all(8),
+                margin: EdgeInsets.only(left: 3.5,right: 3.5,bottom: 4,top: 2),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(6),
                   child: isUnlocked
                     ? Image.asset(
                         'assets/images/grils_list/Bg_$imageNumber.png',
@@ -303,40 +276,31 @@ class _GalleryPageState extends State<GalleryPage>
                           );
                         },
                       )
-                    : Container(
-                        color: Colors.black.withOpacity(0.7),
-                        child: Center(
-                          child: Icon(
-                            Icons.lock,
-                            color: Colors.white.withOpacity(0.8),
-                            size: 30,
-                          ),
-                        ),
-                      ),
+                    : Container(color: Colors.transparent),
                 ),
               ),
             ),
 
             // 图片序号
-            Positioned(
-              bottom: 2,
-              right: 2,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  imageNumber,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
+            // Positioned(
+            //   bottom: 2,
+            //   right: 2,
+            //   child: Container(
+            //     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            //     decoration: BoxDecoration(
+            //       color: Colors.black.withOpacity(0.7),
+            //       borderRadius: BorderRadius.circular(10),
+            //     ),
+            //     child: Text(
+            //       imageNumber,
+            //       style: TextStyle(
+            //         color: Colors.white,
+            //         fontSize: 10,
+            //         fontWeight: FontWeight.bold,
+            //       ),
+            //     ),
+            //   ),
+            // ),
 
             // 新图片标识 (如果是最近解锁的)
             if (isUnlocked && index >= totalImages - 5)
@@ -361,36 +325,37 @@ class _GalleryPageState extends State<GalleryPage>
   }
 
   Widget _buildScrollBar() {
-    return Container(
-      width: 15,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(7.5),
-        image: DecorationImage(
-          image: AssetImage(Assets.gallaryGallarySliderBg),
-          fit: BoxFit.fill,
+    return Stack(
+      children: [
+        // 滚动条背景
+        Container(
+          width: 15,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(7.5),
+            image: DecorationImage(
+              image: AssetImage(Assets.gallaryGallarySliderBg),
+              fit: BoxFit.fill,
+            ),
+          ),
         ),
-      ),
-      child: Stack(
-        children: [
-          // 滚动指示器
-          AnimatedPositioned(
-            duration: Duration(milliseconds: 100),
-            top: _scrollProgress * (MediaQuery.of(context).size.height * 0.6 - 30),
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 30,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(7.5),
-                image: DecorationImage(
-                  image: AssetImage(Assets.gallaryGallarySliderDot),
-                  fit: BoxFit.fill,
-                ),
+        // 滚动指示器 - 显示在滚动条上方
+        AnimatedPositioned(
+          duration: Duration(milliseconds: 100),
+          top: _scrollProgress * (MediaQuery.of(context).size.height * 0.6 - 40),
+          left: -2.5,
+          child: Container(
+            width: 20,
+            height: 40,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              image: DecorationImage(
+                image: AssetImage(Assets.gallaryGallarySliderDot),
+                fit: BoxFit.contain,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

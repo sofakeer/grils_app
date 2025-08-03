@@ -75,11 +75,7 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
   }
 
   void _navigateToSignIn() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SignInPage(),
-      ),
-    ).then((_) {
+    SignInPage.showSignInDialog(context).then((_) {
       // 从签到页面返回时重新加载数据
       _loadUserData();
     });

@@ -121,17 +121,17 @@ class _LoadingPageState extends State<LoadingPage>
         child: Stack(
           children: [
             // Logo
-            Positioned(
-              top: MediaQuery.of(context).size.height * 0.2,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Image.asset(
-                  Assets.loadingLoadingBg,
-                  height: 200,
-                ),
-              ),
-            ),
+            // Positioned(
+            //   top: MediaQuery.of(context).size.height * 0.2,
+            //   left: 0,
+            //   right: 0,
+            //   child: Center(
+            //     child: Image.asset(
+            //       Assets.loadingLoadingBg,
+            //       height: 200,
+            //     ),
+            //   ),
+            // ),
 
             // Loading text
             Positioned(
