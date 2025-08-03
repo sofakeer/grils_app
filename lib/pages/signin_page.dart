@@ -246,9 +246,9 @@ class _SignInPageState extends State<SignInPage>
                           children: [
                             // 标题
                             Container(
-                              padding: EdgeInsets.symmetric(vertical: 30),
+                              padding: EdgeInsets.symmetric(vertical: 35),
                               child: Text(
-                                '每日签到',
+                                'SIGN',
                                 style: TextStyle(
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
@@ -266,18 +266,40 @@ class _SignInPageState extends State<SignInPage>
 
                             // 签到格子
                             Expanded(
-                              child: GridView.builder(
+                              child: Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 20),
-                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 4,
-                                  childAspectRatio: 0.8,
-                                  crossAxisSpacing: 10,
-                                  mainAxisSpacing: 10,
+                                child: Column(
+                                  children: [
+                                    // 前6天，每行3个
+                                    Expanded(
+                                      flex: 2,
+                                      child: GridView.builder(
+                                        physics: NeverScrollableScrollPhysics(),
+                                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 3,
+                                          childAspectRatio: 0.9,
+                                          crossAxisSpacing: 15,
+                                          mainAxisSpacing: 15,
+                                        ),
+                                        itemCount: 6,
+                                        itemBuilder: (context, index) {
+                                          return _buildSignInDay(index + 1);
+                                        },
+                                      ),
+                                    ),
+                                    
+                                    SizedBox(height: 20),
+                                    
+                                    // 第7天单独一行，宽度匹配
+                                    Expanded(
+                                      flex: 1,
+                                      child: Container(
+                                        width: double.infinity,
+                                        child: _buildSignInDay(7),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                itemCount: 7,
-                                itemBuilder: (context, index) {
-                                  return _buildSignInDay(index + 1);
-                                },
                               ),
                             ),
 
@@ -437,6 +459,7 @@ class _SignInPageState extends State<SignInPage>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+        if (!isDay7)
           // 天数
           Text(
             'Day $day',
@@ -449,49 +472,77 @@ class _SignInPageState extends State<SignInPage>
           
           SizedBox(height: 5),
           
-          // 奖励图标和数量
-          if (reward['coins'] > 0) ...[
-            Image.asset(
-              Assets.mainMainIconCoin,
-              height: 20,
-            ),
-            Text(
-              '+${reward['coins']}',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: isToday ? Colors.white : Colors.black,
-              ),
-            ),
-          ],
-          
-          if (reward['hearts'] > 0) ...[
-            Image.asset(
-              Assets.imagesIconHeart2x,
-              height: 20,
-            ),
-            Text(
-              '+${reward['hearts']}',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: isToday ? Colors.white : Colors.black,
-              ),
-            ),
-          ],
-          
-          // 第7天显示双奖励
+          // 第7天特殊布局 - 水平展示双奖励，宽度匹配
           if (isDay7 && reward['coins'] > 0 && reward['hearts'] > 0) ...[
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                Image.asset(Assets.mainMainIconCoin, height: 15),
-                Text('+${reward['coins']}', style: TextStyle(fontSize: 8, color: isToday ? Colors.white : Colors.black)),
-                SizedBox(width: 5),
-                Image.asset(Assets.imagesIconHeart2x, height: 15),
-                Text('+${reward['hearts']}', style: TextStyle(fontSize: 8, color: isToday ? Colors.white : Colors.black)),
+                // 金币奖励
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(Assets.mainMainIconCoin, height: 45),
+                    SizedBox(width: 3),
+                    Text(
+                      'X${reward['coins']}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: HexColor("#FBFF1D"),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                // 爱心奖励
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(Assets.imagesIconHeart2x, height: 35),
+                    SizedBox(width: 3),
+                    Text(
+                      'X${reward['hearts']}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: HexColor("#FBFF1D"),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
+          ] else ...[
+            // 普通天的奖励显示
+            if (reward['coins'] > 0) ...[
+              Image.asset(
+                Assets.mainMainIconCoin,
+                height: 20,
+              ),
+              Text(
+                'X${reward['coins']}',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: HexColor("#FF9B9B"),
+                ),
+              ),
+            ],
+            
+            if (reward['hearts'] > 0) ...[
+              Image.asset(
+                Assets.imagesIconHeart2x,
+                height: 20,
+              ),
+              Text(
+                '+${reward['hearts']}',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: isToday ? Colors.white : Colors.black,
+                ),
+              ),
+            ],
           ],
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
+import 'package:grils_app/widgets/common_header.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -226,17 +227,24 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
               ),
               child: Stack(
                 children: [
+                  CommonHeader(),
                   // 主要内容区域
                   Positioned(
-                    top: MediaQuery.of(context).padding.top + 20,
+                    top: MediaQuery.of(context).padding.top + 80,
                     left: 0,
                     right: 0,
                     bottom: 0,
                     child: Column(
                       children: [
                         // 标题和金币显示
-                        _buildHeader(),
-                        
+                        // CommonHeader(),
+                        Container(
+                          height: 80,
+                          child: Image.asset(
+                            Assets.shopShopTitle,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                         SizedBox(height: 20),
                         
                         // 切换标签
@@ -252,27 +260,27 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                     ),
                   ),
 
-                  // 关闭按钮
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 10,
-                    right: 20,
-                    child: GestureDetector(
-                      onTap: _close,
-                      child: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.5),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                    ),
-                  ),
+                  // // 关闭按钮
+                  // Positioned(
+                  //   top: MediaQuery.of(context).padding.top + 10,
+                  //   right: 20,
+                  //   child: GestureDetector(
+                  //     onTap: _close,
+                  //     child: Container(
+                  //       width: 50,
+                  //       height: 50,
+                  //       decoration: BoxDecoration(
+                  //         color: Colors.black.withOpacity(0.5),
+                  //         shape: BoxShape.circle,
+                  //       ),
+                  //       child: Icon(
+                  //         Icons.close,
+                  //         color: Colors.white,
+                  //         size: 28,
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),
@@ -289,14 +297,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // 标题
-          Container(
-            height: 60,
-            child: Image.asset(
-              Assets.shopShopTitle,
-              fit: BoxFit.contain,
-            ),
-          ),
-          
+
           // 金币显示
           Container(
             padding: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
@@ -494,14 +495,14 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
             
             // 价格标签
             Positioned(
-              bottom: 10,
+              bottom: 50,
               left: 0,
               right: 0,
               child: Center(
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isUnlocked ? Colors.green : Colors.orange,
+                    color: isUnlocked ? Colors.transparent : Colors.orange,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -522,20 +523,20 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                           ),
                         ),
                       ] else ...[
-                        Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        SizedBox(width: 4),
-                        Text(
-                          '已拥有',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        // Icon(
+                        //   Icons.check,
+                        //   color: Colors.white,
+                        //   size: 16,
+                        // ),
+                        // SizedBox(width: 4),
+                        // Text(
+                        //   '已拥有',
+                        //   style: TextStyle(
+                        //     color: Colors.white,
+                        //     fontSize: 12,
+                        //     fontWeight: FontWeight.bold,
+                        //   ),
+                        // ),
                       ],
                     ],
                   ),
@@ -544,37 +545,37 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
             ),
             
             // 购买按钮 (只有选中且未解锁时显示)
-            if (isSelected && !isUnlocked)
-              Positioned(
-                bottom: -10,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: GestureDetector(
-                    onTap: () => _purchaseItem(index),
-                    child: Container(
-                      width: 80,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: AssetImage(Assets.shopShopBtnBuy),
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'BUY',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            // if (isSelected && !isUnlocked)
+            //   Positioned(
+            //     bottom: -10,
+            //     left: 0,
+            //     right: 0,
+            //     child: Center(
+            //       child: GestureDetector(
+            //         onTap: () => _purchaseItem(index),
+            //         child: Container(
+            //           width: 80,
+            //           height: 30,
+            //           decoration: BoxDecoration(
+            //             image: DecorationImage(
+            //               image: AssetImage(Assets.shopShopBtnBuy),
+            //               fit: BoxFit.fill,
+            //             ),
+            //           ),
+            //           child: Center(
+            //             child: Text(
+            //               'BUY',
+            //               style: TextStyle(
+            //                 color: Colors.white,
+            //                 fontSize: 12,
+            //                 fontWeight: FontWeight.bold,
+            //               ),
+            //             ),
+            //           ),
+            //         ),
+            //       ),
+            //     ),
+            //   ),
           ],
         ),
       ),

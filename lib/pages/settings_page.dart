@@ -77,6 +77,10 @@ class _SettingsPageState extends State<SettingsPage>
     _saveSoundSetting(_soundEnabled);
   }
 
+  void _goToMainMenu() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   void _closeSettings() {
     _animationController.reverse().then((_) {
       Navigator.of(context).pop();
@@ -102,114 +106,198 @@ class _SettingsPageState extends State<SettingsPage>
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // 背景
+                  // 主对话框背景
                   Container(
                     width: MediaQuery.of(context).size.width * 0.8,
                     height: MediaQuery.of(context).size.height * 0.6,
                     decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage(Assets.popPopAsk),
-                        fit: BoxFit.fill,
+                      color: HexColor("#FFF5E5"),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: HexColor("#FFD700"),
+                        width: 3,
                       ),
                     ),
                   ),
 
                   // 内容
                   Container(
-                    width: MediaQuery.of(context).size.width * 0.7,
-                    height: MediaQuery.of(context).size.height * 0.5,
+                    width: MediaQuery.of(context).size.width * 0.75,
+                    height: MediaQuery.of(context).size.height * 0.55,
                     child: Column(
                       children: [
-                        // 标题
+                        // 紫色标题栏
                         Container(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Text(
-                            '设置',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: HexColor("#8B4513"),
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(vertical: 15),
+                          decoration: BoxDecoration(
+                            color: HexColor("#8A2BE2"),
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(17),
+                              topRight: Radius.circular(17),
                             ),
                           ),
-                        ),
-
-                        // 设置项列表
-                        Expanded(
-                          child: Column(
+                          child: Stack(
                             children: [
-                              // 声音开关
-                              _buildSettingItem(
-                                icon: Icons.volume_up,
-                                title: '声音',
-                                subtitle: _soundEnabled ? 'ON' : 'OFF',
-                                onTap: _toggleSound,
-                                trailing: Switch(
-                                  value: _soundEnabled,
-                                  onChanged: (value) {
-                                    _toggleSound();
-                                  },
-                                  activeColor: Colors.green,
-                                  inactiveThumbColor: Colors.grey,
-                                ),
-                              ),
-
-                              SizedBox(height: 20),
-
-                              // 隐私政策
-                              _buildSettingItem(
-                                icon: Icons.privacy_tip,
-                                title: '隐私政策',
-                                subtitle: '查看我们的隐私政策',
-                                onTap: _launchPrivacyPolicy,
-                                trailing: Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: HexColor("#8B4513"),
+                              // 星星装饰
+                              Positioned(
+                                top: 5,
+                                left: 20,
+                                child: Icon(
+                                  Icons.star,
+                                  color: Colors.white,
                                   size: 16,
                                 ),
                               ),
-
-                              SizedBox(height: 20),
-
-                              // 服务条款
-                              _buildSettingItem(
-                                icon: Icons.description,
-                                title: '服务条款',
-                                subtitle: '查看服务条款',
-                                onTap: _launchTermsOfService,
-                                trailing: Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: HexColor("#8B4513"),
-                                  size: 16,
+                              Positioned(
+                                top: 10,
+                                right: 60,
+                                child: Icon(
+                                  Icons.star,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 5,
+                                left: 40,
+                                child: Icon(
+                                  Icons.star,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                              ),
+                              // 标题文字
+                              Center(
+                                child: Text(
+                                  'Setting',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
 
-                        // 关闭按钮
-                        Container(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: GestureDetector(
-                            onTap: _closeSettings,
-                            child: Container(
-                              width: 120,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: AssetImage(Assets.settingSettingBtnBlue),
-                                  fit: BoxFit.fill,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '关闭',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                        // 主要内容区域
+                        Expanded(
+                          child: Container(
+                            padding: EdgeInsets.all(30),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // 声音按钮
+                                GestureDetector(
+                                  onTap: _toggleSound,
+                                  child: Container(
+                                    width: 200,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          HexColor("#4A90E2"),
+                                          HexColor("#357ABD"),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(40),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.3),
+                                          blurRadius: 8,
+                                          offset: Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        _soundEnabled ? 'SOUND ON' : 'SOUND OFF',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+
+                                SizedBox(height: 20),
+
+                                // 主菜单按钮
+                                GestureDetector(
+                                  onTap: _goToMainMenu,
+                                  child: Container(
+                                    width: 200,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          HexColor("#4CAF50"),
+                                          HexColor("#388E3C"),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(40),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.3),
+                                          blurRadius: 8,
+                                          offset: Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        'MAIN MENU',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                SizedBox(height: 30),
+
+                                // 政策链接
+                                Column(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: _launchPrivacyPolicy,
+                                      child: Text(
+                                        'Private policy',
+                                        style: TextStyle(
+                                          color: HexColor("#8B4513"),
+                                          fontSize: 16,
+                                          decoration: TextDecoration.underline,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(height: 10),
+                                    GestureDetector(
+                                      onTap: _launchTermsOfService,
+                                      child: Text(
+                                        'Term of service',
+                                        style: TextStyle(
+                                          color: HexColor("#8B4513"),
+                                          fontSize: 16,
+                                          decoration: TextDecoration.underline,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -219,21 +307,21 @@ class _SettingsPageState extends State<SettingsPage>
 
                   // 右上角关闭按钮
                   Positioned(
-                    top: MediaQuery.of(context).size.height * 0.2 - 20,
-                    right: MediaQuery.of(context).size.width * 0.1 - 20,
+                    top: MediaQuery.of(context).size.height * 0.2 - 25,
+                    right: MediaQuery.of(context).size.width * 0.1 - 25,
                     child: GestureDetector(
                       onTap: _closeSettings,
                       child: Container(
-                        width: 40,
-                        height: 40,
+                        width: 50,
+                        height: 50,
                         decoration: BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.3),
-                              blurRadius: 3,
-                              offset: Offset(0, 1),
+                              blurRadius: 5,
+                              offset: Offset(0, 2),
                             ),
                           ],
                         ),
@@ -241,7 +329,7 @@ class _SettingsPageState extends State<SettingsPage>
                           child: Icon(
                             Icons.close,
                             color: Colors.white,
-                            size: 24,
+                            size: 28,
                           ),
                         ),
                       ),
@@ -252,80 +340,6 @@ class _SettingsPageState extends State<SettingsPage>
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildSettingItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-    Widget? trailing,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 5,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Icon
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: HexColor("#FF69B4").withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                icon,
-                color: HexColor("#FF69B4"),
-                size: 24,
-              ),
-            ),
-            
-            SizedBox(width: 15),
-            
-            // Text content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: HexColor("#4A4A4A"),
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: HexColor("#888888"),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Trailing widget
-            if (trailing != null) trailing,
-          ],
-        ),
       ),
     );
   }
