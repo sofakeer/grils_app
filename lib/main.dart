@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:spine_flutter/spine_flutter.dart';
@@ -18,7 +19,7 @@ void main() async {
   //   overlays: [SystemUiOverlay.top],
   // );
 
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -170,7 +171,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
               });
             }
             // 播放第一个动画循环
-            controller.animationState.setAnimationByName(0, animations.first.getName(), true);
+            final firstAnimationName = animations.first.getName();
+            if (firstAnimationName != null && firstAnimationName.isNotEmpty) {
+              controller.animationState.setAnimationByName(0, firstAnimationName, true);
+            } else {
+              print("First animation name is null or empty");
+            }
           }
         } catch (e) {
           print("Takeoff animation initialization failed: $e");
@@ -612,8 +618,31 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     }
   }
 
+  // 验证动画是否存在
+  bool _isAnimationAvailable(String animationName) {
+    if (_spineController == null || !_isControllerReady) return false;
+    
+    try {
+      final animation = _spineController!.skeleton.getData()?.findAnimation(animationName);
+      return animation != null;
+    } catch (e) {
+      print("Failed to check animation availability: $e");
+      return false;
+    }
+  }
+
   void _playAnimation(String animationName, bool loop) {
     if (_spineController != null && _isControllerReady) {
+      if (!_isAnimationAvailable(animationName)) {
+        print("Animation '$animationName' not found, using first available animation");
+        if (_availableAnimations.isNotEmpty) {
+          animationName = _availableAnimations.first;
+        } else {
+          print("No animations available");
+          return;
+        }
+      }
+      
       _spineController!.animationState.setAnimationByName(0, animationName, loop);
       setState(() {
         _isAnimating = true;
@@ -692,6 +721,18 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     if (_spineController != null && _isControllerReady) {
       print(
           "Playing current idle animation: $animationName (index: $_currentIdleIndex, special: ${_girlStates[0].isPlayingSpecial})");
+
+      // 验证动画是否存在
+      if (!_isAnimationAvailable(animationName)) {
+        print("Animation '$animationName' not found, using fallback");
+        if (_availableAnimations.isNotEmpty) {
+          animationName = _availableAnimations.first;
+          print("Using fallback animation: $animationName");
+        } else {
+          print("No animations available");
+          return;
+        }
+      }
 
       // 清除所有动画轨道，确保没有残留动画
       _spineController!.animationState.clearTracks();
@@ -1253,19 +1294,26 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       // 1. 获取当前idle编号
       int takeoffIndex = _currentIdleIndex + 1; // idle_01 -> take_off_01
       String takeoffName = 'take_off_0$takeoffIndex';
-      // 2. 获取动画时长
-      final animation = _spineController!.skeleton.getData()!.findAnimation(takeoffName);
-      double duration = 1.0; // 默认1秒
-      if (animation != null) {
-        duration = animation.getDuration();
+      
+      // 2. 验证takeoff动画是否存在
+      if (_isAnimationAvailable(takeoffName)) {
+        // 3. 获取动画时长
+        final animation = _spineController!.skeleton.getData()!.findAnimation(takeoffName);
+        double duration = 1.0; // 默认1秒
+        if (animation != null) {
+          duration = animation.getDuration();
+        }
+        // 4. 播放takeoff动画（不循环）
+        _spineController!.animationState.setAnimationByName(0, takeoffName, false);
+        setState(() {
+          _isAnimating = true;
+        });
+        // 5. 等待动画播完后切换到下一个idle
+        await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+      } else {
+        print("Takeoff animation '$takeoffName' not found, skipping transition");
       }
-      // 3. 播放takeoff动画（不循环）
-      _spineController!.animationState.setAnimationByName(0, takeoffName, false);
-      setState(() {
-        _isAnimating = true;
-      });
-      // 4. 等待动画播完后切换到下一个idle
-      await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+      
       setState(() {
         _currentIdleIndex = (_currentIdleIndex + 1) % 5;
       });
@@ -1565,16 +1613,22 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     // underwear阶段切换皮肤时，先播放idlesp_underwear动画
     if (_currentIdleIndex == 4 && _spineController != null && _isControllerReady) {
       String animName = 'idlesp_underwear';
-      final animation = _spineController!.skeleton.getData()!.findAnimation(animName);
-      double duration = 1.0;
-      if (animation != null) {
-        duration = animation.getDuration();
+      
+      // 验证动画是否存在
+      if (_isAnimationAvailable(animName)) {
+        final animation = _spineController!.skeleton.getData()!.findAnimation(animName);
+        double duration = 1.0;
+        if (animation != null) {
+          duration = animation.getDuration();
+        }
+        _spineController!.animationState.setAnimationByName(0, animName, false);
+        setState(() {
+          _isAnimating = true;
+        });
+        await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+      } else {
+        print("Animation '$animName' not found, skipping transition");
       }
-      _spineController!.animationState.setAnimationByName(0, animName, false);
-      setState(() {
-        _isAnimating = true;
-      });
-      await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
     }
     // 应用新的皮肤
     _applyCurrentSkins();

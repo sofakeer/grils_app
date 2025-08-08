@@ -21,11 +21,13 @@ import 'package:grils_app/services/user_service.dart';
 class CommonHeader extends StatefulWidget {
   final VoidCallback? onBackPressed;
   final bool showBackButton;
+  final bool settingsButton;
 
   const CommonHeader({
     super.key,
     this.onBackPressed,
     this.showBackButton = true,
+    this.settingsButton = false,
   });
 
   @override
@@ -151,7 +153,7 @@ class _CommonHeaderState extends State<CommonHeader> {
                   GestureDetector(
                     onTap: widget.onBackPressed ?? () => Navigator.of(context).pop(),
                     child: Image.asset(
-                      Assets.imagesBtnHeartBack,
+                     widget.settingsButton ? Assets.mainMainBtnSetting : Assets.imagesBtnHeartBack,
                       height: 50,
                     ),
                   ),

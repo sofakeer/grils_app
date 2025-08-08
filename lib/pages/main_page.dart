@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grils_app/generated/assets.dart';
-import 'package:hexcolor/hexcolor.dart';
+import 'package:grils_app/widgets/common_header.dart';
 import 'package:grils_app/main.dart';
 import 'package:grils_app/pages/settings_page.dart';
 import 'package:grils_app/pages/signin_page.dart';
 import 'package:grils_app/pages/gallery_page.dart';
 import 'package:grils_app/pages/shop_page.dart';
+import 'package:grils_app/providers/app_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class MainPage extends StatefulWidget {
+class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
 
   @override
-  State<MainPage> createState() => _MainPageState();
+  ConsumerState<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
+class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMixin {
   late AnimationController _takeoffController;
   late Animation<double> _takeoffAnimation;
   
@@ -66,12 +68,8 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
     await prefs.setInt('current_level', _currentLevel);
   }
 
-  void _navigateToSettings() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SettingsPage(),
-      ),
-    );
+  void _showSettingsDialog() {
+    SettingsPage.showSettingsDialog(context);
   }
 
   void _navigateToSignIn() {
@@ -100,6 +98,13 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
     });
   }
 
+  void _switchToNextGirl() {
+    final currentIndex = ref.read(currentGirlIndexProvider);
+    final spineAssets = ref.read(spineAssetsProvider);
+    final nextIndex = (currentIndex + 1) % spineAssets.length;
+    ref.read(currentGirlIndexProvider.notifier).state = nextIndex;
+  }
+
   void _startGame() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -117,88 +122,22 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final currentGirlAsset = ref.watch(currentGirlAssetProvider);
+    
     return Scaffold(
+      resizeToAvoidBottomInset: false,
+      extendBodyBehindAppBar: true,
+      extendBody: true,
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              HexColor("#FF69B4"),
-              HexColor("#FF1493"),
-            ],
-          ),
-        ),
+        color: Colors.transparent,
         child: Stack(
           children: [
             // 顶部货币显示区域
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 20,
-              left: 20,
-              right: 20,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // 金币显示
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: HexColor("#FFD700"),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.orange, width: 2),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Image.asset(
-                          Assets.mainMainIconCoin,
-                          height: 30,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          '$_coinCount',
-                          style: TextStyle(
-                            color: HexColor("#8B4513"),
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // 爱心货币显示
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: HexColor("#FFB6C1"),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.pink, width: 2),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Image.asset(
-                          Assets.imagesIconHeart2x,
-                          height: 30,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          '$_heartCount',
-                          style: TextStyle(
-                            color: HexColor("#8B0000"),
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            CommonHeader(settingsButton: true,onBackPressed: () {
+              _showSettingsDialog();
+            },),
 
             // 左侧功能按钮
             Positioned(
@@ -230,7 +169,7 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
                     ),
                   ),
                   
-                  // 图鉴按钮
+                  // 图鉴按钮 - 显示最新选择的女孩
                   GestureDetector(
                     onTap: _navigateToGallery,
                     child: Stack(
@@ -247,7 +186,7 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.asset(
-                              'assets/images/grils_list/Bg_01.png',
+                              currentGirlAsset.imagePath,
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -274,17 +213,17 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
               top: MediaQuery.of(context).size.height * 0.25,
               child: Column(
                 children: [
-                  // 设置按钮
-                  GestureDetector(
-                    onTap: _navigateToSettings,
-                    child: Container(
-                      margin: EdgeInsets.only(bottom: 40),
-                      child: Image.asset(
-                        Assets.mainMainBtnSetting,
-                        height: 80,
-                      ),
-                    ),
-                  ),
+                  // // 设置按钮
+                  // GestureDetector(
+                  //   onTap: _navigateToSettings,
+                  //   child: Container(
+                  //     margin: EdgeInsets.only(bottom: 40),
+                  //     child: Image.asset(
+                  //       Assets.mainMainBtnSetting,
+                  //       height: 80,
+                  //     ),
+                  //   ),
+                  // ),
                   
                   // 脱衣按钮 (动画)
                   Container(
@@ -303,6 +242,87 @@ class _MainPageState extends State<MainPage> with TickerProviderStateMixin {
                     ),
                   ),
                 ],
+              ),
+            ),
+
+            // 中央显示当前选择的女孩
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.3,
+              left: MediaQuery.of(context).size.width * 0.2,
+              right: MediaQuery.of(context).size.width * 0.2,
+              bottom: MediaQuery.of(context).size.height * 0.35,
+              child: GestureDetector(
+                onTap: _switchToNextGirl,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 2,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      color: Colors.black.withOpacity(0.1),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 150,
+                              height: 150,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.5),
+                                  width: 3,
+                                ),
+                              ),
+                              child: ClipOval(
+                                child: Image.asset(
+                                  currentGirlAsset.imagePath,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              currentGirlAsset.name,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.7),
+                                    offset: Offset(1, 1),
+                                    blurRadius: 3,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              'Tap to switch',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 12,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black.withOpacity(0.7),
+                                    offset: Offset(1, 1),
+                                    blurRadius: 2,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
 
