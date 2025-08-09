@@ -131,7 +131,7 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                SizedBox(height: 60),
+                                SizedBox(height: 30),
                                 Text(
                                   'By clicking Yes, you acknowledge and agree to our',
                                   style: TextStyle(

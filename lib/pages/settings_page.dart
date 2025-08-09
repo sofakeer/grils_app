@@ -22,11 +22,10 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage>
-    with SingleTickerProviderStateMixin {
+class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  
+
   bool _soundEnabled = true;
 
   @override
@@ -118,7 +117,7 @@ class _SettingsPageState extends State<SettingsPage>
                 Container(
                   width: MediaQuery.of(context).size.width * 0.85,
                   height: MediaQuery.of(context).size.height * 0.6,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     image: DecorationImage(
                       image: AssetImage(Assets.imagesPopBack),
                       fit: BoxFit.fill,
@@ -126,7 +125,7 @@ class _SettingsPageState extends State<SettingsPage>
                   ),
                 ),
                 // 内容
-                Container(
+                SizedBox(
                   width: MediaQuery.of(context).size.width * 0.75,
                   height: MediaQuery.of(context).size.height * 0.55,
                   child: Column(
@@ -134,7 +133,7 @@ class _SettingsPageState extends State<SettingsPage>
                       // 主要内容区域
                       Expanded(
                         child: Container(
-                          padding: EdgeInsets.all(30),
+                          padding: const EdgeInsets.all(30),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -144,28 +143,16 @@ class _SettingsPageState extends State<SettingsPage>
                                 child: Container(
                                   width: 200,
                                   height: 80,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        HexColor("#4A90E2"),
-                                        HexColor("#357ABD"),
-                                      ],
+                                  decoration: const BoxDecoration(
+                                    image: DecorationImage(
+                                      image: AssetImage(Assets.settingSettingBtnBlue),
+                                      fit: BoxFit.fill,
                                     ),
-                                    borderRadius: BorderRadius.circular(40),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 4),
-                                      ),
-                                    ],
                                   ),
                                   child: Center(
                                     child: Text(
                                       _soundEnabled ? 'SOUND ON' : 'SOUND OFF',
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
@@ -175,7 +162,7 @@ class _SettingsPageState extends State<SettingsPage>
                                 ),
                               ),
 
-                              SizedBox(height: 20),
+                              const SizedBox(height: 20),
 
                               // 主菜单按钮
                               GestureDetector(
@@ -183,25 +170,13 @@ class _SettingsPageState extends State<SettingsPage>
                                 child: Container(
                                   width: 200,
                                   height: 80,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        HexColor("#4CAF50"),
-                                        HexColor("#388E3C"),
-                                      ],
+                                  decoration: const BoxDecoration(
+                                    image: DecorationImage(
+                                      image: AssetImage(Assets.settingSettingBtnGreen),
+                                      fit: BoxFit.fill,
                                     ),
-                                    borderRadius: BorderRadius.circular(40),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 4),
-                                      ),
-                                    ],
                                   ),
-                                  child: Center(
+                                  child: const Center(
                                     child: Text(
                                       'MAIN MENU',
                                       style: TextStyle(
@@ -214,7 +189,7 @@ class _SettingsPageState extends State<SettingsPage>
                                 ),
                               ),
 
-                              SizedBox(height: 30),
+                              const SizedBox(height: 30),
 
                               // 政策链接
                               Column(
@@ -226,12 +201,11 @@ class _SettingsPageState extends State<SettingsPage>
                                       style: TextStyle(
                                         color: HexColor("#8B4513"),
                                         fontSize: 16,
-                                        decoration: TextDecoration.underline,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ),
-                                  SizedBox(height: 10),
+                                  const SizedBox(height: 10),
                                   GestureDetector(
                                     onTap: _launchTermsOfService,
                                     child: Text(
@@ -239,7 +213,6 @@ class _SettingsPageState extends State<SettingsPage>
                                       style: TextStyle(
                                         color: HexColor("#8B4513"),
                                         fontSize: 16,
-                                        decoration: TextDecoration.underline,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -256,11 +229,23 @@ class _SettingsPageState extends State<SettingsPage>
 
                 // 右上角关闭按钮
                 Positioned(
-                  top: MediaQuery.of(context).size.height * 0.2 - 25,
-                  right: MediaQuery.of(context).size.width * 0.1 - 25,
+                  top: 0,
+                  right: 0,
                   child: GestureDetector(
-                    onTap: _closeSettings,
-                    child: Image.asset(Assets.imagesBtnClose)
+                      onTap: _closeSettings,
+                      child: Image.asset(
+                        Assets.imagesBtnClose,
+                        width: 40,
+                      )),
+                ),
+                const Positioned(
+                  top: 25,
+                  right: 0,
+                  left: 0,
+                  child: Text(
+                    "Setting",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
