@@ -95,7 +95,7 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                   height: MediaQuery.of(context).size.height * 0.6,
                   decoration: BoxDecoration(
                     image: DecorationImage(
-                      image: AssetImage(Assets.popPopBtnBlue),
+                      image: AssetImage(Assets.popPopAsk),
                       fit: BoxFit.fill,
                     ),
                   ),
@@ -108,14 +108,17 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                   child: Column(
                     children: [
                       // 标题
-                      Container(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Text(
-                          '隐私协议',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: HexColor("#8B4513"),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 50),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(vertical: 20,),
+                          child: Text(
+                            'Notice',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -123,69 +126,56 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                       // 内容区域
                       Expanded(
                         child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 20),
+                          padding: EdgeInsets.symmetric(horizontal: 30),
                           child: SingleChildScrollView(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
+                                SizedBox(height: 60),
                                 Text(
-                                  '欢迎使用我们的应用！',
+                                  'By clicking Yes, you acknowledge and agree to our',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: HexColor("#4A4A4A"),
                                   ),
                                 ),
+
                                 SizedBox(height: 10),
-                                Text(
-                                  '为了提供更好的服务体验，我们需要收集并使用您的一些信息。请仔细阅读以下条款：',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: HexColor("#666666"),
-                                    height: 1.5,
-                                  ),
-                                ),
-                                SizedBox(height: 15),
-                                Text(
-                                  '• 我们会收集设备信息以优化游戏性能\n'
-                                  '• 游戏进度和设置会保存在本地\n'
-                                  '• 我们不会收集个人敏感信息\n'
-                                  '• 您可以随时在设置中管理隐私选项',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: HexColor("#666666"),
-                                    height: 1.5,
-                                  ),
-                                ),
-                                SizedBox(height: 20),
-                                
+
                                 // 链接区域
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    GestureDetector(
-                                      onTap: _launchPrivacyPolicy,
-                                      child: Text(
-                                        '隐私协议',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.blue,
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                      ),
+                                GestureDetector(
+                                  onTap: _launchPrivacyPolicy,
+                                  child: Text(
+                                    'Privacy Policy ',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.blue,
+                                      decoration: TextDecoration.underline,
                                     ),
-                                    GestureDetector(
-                                      onTap: _launchTeamStatement,
-                                      child: Text(
-                                        '团队声明',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.blue,
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                      ),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: _launchTeamStatement,
+                                  child: Text(
+                                    'and',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.blue,
+                                      decoration: TextDecoration.underline,
                                     ),
-                                  ],
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: _launchTeamStatement,
+                                  child: Text(
+                                    'Terms of Service.',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.blue,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -213,7 +203,7 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                                 ),
                                 child: Center(
                                   child: Text(
-                                    '拒绝',
+                                    'NO',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -223,7 +213,7 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                                 ),
                               ),
                             ),
-                            
+
                             // 同意按钮
                             GestureDetector(
                               onTap: _handleAccept,
@@ -238,7 +228,7 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                                 ),
                                 child: Center(
                                   child: Text(
-                                    '同意',
+                                    'YES',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,

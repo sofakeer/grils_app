@@ -115,82 +115,22 @@ class _SettingsPageState extends State<SettingsPage>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // 主对话框背景
                 Container(
-                  width: MediaQuery.of(context).size.width * 0.8,
+                  width: MediaQuery.of(context).size.width * 0.85,
                   height: MediaQuery.of(context).size.height * 0.6,
                   decoration: BoxDecoration(
-                    color: HexColor("#FFF5E5"),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: HexColor("#FFD700"),
-                      width: 3,
+                    image: DecorationImage(
+                      image: AssetImage(Assets.imagesPopBack),
+                      fit: BoxFit.fill,
                     ),
                   ),
                 ),
-
                 // 内容
                 Container(
                   width: MediaQuery.of(context).size.width * 0.75,
                   height: MediaQuery.of(context).size.height * 0.55,
                   child: Column(
                     children: [
-                      // 紫色标题栏
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(vertical: 15),
-                        decoration: BoxDecoration(
-                          color: HexColor("#8A2BE2"),
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(17),
-                            topRight: Radius.circular(17),
-                          ),
-                        ),
-                        child: Stack(
-                          children: [
-                            // 星星装饰
-                            Positioned(
-                              top: 5,
-                              left: 20,
-                              child: Icon(
-                                Icons.star,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
-                            Positioned(
-                              top: 10,
-                              right: 60,
-                              child: Icon(
-                                Icons.star,
-                                color: Colors.white,
-                                size: 12,
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 5,
-                              left: 40,
-                              child: Icon(
-                                Icons.star,
-                                color: Colors.white,
-                                size: 14,
-                              ),
-                            ),
-                            // 标题文字
-                            Center(
-                              child: Text(
-                                'Setting',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
                       // 主要内容区域
                       Expanded(
                         child: Container(
@@ -320,28 +260,7 @@ class _SettingsPageState extends State<SettingsPage>
                   right: MediaQuery.of(context).size.width * 0.1 - 25,
                   child: GestureDetector(
                     onTap: _closeSettings,
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 5,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                    ),
+                    child: Image.asset(Assets.imagesBtnClose)
                   ),
                 ),
               ],
