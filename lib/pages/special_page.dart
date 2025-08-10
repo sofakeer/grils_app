@@ -106,15 +106,10 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.purple.withOpacity(0.8),
-              Colors.blue.withOpacity(0.6),
-              Colors.black.withOpacity(0.9),
-            ],
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(Assets.wincoinWinCoinBg),
+            fit: BoxFit.cover,
           ),
         ),
         child: Stack(
@@ -131,42 +126,52 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                       children: [
                         // SPECIAL 标题
                         Container(
-                          margin: const EdgeInsets.only(bottom: 40),
+                          margin: const EdgeInsets.only(bottom: 20),
                           child: Image.asset(
                             Assets.specialSpecialTitle,
-                            height: 100,
-                          ),
-                        ),
-
-                        // 说明文字
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 30),
-                          padding: const EdgeInsets.symmetric(horizontal: 40),
-                          child: const Text(
-                            'Play special levels to win extra hearts!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.pink,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(1, 1),
-                                  blurRadius: 2,
-                                  color: Colors.black54,
-                                ),
-                              ],
-                            ),
+                            height: 140,
                           ),
                         ),
 
                         // 女孩图片
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 50),
-                          child: Image.asset(
-                            Assets.specialSpecialImgMiddle,
-                            height: 300,
-                          ),
+                        Stack(
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 30),
+                              child: Image.asset(
+                                Assets.specialSpecialImgMiddle,
+                                height: 350,
+                              ),
+                            ),
+                            // 说明文字
+                            Positioned(
+                              left: 0,
+                              right:0,
+                              child: SizedBox(
+                                width: 300,
+                                child: Container(
+                                  margin: const EdgeInsets.only(top: 10),
+                                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  child: const Text(
+                                    'Play special levels to win extra hearts!',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      shadows: [
+                                        Shadow(
+                                          offset: Offset(2, 2),
+                                          blurRadius: 2,
+                                          color: Color(0xffF306FF),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
 
                         // PLAY 按钮
@@ -176,43 +181,22 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                             width: 200,
                             height: 60,
                             margin: const EdgeInsets.only(bottom: 20),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Colors.lightBlue, Colors.blue],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+                            decoration: const BoxDecoration(
+                              image: DecorationImage(
+                                image: AssetImage(Assets.newPhotoNewPhotoBtnBlueBig),
+                                fit: BoxFit.fill,
                               ),
-                              borderRadius: BorderRadius.circular(30),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                // 播放图标
-                                Container(
-                                  width: 30,
-                                  height: 30,
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange,
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                  child: const Icon(
-                                    Icons.play_arrow,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
+                                // 相机图标
+                                Image.asset(Assets.newPhotoNewPhotoIconAd,height: 30,),
                                 const SizedBox(width: 10),
                                 const Text(
                                   'Play',
                                   style: TextStyle(
-                                    color: Colors.black,
+                                    color: Colors.white,
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -228,10 +212,9 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                           child: const Text(
                             'SKIP',
                             style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 16,
+                              color: Colors.white,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.underline,
                             ),
                           ),
                         ),
@@ -242,87 +225,87 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
               ),
             ),
 
-            // 装饰性爱心
-            ...List.generate(3, (index) {
-              return Positioned(
-                top: 100 + (index * 30),
-                left: 20 + (index * 40),
-                child: AnimatedBuilder(
-                  animation: _heartAnimation,
-                  builder: (context, child) {
-                    return Opacity(
-                      opacity: _heartAnimation.value * 0.8,
-                      child: Transform.scale(
-                        scale: 0.8 + (0.2 * _heartAnimation.value),
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            color: index == 0
-                                ? Colors.pink
-                                : index == 1
-                                    ? Colors.blue
-                                    : Colors.blue,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.lightBlue.withOpacity(0.6),
-                                blurRadius: 15,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.favorite,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            }),
+            // // 装饰性爱心
+            // ...List.generate(3, (index) {
+            //   return Positioned(
+            //     top: 100 + (index * 30),
+            //     left: 20 + (index * 40),
+            //     child: AnimatedBuilder(
+            //       animation: _heartAnimation,
+            //       builder: (context, child) {
+            //         return Opacity(
+            //           opacity: _heartAnimation.value * 0.8,
+            //           child: Transform.scale(
+            //             scale: 0.8 + (0.2 * _heartAnimation.value),
+            //             child: Container(
+            //               width: 30,
+            //               height: 30,
+            //               decoration: BoxDecoration(
+            //                 color: index == 0
+            //                     ? Colors.pink
+            //                     : index == 1
+            //                         ? Colors.blue
+            //                         : Colors.blue,
+            //                 shape: BoxShape.circle,
+            //                 boxShadow: [
+            //                   BoxShadow(
+            //                     color: Colors.lightBlue.withOpacity(0.6),
+            //                     blurRadius: 15,
+            //                     spreadRadius: 2,
+            //                   ),
+            //                 ],
+            //               ),
+            //               child: const Icon(
+            //                 Icons.favorite,
+            //                 color: Colors.white,
+            //                 size: 20,
+            //               ),
+            //             ),
+            //           ),
+            //         );
+            //       },
+            //     ),
+            //   );
+            // }),
 
-            // 右侧装饰性爱心
-            ...List.generate(2, (index) {
-              return Positioned(
-                top: 150 + (index * 50),
-                right: 30 + (index * 20),
-                child: AnimatedBuilder(
-                  animation: _heartAnimation,
-                  builder: (context, child) {
-                    return Opacity(
-                      opacity: _heartAnimation.value * 0.6,
-                      child: Transform.scale(
-                        scale: 0.6 + (0.4 * _heartAnimation.value),
-                        child: Container(
-                          width: 25,
-                          height: 25,
-                          decoration: BoxDecoration(
-                            color: Colors.pink.withOpacity(0.8),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.pink.withOpacity(0.5),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.favorite,
-                            color: Colors.white,
-                            size: 15,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            }),
+            // // 右侧装饰性爱心
+            // ...List.generate(2, (index) {
+            //   return Positioned(
+            //     top: 150 + (index * 50),
+            //     right: 30 + (index * 20),
+            //     child: AnimatedBuilder(
+            //       animation: _heartAnimation,
+            //       builder: (context, child) {
+            //         return Opacity(
+            //           opacity: _heartAnimation.value * 0.6,
+            //           child: Transform.scale(
+            //             scale: 0.6 + (0.4 * _heartAnimation.value),
+            //             child: Container(
+            //               width: 25,
+            //               height: 25,
+            //               decoration: BoxDecoration(
+            //                 color: Colors.pink.withOpacity(0.8),
+            //                 shape: BoxShape.circle,
+            //                 boxShadow: [
+            //                   BoxShadow(
+            //                     color: Colors.pink.withOpacity(0.5),
+            //                     blurRadius: 10,
+            //                     spreadRadius: 1,
+            //                   ),
+            //                 ],
+            //               ),
+            //               child: const Icon(
+            //                 Icons.favorite,
+            //                 color: Colors.white,
+            //                 size: 15,
+            //               ),
+            //             ),
+            //           ),
+            //         );
+            //       },
+            //     ),
+            //   );
+            // }),
           ],
         ),
       ),

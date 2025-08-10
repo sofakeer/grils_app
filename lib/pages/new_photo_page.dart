@@ -110,24 +110,14 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.purple.withOpacity(0.9),
-              Colors.blue.withOpacity(0.7),
-              Colors.black.withOpacity(0.95),
-            ],
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(Assets.wincoinWinCoinBg),
+            fit: BoxFit.cover,
           ),
         ),
         child: Stack(
           children: [
-            // 头部
-            const CommonHeader(
-              showBackButton: false,
-            ),
-
             // 主要内容
             Center(
               child: AnimatedBuilder(
@@ -140,61 +130,12 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                       children: [
                         // NEW PHOTO 标题
                         Container(
-                          margin: const EdgeInsets.only(bottom: 40),
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
                               Image.asset(
                                 Assets.newPhotoNewPhotoTitle,
-                                height: 80,
-                              ),
-                              // 左侧装饰性爱心
-                              Positioned(
-                                left: -60,
-                                child: Container(
-                                  width: 30,
-                                  height: 30,
-                                  decoration: BoxDecoration(
-                                    color: Colors.lightBlue,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.lightBlue.withOpacity(0.6),
-                                        blurRadius: 10,
-                                        spreadRadius: 2,
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.favorite,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
-                              ),
-                              // 右侧装饰性爱心
-                              Positioned(
-                                right: -60,
-                                child: Container(
-                                  width: 30,
-                                  height: 30,
-                                  decoration: BoxDecoration(
-                                    color: Colors.lightBlue,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.lightBlue.withOpacity(0.6),
-                                        blurRadius: 10,
-                                        spreadRadius: 2,
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.favorite,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
+                                height: 130,
                               ),
                             ],
                           ),
@@ -202,7 +143,7 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
 
                         // 照片框架
                         Container(
-                          margin: const EdgeInsets.only(bottom: 40),
+                          margin: const EdgeInsets.only(bottom: 10),
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
@@ -223,28 +164,8 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                               Positioned(
                                 top: 20,
                                 left: 20,
-                                child: Transform.rotate(
-                                  angle: -0.3,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Text(
-                                      'NEW',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                                child: Image.asset(Assets.newPhotoNewPhotoIconNew,width: 50,),
+                              )
                             ],
                           ),
                         ),
@@ -323,19 +244,7 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 // 相机图标
-                                Container(
-                                  width: 30,
-                                  height: 30,
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                  child: const Icon(
-                                    Icons.camera_alt,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
+                                Image.asset(Assets.newPhotoNewPhotoIconAd,height: 30,),
                                 const SizedBox(width: 10),
                                 const Text(
                                   'Download',
@@ -383,47 +292,6 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                 },
               ),
             ),
-
-            // 装饰性图标
-            ...List.generate(2, (index) {
-              return Positioned(
-                top: 150 + (index * 60),
-                right: 30,
-                child: AnimatedBuilder(
-                  animation: _fadeAnimation,
-                  builder: (context, child) {
-                    return Opacity(
-                      opacity: _fadeAnimation.value * 0.8,
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.8),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.blue.withOpacity(0.5),
-                              blurRadius: 10,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Text(
-                            '熊',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            }),
           ],
         ),
       ),
