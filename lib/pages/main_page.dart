@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/widgets/common_header.dart';
-import 'package:grils_app/main.dart';
 import 'package:grils_app/pages/settings_page.dart';
 import 'package:grils_app/pages/signin_page.dart';
 import 'package:grils_app/pages/gallery_page.dart';
@@ -13,6 +12,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spine_flutter/spine_flutter.dart' as spine;
 
 import '../main_old.dart';
+import '../managers/audio_manager.dart';
+import '../utils/audio_assets.dart';
+import 'spine_preview_page.dart';
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -25,6 +27,10 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   late AnimationController _takeoffController;
   late Animation<double> _takeoffAnimation;
 
+  // 背景女孩Spine控制器
+  spine.SpineWidgetController? _backgroundSpineController;
+  bool _isBackgroundSpineReady = false;
+
   int _coinCount = 1000;
   int _heartCount = 50;
   int _currentLevel = 1;
@@ -34,6 +40,14 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     super.initState();
     _initializeAnimations();
     _loadUserData();
+    _initializeBackgroundSpine();
+    
+    // 初始化音频系统并播放主界面BGM
+    _initializeAudio();
+  }
+  
+  void _initializeAudio() async {
+    await AudioManager().initialize();
   }
 
   void _initializeAnimations() {
@@ -54,6 +68,90 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     _takeoffController.repeat();
   }
 
+  void _initializeBackgroundSpine() {
+    // 销毁旧的控制器
+    if (_backgroundSpineController != null) {
+      _backgroundSpineController = null;
+    }
+
+    try {
+      _backgroundSpineController = spine.SpineWidgetController(onInitialized: (controller) {
+        try {
+          // 设置默认过渡时间
+          controller.animationState.getData().setDefaultMix(0.2);
+
+          // 获取可用动画
+          final animations = controller.skeleton.getData()?.getAnimations();
+          print("=== 背景女孩 可用动画 ===");
+          if (animations != null && animations.isNotEmpty) {
+            for (var anim in animations) {
+              print("动画名称: ${anim.getName()}");
+            }
+
+            if (mounted) {
+              setState(() {
+                _isBackgroundSpineReady = true;
+              });
+            }
+
+            // 播放第一个idle动画（循环播放）
+            String defaultAnimation = "idle_01";
+            final foundAnimation = animations.firstWhere(
+              (anim) => anim.getName() == defaultAnimation,
+              orElse: () => animations.first,
+            );
+            
+            final animationName = foundAnimation.getName();
+            print("开始播放背景动画: $animationName");
+            if (animationName.isNotEmpty) {
+              controller.animationState.setAnimationByName(0, animationName, true);
+              print("背景女孩动画播放成功");
+            }
+
+            // 设置默认皮肤
+            _setBackgroundDefaultSkin(controller);
+          } else {
+            print("背景女孩没有找到动画");
+          }
+          print("========================");
+        } catch (e) {
+          print("背景女孩动画初始化失败: $e");
+        }
+      });
+    } catch (e) {
+      print("背景女孩控制器创建失败: $e");
+    }
+  }
+
+  void _setBackgroundDefaultSkin(spine.SpineWidgetController controller) {
+    try {
+      final data = controller.skeletonData;
+      final skeleton = controller.skeleton;
+
+      // 创建自定义皮肤 - 默认为Girl01的默认皮肤状态
+      final customSkin = spine.Skin("background-default-skin");
+
+      // 添加默认皮肤状态（全部隐藏）
+      final braSkin = data.findSkin("bra/bra_none");
+      final handsSkin = data.findSkin("hands/hands_none");
+      final pantsSkin = data.findSkin("pants/pants_none");
+      final socksSkin = data.findSkin("socks/socks_none");
+
+      if (braSkin != null) customSkin.addSkin(braSkin);
+      if (handsSkin != null) customSkin.addSkin(handsSkin);
+      if (pantsSkin != null) customSkin.addSkin(pantsSkin);
+      if (socksSkin != null) customSkin.addSkin(socksSkin);
+
+      // 应用自定义皮肤
+      skeleton.setSkin(customSkin);
+      skeleton.setSlotsToSetupPose();
+
+      print("背景女孩默认皮肤应用成功");
+    } catch (e) {
+      print("背景女孩皮肤设置失败: $e");
+    }
+  }
+
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
@@ -72,18 +170,21 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     await prefs.setInt('current_level', _currentLevel);
   }
 
-  void _showSettingsDialog() {
+  void _showSettingsDialog() async {
+    await AudioManager().playPopupOpen();
     SettingsPage.showSettingsDialog(context);
   }
 
-  void _navigateToSignIn() {
+  void _navigateToSignIn() async {
+    await AudioManager().playPopupOpen();
     SignInPage.showSignInDialog(context).then((_) {
       // 从签到页面返回时重新加载数据
       _loadUserData();
     });
   }
 
-  void _navigateToGallery() {
+  void _navigateToGallery() async {
+    await AudioManager().playPopupOpen();
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const GalleryPage(),
@@ -91,7 +192,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     );
   }
 
-  void _navigateToShop() {
+  void _navigateToShop() async {
+    await AudioManager().playPopupOpen();
     Navigator.of(context)
         .push(
       MaterialPageRoute(
@@ -112,11 +214,15 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     );
   }
 
-  void _switchToNextGirl() {
+  void _switchToNextGirl() async {
+    await AudioManager().playSwitch();
     final currentIndex = ref.read(currentGirlIndexProvider);
     final spineAssets = ref.read(spineAssetsProvider);
     final nextIndex = (currentIndex + 1) % spineAssets.length;
     ref.read(currentGirlIndexProvider.notifier).state = nextIndex;
+    
+    // 重新初始化背景Spine动画
+    _initializeBackgroundSpine();
   }
 
   void _startTakeOff() {
@@ -130,6 +236,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   @override
   void dispose() {
     _takeoffController.dispose();
+    _backgroundSpineController = null;
     _saveUserData();
     super.dispose();
   }
@@ -148,7 +255,16 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
         color: Colors.transparent,
         child: Stack(
           children: [
-            // 背景显示当前选择的女孩 currentGirlAsset spine 动画默认的，
+            // 背景显示当前选择的女孩 currentGirlAsset spine 动画默认的
+            if (_backgroundSpineController != null)
+              Positioned.fill(
+                child: spine.SpineWidget.fromAsset(
+                  currentGirlAsset.atlasFile,
+                  currentGirlAsset.skeletonFile,
+                  _backgroundSpineController!,
+                  boundsProvider: const spine.SetupPoseBounds(),
+                ),
+              ),
 
             // 顶部货币显示区域
             CommonHeader(
@@ -207,7 +323,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
 
             Positioned(
               left: 20,
-              bottom: 50,
+              bottom: 30,
               child: GestureDetector(
                 onTap: _navigateToGallery,
                 child: Stack(
@@ -408,7 +524,7 @@ class _TakeoffButtonAnimationState extends State<TakeoffButtonAnimation> {
 
   @override
   Widget build(BuildContext context) {
-    if (_spineController == null || !_isControllerReady) {
+    if (_spineController == null) {
       return Container(
         width: 120,
         height: 120,

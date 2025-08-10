@@ -8,6 +8,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 import 'models/girl_state.dart';
 import 'pages/loading_page.dart';
+import 'managers/audio_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

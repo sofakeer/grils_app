@@ -7,6 +7,8 @@ import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 
 import '../models/girl_state.dart';
+import '../managers/audio_manager.dart';
+import '../utils/audio_assets.dart';
 
 
 class SpinePreviewPage extends StatefulWidget {
@@ -120,6 +122,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
 
     // 启动idle动画循环
     _startIdleAnimationCycle();
+    
+    // 切换到预览模式BGM
+    AudioManager().switchToPreviewMode();
   }
 
   void _initializeTakeoffController() {
@@ -721,33 +726,27 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
 
   // 播放特殊动画
   void _playSpecialAnimation() async {
-    if (_currentIndex == 0) {
-      // 仅Girl01支持特殊动画
-      setState(() {
-        _girlStates[0] = _girlStates[0].copyWith(isPlayingSpecial: true);
-      });
+    // 所有女孩都支持特殊动画
+    setState(() {
+      _girlStates[_currentIndex] = _girlStates[_currentIndex].copyWith(isPlayingSpecial: true);
+    });
 
-      // 播放音效
-      try {
-        await _audioPlayer.play(AssetSource(AudioAssets.getSpecialAudio(0)));
-      } catch (e) {
-        print("Audio playback failed: $e");
+    // 播放随机idlesp音效
+    await AudioManager().playRandomIdlespSound(_currentIndex);
+
+    // 播放特殊动画
+    _playCurrentIdleAnimation();
+
+    // 3秒后恢复到用户当前选择的idle动画
+    Future.delayed(Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _girlStates[_currentIndex] = _girlStates[_currentIndex].copyWith(isPlayingSpecial: false);
+        });
+        // 恢复到用户当前选择的idle动画，而不是默认动画
+        _playCurrentIdleAnimation();
       }
-
-      // 播放特殊动画
-      _playCurrentIdleAnimation();
-
-      // 3秒后恢复到用户当前选择的idle动画
-      Future.delayed(Duration(seconds: 3), () {
-        if (mounted) {
-          setState(() {
-            _girlStates[0] = _girlStates[0].copyWith(isPlayingSpecial: false);
-          });
-          // 恢复到用户当前选择的idle动画，而不是默认动画
-          _playCurrentIdleAnimation();
-        }
-      });
-    }
+    });
   }
 
   @override
@@ -772,6 +771,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       // _takeoffController!.dispose();
       _takeoffController = null;
     }
+
+    // 恢复主界面BGM
+    AudioManager().switchToMainMode();
 
     super.dispose();
   }
@@ -925,7 +927,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                               ),
 
                               GestureDetector(
-                                onTap: _restartGame,
+                                onTap: () async {
+                                  await AudioManager().playExit();
+                                  Navigator.of(context).pop();
+                                },
                                 child: Image.asset(Assets.imagesBtnHeartBack, height: 50),
                               ),
                             ],
@@ -1209,9 +1214,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   }
 
   // 处理脱衣按钮点击
-  void _handleTakeoffClick() {
+  void _handleTakeoffClick() async {
     if (_heartCount < 10) {
       // 心形不够，显示弹窗
+      await AudioManager().playPopupOpen();
       setState(() {
         _showHeartDialog = true;
       });
@@ -1223,14 +1229,18 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   }
 
   // 关闭弹窗
-  void _closeHeartDialog() {
+  void _closeHeartDialog() async {
+    await AudioManager().playExit();
     setState(() {
       _showHeartDialog = false;
     });
   }
 
   // 录制视频获得心形
-  void _recordVideoForHearts() {
+  void _recordVideoForHearts() async {
+    // 播放获得桃心币特效音效
+    await AudioManager().playHeartEffect();
+    
     // 这里可以添加录制视频的逻辑
     // 暂时直接给10个心形
     setState(() {
@@ -1252,41 +1262,51 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
 
   // 处理手势点击 - 触发特殊动画
   void _handleGirlTap() {
-    if (_currentIndex == 0) {
-      // 仅Girl01支持点击事件
-      _playSpecialAnimation();
-    }
+    // 所有女孩都支持点击事件
+    _playSpecialAnimation();
   }
 
   // 切换到下一个idle动画
   void _nextIdleAnimation() async {
     if (_currentIdleIndex < 4 && _spineController != null && _isControllerReady) {
       // 1. 获取当前idle编号
-      int takeoffIndex = _currentIdleIndex + 1; // idle_01 -> take_off_01
-      String takeoffName = 'take_off_0$takeoffIndex';
+      int takeoffIndex = _currentIdleIndex; // 使用当前索引作为takeoff索引
+      String takeoffName = 'take_off_0${takeoffIndex + 1}';
 
-      // 2. 验证takeoff动画是否存在
+      print("Attempting to play takeoff animation: $takeoffName for girl $_currentIndex");
+
+      // 2. 播放takeoff音效
+      await AudioManager().playTakeoffSound(_currentIndex, takeoffIndex);
+
+      // 3. 验证takeoff动画是否存在
       if (_isAnimationAvailable(takeoffName)) {
-        // 3. 获取动画时长
+        // 4. 获取动画时长
         final animation = _spineController!.skeleton.getData()!.findAnimation(takeoffName);
         double duration = 1.0; // 默认1秒
         if (animation != null) {
           duration = animation.getDuration();
         }
-        // 4. 播放takeoff动画（不循环）
+        
+        print("Playing takeoff animation: $takeoffName with duration: ${duration}s");
+        
+        // 5. 播放takeoff动画（不循环）
         _spineController!.animationState.setAnimationByName(0, takeoffName, false);
         setState(() {
           _isAnimating = true;
         });
-        // 5. 等待动画播完后切换到下一个idle
+        
+        // 6. 等待动画播完后切换到下一个idle
         await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
       } else {
         print("Takeoff animation '$takeoffName' not found, skipping transition");
       }
 
+      // 7. 切换到下一个idle状态
       setState(() {
         _currentIdleIndex = (_currentIdleIndex + 1) % 5;
       });
+      
+      // 8. 如果进入underwear模式，重置皮肤选择
       if (_currentIdleIndex == 4) {
         _currentSkinIndices = {
           0: 0,
@@ -1296,6 +1316,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         };
         _selectedUnderwearButton = -1;
       }
+      
+      // 9. 播放下一个idle动画
       _playCurrentIdleAnimation();
     } else {
       // underwear模式或异常，直接切换
@@ -1451,7 +1473,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   }
 
   // 处理underwear按钮点击
-  void _onUnderwearButtonTap(int buttonIndex) {
+  void _onUnderwearButtonTap(int buttonIndex) async {
+    // 播放部位按键音效
+    await AudioManager().playClothingButton();
+    
     setState(() {
       if (_selectedUnderwearButton == buttonIndex) {
         // 如果点击的是已选中的按钮，则取消选中
@@ -1462,7 +1487,6 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       }
     });
 
-    // 这里可以添加相应的动画或逻辑
     print("Underwear button $buttonIndex tapped, selected: $_selectedUnderwearButton");
   }
 
@@ -1576,6 +1600,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
 
   // 处理皮肤按钮点击
   void _onSkinButtonTap(int buttonType, int skinIndex) async {
+    // 播放切换音效
+    await AudioManager().playSwitch();
+    
     setState(() {
       _currentSkinIndices[buttonType] = skinIndex;
     });
