@@ -92,9 +92,35 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
   }
 
   void _closeSettings() {
-    _animationController.reverse().then((_) {
-      Navigator.of(context).pop();
-    });
+    print('关闭按钮被点击'); // 调试信息
+    try {
+      // 先尝试动画关闭
+      if (_animationController.status == AnimationStatus.forward ||
+          _animationController.status == AnimationStatus.completed) {
+        _animationController.reverse().then((_) {
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        }).catchError((e) {
+          print('动画关闭失败: $e');
+          // 动画失败时直接关闭
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        });
+      } else {
+        // 如果动画状态不对，直接关闭
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (e) {
+      print('关闭设置时出错: $e');
+      // 如果出错，直接关闭
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   @override
@@ -156,6 +182,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                                         color: Colors.white,
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
                                   ),
@@ -183,6 +210,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                                         color: Colors.white,
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
                                   ),
@@ -202,6 +230,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                                         color: HexColor("#8B4513"),
                                         fontSize: 16,
                                         fontWeight: FontWeight.w500,
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
                                   ),
@@ -214,6 +243,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                                         color: HexColor("#8B4513"),
                                         fontSize: 16,
                                         fontWeight: FontWeight.w500,
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
                                   ),
@@ -231,12 +261,28 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                 Positioned(
                   top: 0,
                   right: 0,
-                  child: GestureDetector(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
                       onTap: _closeSettings,
-                      child: Image.asset(
-                        Assets.imagesBtnClose,
-                        width: 40,
-                      )),
+                      borderRadius: BorderRadius.circular(40),
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(40),
+                        ),
+                        child: Center(
+                          child: Image.asset(
+                            Assets.imagesBtnClose,
+                            width: 40,
+                            height: 40,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
                 const Positioned(
                   top: 25,
@@ -245,7 +291,11 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                   child: Text(
                     "Setting",
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.none),
                   ),
                 ),
               ],

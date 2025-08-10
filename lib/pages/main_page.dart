@@ -7,8 +7,11 @@ import 'package:grils_app/pages/settings_page.dart';
 import 'package:grils_app/pages/signin_page.dart';
 import 'package:grils_app/pages/gallery_page.dart';
 import 'package:grils_app/pages/shop_page.dart';
+import 'package:grils_app/pages/game_page.dart';
 import 'package:grils_app/providers/app_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../main_old.dart';
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -20,7 +23,7 @@ class MainPage extends ConsumerStatefulWidget {
 class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMixin {
   late AnimationController _takeoffController;
   late Animation<double> _takeoffAnimation;
-  
+
   int _coinCount = 1000;
   int _heartCount = 50;
   int _currentLevel = 1;
@@ -88,14 +91,24 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   }
 
   void _navigateToShop() {
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(
         builder: (context) => const ShopPage(),
       ),
-    ).then((_) {
+    )
+        .then((_) {
       // 从商店页面返回时重新加载数据
       _loadUserData();
     });
+  }
+
+  void _navigateToGame() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const GamePage(),
+      ),
+    );
   }
 
   void _switchToNextGirl() {
@@ -123,7 +136,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final currentGirlAsset = ref.watch(currentGirlAssetProvider);
-    
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       extendBodyBehindAppBar: true,
@@ -135,9 +148,12 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
         child: Stack(
           children: [
             // 顶部货币显示区域
-            CommonHeader(settingsButton: true,onBackPressed: () {
-              _showSettingsDialog();
-            },),
+            CommonHeader(
+              settingsButton: true,
+              onBackPressed: () {
+                _showSettingsDialog();
+              },
+            ),
 
             // 左侧功能按钮
             Positioned(
@@ -149,26 +165,26 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                   GestureDetector(
                     onTap: _navigateToSignIn,
                     child: Container(
-                      margin: EdgeInsets.only(bottom: 20),
+                      margin: const EdgeInsets.only(bottom: 20),
                       child: Image.asset(
                         Assets.mainMainBtnSign,
                         height: 80,
                       ),
                     ),
                   ),
-                  
+
                   // 皮肤商店按钮
                   GestureDetector(
                     onTap: _navigateToShop,
                     child: Container(
-                      margin: EdgeInsets.only(bottom: 20),
+                      margin: const EdgeInsets.only(bottom: 20),
                       child: Image.asset(
                         Assets.mainMainBtnGameskin,
                         height: 80,
                       ),
                     ),
                   ),
-                  
+
                   // 图鉴按钮 - 显示最新选择的女孩
                   GestureDetector(
                     onTap: _navigateToGallery,
@@ -203,6 +219,18 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                       ],
                     ),
                   ),
+
+                  // 游戏按钮
+                  GestureDetector(
+                    onTap: _navigateToGame,
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 20),
+                      child: Image.asset(
+                        Assets.mainMainBtnGamestart,
+                        height: 80,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -224,10 +252,10 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                   //     ),
                   //   ),
                   // ),
-                  
+
                   // 脱衣按钮 (动画)
                   Container(
-                    margin: EdgeInsets.only(bottom: 40),
+                    margin: const EdgeInsets.only(bottom: 40),
                     child: AnimatedBuilder(
                       animation: _takeoffAnimation,
                       builder: (context, child) {
@@ -286,7 +314,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                                 ),
                               ),
                             ),
-                            SizedBox(height: 10),
+                            const SizedBox(height: 10),
                             Text(
                               currentGirlAsset.name,
                               style: TextStyle(
@@ -296,13 +324,13 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                                 shadows: [
                                   Shadow(
                                     color: Colors.black.withOpacity(0.7),
-                                    offset: Offset(1, 1),
+                                    offset: const Offset(1, 1),
                                     blurRadius: 3,
                                   ),
                                 ],
                               ),
                             ),
-                            SizedBox(height: 5),
+                            const SizedBox(height: 5),
                             Text(
                               'Tap to switch',
                               style: TextStyle(
@@ -311,7 +339,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                                 shadows: [
                                   Shadow(
                                     color: Colors.black.withOpacity(0.7),
-                                    offset: Offset(1, 1),
+                                    offset: const Offset(1, 1),
                                     blurRadius: 2,
                                   ),
                                 ],
@@ -352,7 +380,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                             shadows: [
                               Shadow(
                                 color: Colors.black.withOpacity(0.5),
-                                offset: Offset(1, 1),
+                                offset: const Offset(1, 1),
                                 blurRadius: 2,
                               ),
                             ],
