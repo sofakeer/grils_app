@@ -148,6 +148,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
         color: Colors.transparent,
         child: Stack(
           children: [
+            // 背景显示当前选择的女孩 currentGirlAsset spine 动画默认的，
+
             // 顶部货币显示区域
             CommonHeader(
               settingsButton: true,
@@ -271,7 +273,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                   //   ),
                   // ),
 
-                  // 脱衣按钮 (动画)
+                  // 换按钮 (动画)
                   GestureDetector(
                     onTap: () {
                       _startTakeOff();
@@ -285,87 +287,6 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                 ],
               ),
             ),
-
-            // 中央显示当前选择的女孩
-            // Positioned(
-            //   top: MediaQuery.of(context).size.height * 0.3,
-            //   left: MediaQuery.of(context).size.width * 0.2,
-            //   right: MediaQuery.of(context).size.width * 0.2,
-            //   bottom: MediaQuery.of(context).size.height * 0.35,
-            //   child: GestureDetector(
-            //     onTap: _switchToNextGirl,
-            //     child: Container(
-            //       decoration: BoxDecoration(
-            //         borderRadius: BorderRadius.circular(20),
-            //         border: Border.all(
-            //           color: Colors.white.withOpacity(0.3),
-            //           width: 2,
-            //         ),
-            //       ),
-            //       child: ClipRRect(
-            //         borderRadius: BorderRadius.circular(18),
-            //         child: Container(
-            //           color: Colors.black.withOpacity(0.1),
-            //           child: Center(
-            //             child: Column(
-            //               mainAxisAlignment: MainAxisAlignment.center,
-            //               children: [
-            //                 Container(
-            //                   width: 150,
-            //                   height: 150,
-            //                   decoration: BoxDecoration(
-            //                     shape: BoxShape.circle,
-            //                     border: Border.all(
-            //                       color: Colors.white.withOpacity(0.5),
-            //                       width: 3,
-            //                     ),
-            //                   ),
-            //                   child: ClipOval(
-            //                     child: Image.asset(
-            //                       currentGirlAsset.imagePath,
-            //                       fit: BoxFit.cover,
-            //                     ),
-            //                   ),
-            //                 ),
-            //                 const SizedBox(height: 10),
-            //                 Text(
-            //                   currentGirlAsset.name,
-            //                   style: TextStyle(
-            //                     color: Colors.white,
-            //                     fontSize: 20,
-            //                     fontWeight: FontWeight.bold,
-            //                     shadows: [
-            //                       Shadow(
-            //                         color: Colors.black.withOpacity(0.7),
-            //                         offset: const Offset(1, 1),
-            //                         blurRadius: 3,
-            //                       ),
-            //                     ],
-            //                   ),
-            //                 ),
-            //                 const SizedBox(height: 5),
-            //                 Text(
-            //                   'Tap to switch',
-            //                   style: TextStyle(
-            //                     color: Colors.white.withOpacity(0.7),
-            //                     fontSize: 12,
-            //                     shadows: [
-            //                       Shadow(
-            //                         color: Colors.black.withOpacity(0.7),
-            //                         offset: const Offset(1, 1),
-            //                         blurRadius: 2,
-            //                       ),
-            //                     ],
-            //                   ),
-            //                 ),
-            //               ],
-            //             ),
-            //           ),
-            //         ),
-            //       ),
-            //     ),
-            //   ),
-            // ),
 
             // 底部开始游戏按钮,
             Positioned(
