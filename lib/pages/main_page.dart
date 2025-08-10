@@ -10,6 +10,7 @@ import 'package:grils_app/pages/shop_page.dart';
 import 'package:grils_app/pages/game_page.dart';
 import 'package:grils_app/providers/app_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spine_flutter/spine_flutter.dart' as spine;
 
 import '../main_old.dart';
 
@@ -118,8 +119,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     ref.read(currentGirlIndexProvider.notifier).state = nextIndex;
   }
 
-  void _startGame() {
-    Navigator.of(context).pushReplacement(
+  void _startTakeOff() {
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const SpinePreviewPage(),
       ),
@@ -158,7 +159,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
             // 左侧功能按钮
             Positioned(
               left: 20,
-              top: MediaQuery.of(context).size.height * 0.25,
+              top: 130,
               child: Column(
                 children: [
                   // 签到按钮
@@ -168,7 +169,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                       margin: const EdgeInsets.only(bottom: 20),
                       child: Image.asset(
                         Assets.mainMainBtnSign,
-                        height: 80,
+                        height: 60,
                       ),
                     ),
                   ),
@@ -180,65 +181,82 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                       margin: const EdgeInsets.only(bottom: 20),
                       child: Image.asset(
                         Assets.mainMainBtnGameskin,
-                        height: 80,
+                        height: 60,
                       ),
                     ),
                   ),
 
                   // 图鉴按钮 - 显示最新选择的女孩
-                  GestureDetector(
-                    onTap: _navigateToGallery,
-                    child: Stack(
-                      children: [
-                        Image.asset(
-                          Assets.mainMainFrameGallary,
-                          height: 120,
-                        ),
-                        Positioned(
-                          top: 10,
-                          left: 10,
-                          right: 10,
-                          bottom: 30,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.asset(
-                              currentGirlAsset.imagePath,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        Positioned.fill(
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(10),
-                              onTap: _navigateToGallery,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
 
                   // 游戏按钮
-                  GestureDetector(
-                    onTap: _navigateToGame,
-                    child: Container(
-                      margin: const EdgeInsets.only(top: 20),
-                      child: Image.asset(
-                        Assets.mainMainBtnGamestart,
-                        height: 80,
-                      ),
-                    ),
-                  ),
+                  // GestureDetector(
+                  //   onTap: _navigateToGame,
+                  //   child: Container(
+                  //     margin: const EdgeInsets.only(top: 20),
+                  //     child: Image.asset(
+                  //       Assets.mainMainBtnGamestart,
+                  //       height: 80,
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),
 
+            Positioned(
+              left: 20,
+              bottom: 50,
+              child: GestureDetector(
+                onTap: _navigateToGallery,
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      Assets.mainMainFrameGallary,
+                      height: 120,
+                    ),
+                    Positioned(
+                      top: 5,
+                      left: 6,
+                      right: 6,
+                      bottom: 30,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: Image.asset(
+                          Assets.grilsListBg01,
+                          fit: BoxFit.fitWidth,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 75,
+                      left: 6,
+                      right: 6,
+                      bottom: 0,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: Image.asset(
+                          Assets.mainMainBtnGallary,
+                          fit: BoxFit.fitWidth,
+                        ),
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: _navigateToGallery,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             // 右侧功能按钮
             Positioned(
               right: 20,
-              top: MediaQuery.of(context).size.height * 0.25,
+              bottom: 180,
               child: Column(
                 children: [
                   // // 设置按钮
@@ -254,19 +272,14 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                   // ),
 
                   // 脱衣按钮 (动画)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 40),
-                    child: AnimatedBuilder(
-                      animation: _takeoffAnimation,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: 1.0 + 0.1 * _takeoffAnimation.value,
-                          child: Image.asset(
-                            Assets.imagesBtnTakeoff,
-                            height: 100,
-                          ),
-                        );
-                      },
+                  GestureDetector(
+                    onTap: () {
+                      _startTakeOff();
+                    },
+                    child: const SizedBox(
+                      width: 120,
+                      height: 120,
+                      child: TakeoffButtonAnimation(),
                     ),
                   ),
                 ],
@@ -274,94 +287,93 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
             ),
 
             // 中央显示当前选择的女孩
-            Positioned(
-              top: MediaQuery.of(context).size.height * 0.3,
-              left: MediaQuery.of(context).size.width * 0.2,
-              right: MediaQuery.of(context).size.width * 0.2,
-              bottom: MediaQuery.of(context).size.height * 0.35,
-              child: GestureDetector(
-                onTap: _switchToNextGirl,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 2,
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: Container(
-                      color: Colors.black.withOpacity(0.1),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 150,
-                              height: 150,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.5),
-                                  width: 3,
-                                ),
-                              ),
-                              child: ClipOval(
-                                child: Image.asset(
-                                  currentGirlAsset.imagePath,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              currentGirlAsset.name,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black.withOpacity(0.7),
-                                    offset: const Offset(1, 1),
-                                    blurRadius: 3,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              'Tap to switch',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 12,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black.withOpacity(0.7),
-                                    offset: const Offset(1, 1),
-                                    blurRadius: 2,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            // Positioned(
+            //   top: MediaQuery.of(context).size.height * 0.3,
+            //   left: MediaQuery.of(context).size.width * 0.2,
+            //   right: MediaQuery.of(context).size.width * 0.2,
+            //   bottom: MediaQuery.of(context).size.height * 0.35,
+            //   child: GestureDetector(
+            //     onTap: _switchToNextGirl,
+            //     child: Container(
+            //       decoration: BoxDecoration(
+            //         borderRadius: BorderRadius.circular(20),
+            //         border: Border.all(
+            //           color: Colors.white.withOpacity(0.3),
+            //           width: 2,
+            //         ),
+            //       ),
+            //       child: ClipRRect(
+            //         borderRadius: BorderRadius.circular(18),
+            //         child: Container(
+            //           color: Colors.black.withOpacity(0.1),
+            //           child: Center(
+            //             child: Column(
+            //               mainAxisAlignment: MainAxisAlignment.center,
+            //               children: [
+            //                 Container(
+            //                   width: 150,
+            //                   height: 150,
+            //                   decoration: BoxDecoration(
+            //                     shape: BoxShape.circle,
+            //                     border: Border.all(
+            //                       color: Colors.white.withOpacity(0.5),
+            //                       width: 3,
+            //                     ),
+            //                   ),
+            //                   child: ClipOval(
+            //                     child: Image.asset(
+            //                       currentGirlAsset.imagePath,
+            //                       fit: BoxFit.cover,
+            //                     ),
+            //                   ),
+            //                 ),
+            //                 const SizedBox(height: 10),
+            //                 Text(
+            //                   currentGirlAsset.name,
+            //                   style: TextStyle(
+            //                     color: Colors.white,
+            //                     fontSize: 20,
+            //                     fontWeight: FontWeight.bold,
+            //                     shadows: [
+            //                       Shadow(
+            //                         color: Colors.black.withOpacity(0.7),
+            //                         offset: const Offset(1, 1),
+            //                         blurRadius: 3,
+            //                       ),
+            //                     ],
+            //                   ),
+            //                 ),
+            //                 const SizedBox(height: 5),
+            //                 Text(
+            //                   'Tap to switch',
+            //                   style: TextStyle(
+            //                     color: Colors.white.withOpacity(0.7),
+            //                     fontSize: 12,
+            //                     shadows: [
+            //                       Shadow(
+            //                         color: Colors.black.withOpacity(0.7),
+            //                         offset: const Offset(1, 1),
+            //                         blurRadius: 2,
+            //                       ),
+            //                     ],
+            //                   ),
+            //                 ),
+            //               ],
+            //             ),
+            //           ),
+            //         ),
+            //       ),
+            //     ),
+            //   ),
+            // ),
 
-            // 底部开始游戏按钮
+            // 底部开始游戏按钮,
             Positioned(
-              bottom: 60,
-              left: 0,
-              right: 0,
+              bottom: 30,
+              right: 30,
               child: Center(
                 child: GestureDetector(
-                  onTap: _startGame,
+                  onTap: _navigateToGame,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
@@ -396,5 +408,133 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
         ),
       ),
     );
+  }
+}
+
+// 脱衣按钮动画组件 - 使用 btn_takeoff spine 动画
+class TakeoffButtonAnimation extends StatefulWidget {
+  const TakeoffButtonAnimation({super.key});
+
+  @override
+  _TakeoffButtonAnimationState createState() => _TakeoffButtonAnimationState();
+}
+
+class _TakeoffButtonAnimationState extends State<TakeoffButtonAnimation> {
+  spine.SpineWidgetController? _spineController;
+  bool _isControllerReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeBtnTakeoffController();
+  }
+
+  void _initializeBtnTakeoffController() {
+    // 先销毁旧的控制器
+    if (_spineController != null) {
+      _spineController = null;
+    }
+
+    try {
+      _spineController = spine.SpineWidgetController(onInitialized: (controller) {
+        try {
+          // 设置默认过渡时间
+          controller.animationState.getData().setDefaultMix(0.2);
+
+          // 获取可用动画
+          final animations = controller.skeleton.getData()?.getAnimations();
+          print("=== btn_takeoff 可用动画 ===");
+          if (animations != null && animations.isNotEmpty) {
+            for (var anim in animations) {
+              print("动画名称: ${anim.getName()}");
+            }
+
+            if (mounted) {
+              setState(() {
+                _isControllerReady = true;
+              });
+            }
+
+            // 播放第一个可用的动画（循环播放）
+            if (animations.isNotEmpty) {
+              final firstAnimationName = animations.first.getName();
+              print("开始播放动画: $firstAnimationName");
+              if (firstAnimationName.isNotEmpty) {
+                controller.animationState.setAnimationByName(0, firstAnimationName, true);
+                print("btn_takeoff 动画播放成功");
+              } else {
+                print("动画名称为空");
+              }
+            }
+          } else {
+            print("btn_takeoff 没有找到动画");
+          }
+          print("========================");
+        } catch (e) {
+          print("btn_takeoff 动画初始化失败: $e");
+        }
+      });
+    } catch (e) {
+      print("btn_takeoff 控制器创建失败: $e");
+    }
+  }
+
+  @override
+  void dispose() {
+    _spineController = null;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_spineController == null || !_isControllerReady) {
+      return Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.pink.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(60),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(
+            color: Colors.pink,
+          ),
+        ),
+      );
+    }
+
+    try {
+      return SizedBox(
+        width: 120,
+        height: 120,
+        child: spine.SpineWidget.fromAsset(
+          "assets/spine/btn_takeoff.atlas",
+          "assets/spine/btn_takeoff.skel",
+          _spineController!,
+          boundsProvider: const spine.SetupPoseBounds(),
+        ),
+      );
+    } catch (e) {
+      print("btn_takeoff SpineWidget 创建失败: $e");
+      return Container(
+        width: 120,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(60),
+        ),
+        child: const Center(
+          child: Text(
+            'SPINE\n加载失败',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      );
+    }
   }
 }

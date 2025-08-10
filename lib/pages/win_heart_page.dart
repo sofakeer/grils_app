@@ -126,10 +126,10 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
                       children: [
                         // VICTORY 标题
                         Container(
-                          margin: const EdgeInsets.only(bottom: 30),
+                          margin: const EdgeInsets.only(bottom: 20),
                           child: Image.asset(
                             Assets.winHeartWinHeartTitle,
-                            height: 120,
+                            height: 150,
                           ),
                         ),
 
@@ -153,89 +153,54 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
                           ),
                         ),
 
-                        // 爱心奖励
-                        AnimatedBuilder(
-                          animation: _heartAnimation,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale: 0.8 + (0.2 * _heartAnimation.value),
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 60),
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    // 爱心光效
-                                    Image.asset(
-                                      Assets.winHeartWinHeartHeartlight,
-                                      height: 80,
-                                    ),
-                                    // 爱心图标
-                                    Image.asset(
-                                      Assets.winHeartWinHeartIconHeart,
-                                      height: 60,
-                                    ),
-                                    // 奖励文字
-                                    const Positioned(
-                                      bottom: -10,
-                                      child: Text(
-                                        '+100',
-                                        style: TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                          shadows: [
-                                            Shadow(
-                                              offset: Offset(1, 1),
-                                              blurRadius: 2,
-                                              color: Colors.black54,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                        GestureDetector(
+                          child: Container(
+                            width: 200,
+                            height: 60,
+                            margin: const EdgeInsets.only(bottom: 20),
+                            decoration: const BoxDecoration(
+                              image: DecorationImage(
+                                image: AssetImage(Assets.newPhotoNewPhotoBtnBlueBig),
+                                fit: BoxFit.fill,
                               ),
-                            );
-                          },
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // 相机图标
+                                Image.asset(Assets.newPhotoNewPhotoIconAd,height: 30,),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  '+100',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
+                        // 爱心奖励
 
                         // GET 按钮
                         GestureDetector(
                           onTap: _getReward,
-                          child: Container(
-                            width: 180,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Colors.green, Colors.greenAccent],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(30),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'GET',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  shadows: [
-                                    Shadow(
-                                      offset: Offset(1, 1),
-                                      blurRadius: 2,
-                                      color: Colors.black54,
-                                    ),
-                                  ],
-                                ),
+                          child: const Center(
+                            child: Text(
+                              'GET',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                shadows: [
+                                  Shadow(
+                                    offset: Offset(1, 1),
+                                    blurRadius: 2,
+                                    color: Colors.black54,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
