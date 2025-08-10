@@ -1414,7 +1414,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         // 左侧按钮 - 内衣
         Positioned(
           left: 20,
-          top: MediaQuery.of(context).size.height * 0.4,
+          top: MediaQuery.of(context).size.height * 0.25,
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(0),
             child: Image.asset(
@@ -1427,7 +1427,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         // 左侧按钮 - 内裤
         Positioned(
           left: 20,
-          top: MediaQuery.of(context).size.height * 0.6,
+          top: MediaQuery.of(context).size.height * 0.62,
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(1),
             child: Image.asset(
@@ -1442,7 +1442,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         // 右侧按钮 - 根据女孩类型显示不同按钮
         Positioned(
           right: 20,
-          top: MediaQuery.of(context).size.height * 0.4,
+          top: MediaQuery.of(context).size.height * 0.3,
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(2),
             child: Image.asset(
@@ -1457,7 +1457,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         // 右侧按钮 - 腿
         Positioned(
           right: 20,
-          top: MediaQuery.of(context).size.height * 0.6,
+          top: MediaQuery.of(context).size.height * 0.65,
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(3),
             child: Image.asset(

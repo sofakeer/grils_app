@@ -3,18 +3,20 @@ import 'package:grils_app/generated/assets.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
+import '../widgets/animated_popup.dart';
+import '../widgets/effect_animations.dart';
+import '../managers/audio_manager.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
 
   // 添加静态方法用于显示弹窗
-  static Future<void> showSignInDialog(BuildContext context) {
-    return showDialog(
+  static Future<void> showSignInDialog(BuildContext context) async {
+    await AudioManager().playCheckIn();
+    return AnimatedPopup.show(
       context: context,
+      child: const SignInPage(),
       barrierDismissible: false, // 点击背景不关闭
-      builder: (BuildContext context) {
-        return const SignInPage();
-      },
     );
   }
 
@@ -189,7 +191,17 @@ class _SignInPageState extends State<SignInPage>
     }
   }
 
-  void _closeRewardDialog() {
+  void _closeRewardDialog() async {
+    // 显示特效
+    if (_rewardCoins > 0) {
+      EffectOverlay.showCoinEffect(context);
+      await AudioManager().playCoinEffect();
+    }
+    if (_rewardHearts > 0) {
+      EffectOverlay.showHeartEffect(context);
+      await AudioManager().playHeartEffect();
+    }
+    
     _rewardAnimationController.reverse().then((_) {
       setState(() {
         _showRewardDialog = false;
@@ -197,10 +209,9 @@ class _SignInPageState extends State<SignInPage>
     });
   }
 
-  void _close() {
-    _animationController.reverse().then((_) {
-      Navigator.of(context).pop();
-    });
+  void _close() async {
+    await AudioManager().playExit();
+    Navigator.of(context).pop();
   }
 
   @override
@@ -212,13 +223,11 @@ class _SignInPageState extends State<SignInPage>
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Stack(
-        children: [
-          // 主签到界面
-          AnimatedBuilder(
-            animation: _scaleAnimation,
+    return Stack(
+      children: [
+        // 主签到界面
+        AnimatedBuilder(
+          animation: _scaleAnimation,
             builder: (context, child) {
               return Transform.scale(
                 scale: _scaleAnimation.value,
@@ -417,10 +426,9 @@ class _SignInPageState extends State<SignInPage>
             },
           ),
 
-          // 奖励弹窗
-          if (_showRewardDialog) _buildRewardDialog(),
+        // 奖励弹窗
+        if (_showRewardDialog) _buildRewardDialog(),
         ],
-      ),
     );
   }
 

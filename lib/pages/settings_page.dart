@@ -3,18 +3,18 @@ import 'package:grils_app/generated/assets.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../managers/audio_manager.dart';
+import '../widgets/animated_popup.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
   // 静态方法：显示设置弹窗
   static Future<void> showSettingsDialog(BuildContext context) async {
-    return showDialog(
+    return AnimatedPopup.show(
       context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const SettingsPage();
-      },
+      child: const SettingsPage(),
+      barrierDismissible: true,
     );
   }
 
@@ -57,6 +57,8 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
     if (mounted) {
       setState(() {
         _soundEnabled = prefs.getBool('sound_enabled') ?? true;
+        // 同步音频管理器状态
+        AudioManager().setMuted(!_soundEnabled);
       });
     }
   }
@@ -80,46 +82,38 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
     }
   }
 
-  void _toggleSound() {
+  void _toggleSound() async {
+    // 播放切换音效（如果当前是开启状态）
+    if (_soundEnabled) {
+      await AudioManager().playSwitch();
+    }
+    
     setState(() {
       _soundEnabled = !_soundEnabled;
     });
+    
+    // 保存设置并更新音频管理器
     _saveSoundSetting(_soundEnabled);
+    AudioManager().setMuted(!_soundEnabled);
+    
+    // 如果刚刚开启声音，播放一个确认音效
+    if (_soundEnabled) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      await AudioManager().playSwitch();
+    }
   }
 
   void _goToMainMenu() {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
-  void _closeSettings() {
+  void _closeSettings() async {
     print('关闭按钮被点击'); // 调试信息
-    try {
-      // 先尝试动画关闭
-      if (_animationController.status == AnimationStatus.forward ||
-          _animationController.status == AnimationStatus.completed) {
-        _animationController.reverse().then((_) {
-          if (mounted) {
-            Navigator.of(context).pop();
-          }
-        }).catchError((e) {
-          print('动画关闭失败: $e');
-          // 动画失败时直接关闭
-          if (mounted) {
-            Navigator.of(context).pop();
-          }
-        });
-      } else {
-        // 如果动画状态不对，直接关闭
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      }
-    } catch (e) {
-      print('关闭设置时出错: $e');
-      // 如果出错，直接关闭
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+    // 播放退出音效
+    await AudioManager().playExit();
+    // 简化关闭逻辑，直接关闭对话框
+    if (mounted) {
+      Navigator.of(context).pop();
     }
   }
 
@@ -131,15 +125,10 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _scaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: Center(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
+    return Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none, // 允许内容超出边界
+      children: [
                 Container(
                   width: MediaQuery.of(context).size.width * 0.85,
                   height: MediaQuery.of(context).size.height * 0.6,
@@ -257,28 +246,31 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                   ),
                 ),
 
-                // 右上角关闭按钮
+                // 右上角关闭按钮 - 改进触摸灵敏度
                 Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _closeSettings,
-                      borderRadius: BorderRadius.circular(40),
-                      child: Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(40),
-                        ),
-                        child: Center(
-                          child: Image.asset(
-                            Assets.imagesBtnClose,
-                            width: 40,
-                            height: 40,
-                          ),
+                  top: -5,
+                  right: -5,
+                  child: GestureDetector(
+                    onTap: _closeSettings,
+                    onTapDown: (_) => print('关闭按钮按下'),
+                    onTapCancel: () => print('关闭按钮取消'),
+                    behavior: HitTestBehavior.opaque, // 确保整个区域都可以点击
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(35),
+                        // 添加一个调试边框来看触摸区域（可选）
+                        // border: Border.all(color: Colors.red.withOpacity(0.3), width: 1),
+                      ),
+                      child: Center(
+                        child: Image.asset(
+                          Assets.imagesBtnClose,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ),
@@ -298,11 +290,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                         decoration: TextDecoration.none),
                   ),
                 ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+        ],
+      );
   }
 }
