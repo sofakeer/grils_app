@@ -464,13 +464,20 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                       ),
                       Positioned(
                         bottom: 15,
-                        child: OutlinedTextWidget.highContrast(
+                        child: OutlinedTextWidget(
                           text: 'Level ${_currentLevel.toString().padLeft(3, '0')}',
                           fontSize: 11,
-
                           textColor: Colors.white,
                           strokeColor: Colors.black,
+                          strokeWidth: 4.0, // 为小字体增加描边宽度
                           fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.6),
+                              offset: const Offset(1, 1),
+                              blurRadius: 2,
+                            ),
+                          ],
                         ),
                       ),
                     ],

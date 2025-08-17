@@ -30,9 +30,6 @@ class AnimatedPopup extends StatefulWidget {
     bool barrierDismissible = true,
     Color? barrierColor,
   }) async {
-    // 播放弹窗打开音效
-    await AudioManager().playPopupOpen();
-    
     return showDialog<T>(
       context: context,
       barrierDismissible: barrierDismissible,
@@ -152,7 +149,14 @@ class _AnimatedPopupDialogState extends State<AnimatedPopupDialog>
       reverseCurve: Curves.easeInCubic, // 快速平滑的关闭动画
     ));
 
-    // 自动开始动画
+    // 播放弹窗打开音效并开始动画
+    _playOpenSoundAndStartAnimation();
+  }
+
+  void _playOpenSoundAndStartAnimation() async {
+    // 立即播放音效，不等待
+    AudioManager().playPopupOpen();
+    // 开始动画
     _controller.forward();
   }
 
@@ -163,7 +167,8 @@ class _AnimatedPopupDialogState extends State<AnimatedPopupDialog>
   }
 
   void closeWithAnimation() async {
-    await AudioManager().playExit();
+    // 立即播放关闭音效，不等待
+    AudioManager().playExit();
     // 关闭动画使用更快的时长
     _controller.duration = const Duration(milliseconds: 150);
     await _controller.reverse();

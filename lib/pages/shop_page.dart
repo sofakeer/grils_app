@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/widgets/common_header.dart';
+import 'package:grils_app/widgets/insufficient_coins_dialog.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/outlined_text_widget.dart';
@@ -19,7 +20,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
   late Animation<double> _switchAnimation;
   
   bool _isTubeSelected = true; // true为TUBE标签，false为BALL标签
-  int _selectedItemIndex = -1; // 当前选中的商品索引
+  int _selectedItemIndex = 0; // 当前选中的商品索引，默认选择第一个
   
   int _coinCount = 1000;
   
@@ -137,7 +138,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
     if (_isTubeSelected != isTube) {
       setState(() {
         _isTubeSelected = isTube;
-        _selectedItemIndex = -1; // 重置选中状态
+        _selectedItemIndex = 0; // 重置为第一个
       });
       
       _switchAnimationController.forward().then((_) {
@@ -147,10 +148,42 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
   }
 
   void _selectItem(int index) {
+    final currentSkins = _isTubeSelected ? _tubeSkins : _ballSkins;
+    final skin = currentSkins[index];
+    final price = skin['price'] as int;
+    final isUnlocked = skin['unlocked'] as bool;
+    
+    // 如果选择的是第一个（默认解锁的），直接选中
+    if (index == 0) {
+      setState(() {
+        _selectedItemIndex = index;
+      });
+      return;
+    }
+    
+    // 如果未解锁，尝试购买
+    if (!isUnlocked) {
+      if (_coinCount >= price) {
+        // 金币足够，执行购买
+        _purchaseItem(index);
+      } else {
+        // 金币不足，显示弹窗
+        InsufficientCoinsDialog.show(
+          context: context,
+          title: 'More Coin',
+          requiredCoins: price,
+        );
+      }
+      return;
+    }
+    
+    // 已解锁的商品，直接选中
     setState(() {
       _selectedItemIndex = index;
     });
   }
+
+
 
   void _purchaseItem(int index) async {
     final currentSkins = _isTubeSelected ? _tubeSkins : _ballSkins;
@@ -196,6 +229,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
     // 执行购买
     setState(() {
       skin['unlocked'] = true;
+      _selectedItemIndex = index; // 购买成功后自动选中
     });
     
     await _updateCoinCount(_coinCount - price);
@@ -504,7 +538,11 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
             
             // 选中边框
             if (isSelected)
-              Positioned.fill(
+              Positioned(
+                top: 0,
+                left: 2,
+                right: 2,
+                bottom: 4.5,
                 child: Container(
                   decoration: BoxDecoration(
                     image: DecorationImage(
@@ -515,18 +553,22 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                 ),
               ),
             
-            // 价格标签
+                        // 价格标签
             Positioned(
               bottom: 50,
               left: 0,
               right: 0,
               child: Center(
                 child: Container(
+                  height: 30, // 设置固定高度
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isUnlocked ? Colors.transparent : Colors.orange,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                    decoration: BoxDecoration(
+                      image: isUnlocked ? null : DecorationImage(
+                        image: AssetImage(Assets.shopShopBtnBuy),
+                        fit: BoxFit.fill,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
