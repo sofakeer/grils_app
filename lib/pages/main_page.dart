@@ -375,7 +375,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
             // 右侧功能按钮
             Positioned(
               right: 20,
-              bottom: 180,
+              bottom: 150,
               child: Column(
                 children: [
                   // // 设置按钮
@@ -396,7 +396,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                       _startTakeOff();
                     },
                     child: const SizedBox(
-                      width: 120,
+                      width: 100,
                       height: 120,
                       child: TakeoffButtonAnimation(),
                     ),
@@ -408,7 +408,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
             // 底部开始游戏按钮,
             Positioned(
               bottom: 30,
-              right: 30,
+              right: 20,
               child: Center(
                 child: GestureDetector(
                   onTap: _navigateToGame,
@@ -421,12 +421,12 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                       ),
                       Positioned(
                         bottom: 15,
-                        child: OutlinedTextWidget(
-                          text: 'Level $_currentLevel',
-                          fontSize: 16,
+                        child: OutlinedTextWidget.highContrast(
+                          text: 'Level ${_currentLevel.toString().padLeft(3, '0')}',
+                          fontSize: 11,
+
                           textColor: Colors.white,
                           strokeColor: Colors.black,
-                          strokeWidth: 1.5,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

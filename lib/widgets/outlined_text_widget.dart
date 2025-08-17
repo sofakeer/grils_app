@@ -54,6 +54,21 @@ class OutlinedTextWidget extends StatelessWidget {
   /// 装饰粗细
   final double? decorationThickness;
 
+  /// 是否启用自适应描边宽度（小字体时自动增加描边宽度）
+  final bool adaptiveStroke;
+
+  /// 是否启用多层描边渲染（提高小字体的清晰度）
+  final bool multiLayerStroke;
+
+  /// 背景阴影颜色（用于提高对比度）
+  final Color? backgroundShadowColor;
+
+  /// 背景阴影偏移
+  final Offset? backgroundShadowOffset;
+
+  /// 背景阴影模糊半径
+  final double? backgroundShadowBlurRadius;
+
   const OutlinedTextWidget({
     super.key,
     required this.text,
@@ -73,6 +88,11 @@ class OutlinedTextWidget extends StatelessWidget {
     this.decorationColor,
     this.decorationStyle,
     this.decorationThickness,
+    this.adaptiveStroke = false,
+    this.multiLayerStroke = false,
+    this.backgroundShadowColor,
+    this.backgroundShadowOffset,
+    this.backgroundShadowBlurRadius,
   });
 
   /// 创建发光效果的文字
@@ -232,12 +252,107 @@ class OutlinedTextWidget extends StatelessWidget {
     );
   }
 
+  /// 创建高清晰度的小字体文字（特别适用于等级显示等）
+  factory OutlinedTextWidget.highContrast({
+    required String text,
+    double fontSize = 12.0,
+    Color textColor = Colors.white,
+    Color strokeColor = Colors.black,
+    FontWeight fontWeight = FontWeight.bold,
+    TextAlign textAlign = TextAlign.center,
+    int? maxLines,
+    String fontFamily = 'Anja-Eliane',
+  }) {
+    // 根据字体大小自适应描边宽度
+    double adaptiveStrokeWidth = fontSize <= 14 ? 4.0 : 2.0;
+    
+    return OutlinedTextWidget(
+      text: text,
+      fontSize: fontSize,
+      textColor: textColor,
+      strokeColor: strokeColor,
+      strokeWidth: adaptiveStrokeWidth,
+      fontWeight: fontWeight,
+      textAlign: textAlign,
+      maxLines: maxLines,
+      fontFamily: fontFamily,
+      adaptiveStroke: true,
+      multiLayerStroke: true,
+      backgroundShadowColor: Colors.black.withOpacity(0.3),
+      backgroundShadowOffset: const Offset(1, 1),
+      backgroundShadowBlurRadius: 2.0,
+      shadows: [
+        Shadow(
+          color: Colors.black.withOpacity(0.6),
+          offset: const Offset(1, 1),
+          blurRadius: 2,
+        ),
+      ],
+    );
+  }
+  /// 计算自适应描边宽度
+  double _getAdaptiveStrokeWidth() {
+    if (!adaptiveStroke) return strokeWidth;
+    
+    // 根据字体大小自动调整描边宽度
+    if (fontSize <= 12) return 4.0;
+    if (fontSize <= 16) return 3.0;
+    if (fontSize <= 20) return 2.5;
+    if (fontSize <= 24) return 2.0;
+    return strokeWidth;
+  }
+
+  /// 创建多层描边渲染
+  List<Widget> _buildMultiLayerStroke() {
+    if (!multiLayerStroke || strokeWidth <= 0) {
+      return [];
+    }
+
+    final adaptiveWidth = _getAdaptiveStrokeWidth();
+    final layers = <Widget>[];
+    
+    // 创建多层描边，从外到内逐渐变细
+    for (int i = 0; i < 3; i++) {
+      final layerWidth = adaptiveWidth * (1.0 - i * 0.2);
+      if (layerWidth <= 0) break;
+      
+      layers.add(
+        Text(
+          text,
+          textAlign: textAlign,
+          maxLines: maxLines,
+          overflow: overflow,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: fontWeight,
+            fontFamily: fontFamily,
+            letterSpacing: letterSpacing,
+            height: height,
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = layerWidth
+              ..color = strokeColor.withOpacity(1.0 - i * 0.2),
+            decoration: decoration,
+            decorationColor: decorationColor,
+            decorationStyle: decorationStyle,
+            decorationThickness: decorationThickness,
+          ),
+        ),
+      );
+    }
+    
+    return layers;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final adaptiveWidth = _getAdaptiveStrokeWidth();
+    final multiLayers = _buildMultiLayerStroke();
+    
     return Stack(
       children: [
-        // 描边层
-        if (strokeWidth > 0)
+        // 背景阴影层（提高对比度）
+        if (backgroundShadowColor != null)
           Text(
             text,
             textAlign: textAlign,
@@ -251,7 +366,34 @@ class OutlinedTextWidget extends StatelessWidget {
               height: height,
               foreground: Paint()
                 ..style = PaintingStyle.stroke
-                ..strokeWidth = strokeWidth
+                ..strokeWidth = adaptiveWidth + 2
+                ..color = backgroundShadowColor!,
+              decoration: decoration,
+              decorationColor: decorationColor,
+              decorationStyle: decorationStyle,
+              decorationThickness: decorationThickness,
+            ),
+          ),
+        
+        // 多层描边层
+        ...multiLayers,
+        
+        // 单层描边层（当不使用多层描边时）
+        if (strokeWidth > 0 && !multiLayerStroke)
+          Text(
+            text,
+            textAlign: textAlign,
+            maxLines: maxLines,
+            overflow: overflow,
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+              fontFamily: fontFamily,
+              letterSpacing: letterSpacing,
+              height: height,
+              foreground: Paint()
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = adaptiveWidth
                 ..color = strokeColor,
               decoration: decoration,
               decorationColor: decorationColor,
