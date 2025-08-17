@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/pages/win_page.dart';
+import '../widgets/outlined_text_widget.dart';
 
 class GamePage extends StatefulWidget {
   const GamePage({super.key});
@@ -74,20 +75,20 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                     // 游戏标题
                     Container(
                       margin: const EdgeInsets.only(bottom: 100),
-                      child: const Text(
-                        'GAME',
-                        style: TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          shadows: [
-                            Shadow(
-                              offset: Offset(2, 2),
-                              blurRadius: 4,
-                              color: Colors.black54,
-                            ),
-                          ],
-                        ),
+                      child: const OutlinedTextWidget(
+                        text: 'GAME',
+                        fontSize: 48,
+                        textColor: Colors.white,
+                        strokeColor: Colors.black,
+                        strokeWidth: 3.0,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(2, 2),
+                            blurRadius: 4,
+                            color: Colors.black54,
+                          ),
+                        ],
                       ),
                     ),
 
@@ -104,20 +105,20 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                           ),
                         ),
                         child: const Center(
-                          child: Text(
-                            'PASS STAGE',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(1, 1),
-                                  blurRadius: 2,
-                                  color: Colors.black54,
-                                ),
-                              ],
-                            ),
+                          child: OutlinedTextWidget(
+                            text: 'PASS STAGE',
+                            fontSize: 24,
+                            textColor: Colors.white,
+                            strokeColor: Colors.black,
+                            strokeWidth: 2.0,
+                            fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(1, 1),
+                                blurRadius: 2,
+                                color: Colors.black54,
+                              ),
+                            ],
                           ),
                         ),
                       ),

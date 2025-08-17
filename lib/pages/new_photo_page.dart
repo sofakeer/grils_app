@@ -6,6 +6,7 @@ import 'package:spine_flutter/spine_flutter.dart' as spine;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/energy_calculator.dart';
 import '../managers/audio_manager.dart';
+import '../widgets/outlined_text_widget.dart';
 
 class NewPhotoPage extends StatefulWidget {
   final int level;
@@ -400,13 +401,13 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                                     ),
                                     // 进度文字
                                     Center(
-                                      child: Text(
-                                        '${(_progress * 100).toInt()}%',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                      child: OutlinedTextWidget(
+                                        text: '${(_progress * 100).toInt()}%',
+                                        fontSize: 14,
+                                        textColor: Colors.white,
+                                        strokeColor: Colors.black,
+                                        strokeWidth: 1.0,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ],
@@ -458,20 +459,20 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                                       color: _isUnlocked ? null : Colors.grey,
                                     ),
                                     const SizedBox(width: 10),
-                                    Text(
-                                      'Download',
-                                      style: TextStyle(
-                                        color: _isUnlocked ? Colors.white : Colors.grey,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        shadows: [
-                                          Shadow(
-                                            offset: const Offset(1, 1),
-                                            blurRadius: 2,
-                                            color: Colors.black54,
-                                          ),
-                                        ],
-                                      ),
+                                    OutlinedTextWidget(
+                                      text: 'Download',
+                                      fontSize: 20,
+                                      textColor: _isUnlocked ? Colors.white : Colors.grey,
+                                      strokeColor: Colors.black,
+                                      strokeWidth: 1.5,
+                                      fontWeight: FontWeight.bold,
+                                      shadows: [
+                                        Shadow(
+                                          offset: const Offset(1, 1),
+                                          blurRadius: 2,
+                                          color: Colors.black54,
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -500,21 +501,20 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                         // NEXT 按钮
                         GestureDetector(
                           onTap: _nextPhoto,
-                          child: const Text(
-                            'NEXT',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.underline,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(1, 1),
-                                  blurRadius: 2,
-                                  color: Colors.black54,
-                                ),
-                              ],
-                            ),
+                          child: const OutlinedTextWidget(
+                            text: 'NEXT',
+                            fontSize: 16,
+                            textColor: Colors.white,
+                            strokeColor: Colors.black,
+                            strokeWidth: 1.0,
+                            fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(1, 1),
+                                blurRadius: 2,
+                                color: Colors.black54,
+                              ),
+                            ],
                           ),
                         ),
                       ],

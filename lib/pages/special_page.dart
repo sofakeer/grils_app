@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/widgets/common_header.dart';
 import 'package:grils_app/pages/new_photo_page.dart';
+import '../widgets/outlined_text_widget.dart';
 
 class SpecialPage extends StatefulWidget {
   const SpecialPage({super.key});
@@ -152,21 +153,21 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                                 child: Container(
                                   margin: const EdgeInsets.only(top: 10),
                                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  child: const Text(
-                                    'Play special levels to win extra hearts!',
+                                  child: const OutlinedTextWidget(
+                                    text: 'Play special levels to win extra hearts!',
+                                    fontSize: 20,
+                                    textColor: Colors.white,
+                                    strokeColor: Color(0xffF306FF),
+                                    strokeWidth: 2.0,
+                                    fontWeight: FontWeight.bold,
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                      shadows: [
-                                        Shadow(
-                                          offset: Offset(2, 2),
-                                          blurRadius: 2,
-                                          color: Color(0xffF306FF),
-                                        ),
-                                      ],
-                                    ),
+                                    shadows: [
+                                      Shadow(
+                                        offset: Offset(2, 2),
+                                        blurRadius: 2,
+                                        color: Color(0xffF306FF),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -193,13 +194,13 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                                 // 相机图标
                                 Image.asset(Assets.newPhotoNewPhotoIconAd,height: 30,),
                                 const SizedBox(width: 10),
-                                const Text(
-                                  'Play',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                const OutlinedTextWidget(
+                                  text: 'Play',
+                                  fontSize: 20,
+                                  textColor: Colors.white,
+                                  strokeColor: Colors.black,
+                                  strokeWidth: 1.5,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ],
                             ),
@@ -209,13 +210,13 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                         // SKIP 按钮
                         GestureDetector(
                           onTap: _skipSpecial,
-                          child: const Text(
-                            'SKIP',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: const OutlinedTextWidget(
+                            text: 'SKIP',
+                            fontSize: 18,
+                            textColor: Colors.white,
+                            strokeColor: Colors.black,
+                            strokeWidth: 1.0,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],

@@ -3,6 +3,7 @@ import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/widgets/common_header.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/outlined_text_widget.dart';
 
 class ShopPage extends StatefulWidget {
   const ShopPage({super.key});
@@ -160,7 +161,14 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
       // 已经解锁的皮肤
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('该皮肤已解锁'),
+          content: OutlinedTextWidget(
+            text: '该皮肤已解锁',
+            fontSize: 14,
+            textColor: Colors.white,
+            strokeColor: Colors.black,
+            strokeWidth: 1.0,
+            fontWeight: FontWeight.w600,
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -171,7 +179,14 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
       // 金币不足
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('金币不足！需要 $price 金币'),
+          content: OutlinedTextWidget(
+            text: '金币不足！需要 $price 金币',
+            fontSize: 14,
+            textColor: Colors.white,
+            strokeColor: Colors.black,
+            strokeWidth: 1.0,
+            fontWeight: FontWeight.w600,
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -189,7 +204,14 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
     // 显示购买成功
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('购买成功！${skin['name']} 已解锁'),
+        content: OutlinedTextWidget(
+          text: '购买成功！${skin['name']} 已解锁',
+          fontSize: 14,
+          textColor: Colors.white,
+          strokeColor: Colors.black,
+          strokeWidth: 1.0,
+          fontWeight: FontWeight.w600,
+        ),
         backgroundColor: Colors.green,
       ),
     );
@@ -314,13 +336,13 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                   height: 30,
                 ),
                 SizedBox(width: 8),
-                Text(
-                  '$_coinCount',
-                  style: TextStyle(
-                    color: HexColor("#8B4513"),
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                OutlinedTextWidget(
+                  text: '$_coinCount',
+                  fontSize: 18,
+                  textColor: HexColor("#8B4513"),
+                  strokeColor: Colors.white,
+                  strokeWidth: 1.0,
+                  fontWeight: FontWeight.bold,
                 ),
               ],
             ),
@@ -514,13 +536,13 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                           height: 16,
                         ),
                         SizedBox(width: 4),
-                        Text(
-                          '$price',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        OutlinedTextWidget(
+                          text: '$price',
+                          fontSize: 12,
+                          textColor: Colors.white,
+                          strokeColor: Colors.black,
+                          strokeWidth: 1.0,
+                          fontWeight: FontWeight.bold,
                         ),
                       ] else ...[
                         // Icon(

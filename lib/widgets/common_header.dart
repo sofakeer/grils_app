@@ -4,6 +4,8 @@ import 'package:grils_app/generated/assets.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:grils_app/services/user_service.dart';
 
+import 'outlined_text_widget.dart';
+
 /// 公共头部组件
 /// 
 /// 使用示例:
@@ -92,13 +94,12 @@ class _CommonHeaderState extends State<CommonHeader> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 SizedBox(width: 30,),
-                                Text(
-                                  '${_userService.coinCount}',
-                                  style: TextStyle(
-                                    color: HexColor("#95756A"),
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                OutlinedTextWidget(
+                                 text: '${_userService.coinCount}',
+                                  textColor: HexColor("#95756A"),
+                                  strokeWidth: 0,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ],
                             ),
@@ -128,13 +129,12 @@ class _CommonHeaderState extends State<CommonHeader> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 SizedBox(width: 30,),
-                                Text(
-                                  '${_userService.heartCount}',
-                                  style: TextStyle(
-                                    color: HexColor("#95756A"),
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                OutlinedTextWidget(
+                                  text:'${_userService.heartCount}',
+                                  textColor: HexColor("#95756A"),
+                                  fontSize: 18,
+                                  strokeWidth: 0,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ],
                             ),

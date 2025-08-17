@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/widgets/common_header.dart';
 import 'package:grils_app/pages/special_page.dart';
+import '../widgets/outlined_text_widget.dart';
 
 class WinHeartPage extends StatefulWidget {
   const WinHeartPage({super.key});
@@ -170,13 +171,13 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
                                 // 相机图标
                                 Image.asset(Assets.newPhotoNewPhotoIconAd,height: 30,),
                                 const SizedBox(width: 10),
-                                const Text(
-                                  '+100',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                const OutlinedTextWidget(
+                                  text: '+100',
+                                  fontSize: 20,
+                                  textColor: Colors.white,
+                                  strokeColor: Colors.black,
+                                  strokeWidth: 1.5,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ],
                             ),
@@ -188,20 +189,20 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
                         GestureDetector(
                           onTap: _getReward,
                           child: const Center(
-                            child: Text(
-                              'GET',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                shadows: [
-                                  Shadow(
-                                    offset: Offset(1, 1),
-                                    blurRadius: 2,
-                                    color: Colors.black54,
-                                  ),
-                                ],
-                              ),
+                            child: OutlinedTextWidget(
+                              text: 'GET',
+                              fontSize: 24,
+                              textColor: Colors.white,
+                              strokeColor: Colors.black,
+                              strokeWidth: 2.0,
+                              fontWeight: FontWeight.bold,
+                              shadows: const [
+                                Shadow(
+                                  offset: Offset(1, 1),
+                                  blurRadius: 2,
+                                  color: Colors.black54,
+                                ),
+                              ],
                             ),
                           ),
                         ),

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../managers/audio_manager.dart';
 import '../widgets/animated_popup.dart';
+import '../widgets/outlined_text_widget.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -131,7 +132,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
       children: [
                 Container(
                   width: MediaQuery.of(context).size.width * 0.85,
-                  height: MediaQuery.of(context).size.height * 0.6,
+                  height: 380,
                   decoration: const BoxDecoration(
                     image: DecorationImage(
                       image: AssetImage(Assets.imagesPopBack),
@@ -141,8 +142,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                 ),
                 // 内容
                 SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.75,
-                  height: MediaQuery.of(context).size.height * 0.55,
+                  height: 430,
                   child: Column(
                     children: [
                       // 主要内容区域
@@ -152,6 +152,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
+                              const SizedBox(height: 40),
                               // 声音按钮
                               GestureDetector(
                                 onTap: _toggleSound,
@@ -165,20 +166,19 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                                     ),
                                   ),
                                   child: Center(
-                                    child: Text(
-                                      _soundEnabled ? 'SOUND ON' : 'SOUND OFF',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        decoration: TextDecoration.none,
-                                      ),
+                                    child: OutlinedTextWidget(
+                                      text: _soundEnabled ? 'SOUND ON' : 'SOUND OFF',
+                                      fontSize: 20,
+                                      textColor: Colors.white,
+                                      strokeColor: Colors.black,
+                                      strokeWidth: 5,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
                               ),
 
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 15),
 
                               // 主菜单按钮
                               GestureDetector(
@@ -193,14 +193,13 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                                     ),
                                   ),
                                   child: const Center(
-                                    child: Text(
-                                      'MAIN MENU',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        decoration: TextDecoration.none,
-                                      ),
+                                    child: OutlinedTextWidget(
+                                      text: 'MAIN MENU',
+                                      fontSize: 20,
+                                      textColor: Colors.white,
+                                      strokeColor: Colors.black,
+                                      strokeWidth: 5,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
@@ -213,27 +212,31 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                                 children: [
                                   GestureDetector(
                                     onTap: _launchPrivacyPolicy,
-                                    child: Text(
-                                      'Private policy',
-                                      style: TextStyle(
-                                        color: HexColor("#8B4513"),
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                        decoration: TextDecoration.none,
-                                      ),
+                                    child: OutlinedTextWidget(
+                                      text: 'Private policy',
+                                      fontSize: 16,
+                                      textColor: HexColor("#9E8006"),
+                                      strokeColor: Colors.white,
+                                      strokeWidth: 1.0,
+                                      fontWeight: FontWeight.w500,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: HexColor("#9E8006"),
+                                      decorationThickness: 5.0,
                                     ),
                                   ),
                                   const SizedBox(height: 10),
                                   GestureDetector(
                                     onTap: _launchTermsOfService,
-                                    child: Text(
-                                      'Term of service',
-                                      style: TextStyle(
-                                        color: HexColor("#8B4513"),
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                        decoration: TextDecoration.none,
-                                      ),
+                                    child: OutlinedTextWidget(
+                                      text: 'Term of service',
+                                      fontSize: 16,
+                                      textColor: HexColor("#9E8006"),
+                                      strokeColor: Colors.white,
+                                      strokeWidth: 1.0,
+                                      fontWeight: FontWeight.w500,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: HexColor("#9E8006"),
+                                      decorationThickness: 5,
                                     ),
                                   ),
                                 ],
@@ -249,7 +252,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                 // 右上角关闭按钮 - 改进触摸灵敏度
                 Positioned(
                   top: -5,
-                  right: -5,
+                  right: -25,
                   child: GestureDetector(
                     onTap: _closeSettings,
                     onTapDown: (_) => print('关闭按钮按下'),
@@ -277,17 +280,15 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
                   ),
                 ),
                 const Positioned(
-                  top: 25,
-                  right: 0,
-                  left: 0,
-                  child: Text(
-                    "Setting",
+                  top: 35,
+                  child: OutlinedTextWidget(
+                    text: "Setting",
+                    fontSize: 30,
+                    textColor: Colors.white,
+                    strokeColor: Colors.black,
+                    strokeWidth: 7,
+                    fontWeight: FontWeight.bold,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 20,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        decoration: TextDecoration.none),
                   ),
                 ),
         ],

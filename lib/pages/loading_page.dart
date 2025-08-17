@@ -3,6 +3,7 @@ import 'package:grils_app/generated/assets.dart';
 import 'dart:async';
 import 'package:grils_app/pages/main_page.dart';
 import 'package:grils_app/widgets/privacy_dialog.dart';
+import 'package:grils_app/widgets/outlined_text_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoadingPage extends StatefulWidget {
@@ -200,20 +201,13 @@ class _LoadingPageState extends State<LoadingPage>
                   AnimatedBuilder(
                     animation: _progressAnimation,
                     builder: (context, child) {
-                      return Text(
-                        '${(_progressAnimation.value * 100).toInt()}%',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withOpacity(0.5),
-                              offset: Offset(1, 1),
-                              blurRadius: 2,
-                            ),
-                          ],
-                        ),
+                      return OutlinedTextWidget(
+                        text: '${(_progressAnimation.value * 100).toInt()}%',
+                        fontSize: 18,
+                        textColor: Colors.white,
+                        strokeColor: Colors.black,
+                        strokeWidth: 1.5,
+                        fontWeight: FontWeight.bold,
                       );
                     },
                   ),

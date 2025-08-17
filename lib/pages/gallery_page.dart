@@ -5,6 +5,7 @@ import 'package:grils_app/pages/photo_detail_page.dart';
 import 'package:grils_app/widgets/common_header.dart';
 import 'package:grils_app/services/user_service.dart';
 import 'dart:async';
+import '../widgets/outlined_text_widget.dart';
 
 class GalleryPage extends StatefulWidget {
   const GalleryPage({super.key});

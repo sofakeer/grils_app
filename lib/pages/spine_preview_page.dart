@@ -9,6 +9,7 @@ import 'dart:async';
 import '../models/girl_state.dart';
 import '../managers/audio_manager.dart';
 import '../utils/audio_assets.dart';
+import '../widgets/outlined_text_widget.dart';
 
 
 class SpinePreviewPage extends StatefulWidget {
@@ -914,11 +915,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                                       ),
                                       child: Padding(
                                         padding: const EdgeInsets.only(left: 50),
-                                        child: Text('10',
-                                            style: TextStyle(
-                                              color: HexColor("#95756A"),
-                                              fontWeight: FontWeight.bold,
-                                            )),
+                                        child: OutlinedTextWidget(
+                                          text: '10',
+                                          fontSize: 18,
+                                          textColor: HexColor("#95756A"),
+                                          strokeColor: Colors.white,
+                                          strokeWidth: 1.0,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -975,104 +979,24 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                       children: [
                         Image.asset(Assets.imagesIconHeart2x, height: 50),
                         SizedBox(width: 8), // 间距
-                        // x 字符 - 发光字效果
-                        Center(
-                          child: Text(
-                            'x',
-                            style: TextStyle(
-                              fontSize: 48,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: [
-                                // 外层红色发光 - 更粗
-                                Shadow(
-                                  color: Colors.red,
-                                  offset: Offset(0, 0),
-                                  blurRadius: 15,
-                                ),
-                                // 中层红色发光
-                                Shadow(
-                                  color: Colors.red.withOpacity(0.8),
-                                  offset: Offset(0, 0),
-                                  blurRadius: 10,
-                                ),
-                                // 内层橙色发光 - 更粗
-                                Shadow(
-                                  color: Colors.orange,
-                                  offset: Offset(0, 0),
-                                  blurRadius: 8,
-                                ),
-                                // 中层橙色发光
-                                Shadow(
-                                  color: Colors.orange.withOpacity(0.8),
-                                  offset: Offset(0, 0),
-                                  blurRadius: 5,
-                                ),
-                                // 白色核心发光 - 更粗
-                                Shadow(
-                                  color: Colors.white.withOpacity(0.9),
-                                  offset: Offset(0, 0),
-                                  blurRadius: 4,
-                                ),
-                                // 白色内发光
-                                Shadow(
-                                  color: Colors.white.withOpacity(0.6),
-                                  offset: Offset(0, 0),
-                                  blurRadius: 2,
-                                ),
-                              ],
-                            ),
-                          ),
+                        // x 字符 - 使用自定义发光效果
+                        OutlinedTextWidget.glow(
+                          text: 'x',
+                          fontSize: 48,
+                          textColor: Colors.white,
+                          glowColor: Colors.red,
+                          glowRadius: 15,
+                          fontWeight: FontWeight.bold,
                         ),
                         SizedBox(width: 4), // 小间距
-                        // 数字 - 发光字效果
-                        Center(
-                          child: Text(
-                            '$_heartCount',
-                            style: TextStyle(
-                              fontSize: 48,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: [
-                                // 外层红色发光 - 更粗
-                                Shadow(
-                                  color: Colors.red,
-                                  offset: Offset(0, 0),
-                                  blurRadius: 15,
-                                ),
-                                // 中层红色发光
-                                Shadow(
-                                  color: Colors.red.withOpacity(0.8),
-                                  offset: Offset(0, 0),
-                                  blurRadius: 10,
-                                ),
-                                // 内层橙色发光 - 更粗
-                                Shadow(
-                                  color: Colors.orange,
-                                  offset: Offset(0, 0),
-                                  blurRadius: 8,
-                                ),
-                                // 中层橙色发光
-                                Shadow(
-                                  color: Colors.orange.withOpacity(0.8),
-                                  offset: Offset(0, 0),
-                                  blurRadius: 5,
-                                ),
-                                // 白色核心发光 - 更粗
-                                Shadow(
-                                  color: Colors.white.withOpacity(0.9),
-                                  offset: Offset(0, 0),
-                                  blurRadius: 4,
-                                ),
-                                // 白色内发光
-                                Shadow(
-                                  color: Colors.white.withOpacity(0.6),
-                                  offset: Offset(0, 0),
-                                  blurRadius: 2,
-                                ),
-                              ],
-                            ),
-                          ),
+                        // 数字 - 使用自定义发光效果
+                        OutlinedTextWidget.glow(
+                          text: '$_heartCount',
+                          fontSize: 48,
+                          textColor: Colors.white,
+                          glowColor: Colors.red,
+                          glowRadius: 15,
+                          fontWeight: FontWeight.bold,
                         ),
                       ],
                     ),
@@ -1688,13 +1612,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                       ),
                     ),
                     child: Center(
-                      child: Text(
-                        'Get More',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: OutlinedTextWidget(
+                        text: 'Get More',
+                        fontSize: 24,
+                        textColor: Colors.white,
+                        strokeColor: Colors.black,
+                        strokeWidth: 2.0,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
@@ -1718,13 +1642,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                               children: [
                                 Image.asset(Assets.imagesIconHeart2x, height: 40),
                                 SizedBox(width: 10),
-                                Text(
-                                  'x10',
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: HexColor("#95756A"),
-                                  ),
+                                OutlinedTextWidget(
+                                  text: 'x10',
+                                  fontSize: 24,
+                                  textColor: HexColor("#95756A"),
+                                  strokeColor: Colors.white,
+                                  strokeWidth: 1.5,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ],
                             ),
@@ -1768,13 +1692,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                                     ),
                                   ),
                                   SizedBox(width: 15),
-                                  Text(
-                                    'GET',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  OutlinedTextWidget(
+                                    text: 'GET',
+                                    fontSize: 20,
+                                    textColor: Colors.white,
+                                    strokeColor: Colors.black,
+                                    strokeWidth: 2.0,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ],
                               ),

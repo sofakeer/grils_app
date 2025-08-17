@@ -7,6 +7,7 @@ import 'package:spine_flutter/spine_flutter.dart' hide Animation;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/coin_calculator.dart';
 import '../managers/audio_manager.dart';
+import '../widgets/outlined_text_widget.dart';
 
 class WinPage extends StatefulWidget {
   final int level;
@@ -246,20 +247,20 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                                 height: 40,
                               ),
                               const SizedBox(width: 10),
-                              Text(
-                                '+$_coinReward',
-                                style: const TextStyle(
-                                  fontSize: 42,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange,
-                                  shadows: [
-                                    Shadow(
-                                      offset: Offset(2, 2),
-                                      blurRadius: 4,
-                                      color: Colors.black54,
-                                    ),
-                                  ],
-                                ),
+                              OutlinedTextWidget(
+                                text: '+$_coinReward',
+                                fontSize: 42,
+                                textColor: Colors.orange,
+                                strokeColor: Colors.black,
+                                strokeWidth: 3.0,
+                                fontWeight: FontWeight.bold,
+                                shadows: const [
+                                  Shadow(
+                                    offset: Offset(2, 2),
+                                    blurRadius: 4,
+                                    color: Colors.black54,
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -278,20 +279,20 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                               ),
                             ),
                             child: const Center(
-                              child: Text(
-                                'GET',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  shadows: [
-                                    Shadow(
-                                      offset: Offset(1, 1),
-                                      blurRadius: 2,
-                                      color: Colors.black54,
-                                    ),
-                                  ],
-                                ),
+                              child: OutlinedTextWidget(
+                                text: 'GET',
+                                fontSize: 28,
+                                textColor: Colors.white,
+                                strokeColor: Colors.black,
+                                strokeWidth: 2.0,
+                                fontWeight: FontWeight.bold,
+                                shadows: const [
+                                  Shadow(
+                                    offset: Offset(1, 1),
+                                    blurRadius: 2,
+                                    color: Colors.black54,
+                                  ),
+                                ],
                               ),
                             ),
                           ),

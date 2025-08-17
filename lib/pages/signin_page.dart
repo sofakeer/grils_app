@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
 import '../widgets/animated_popup.dart';
 import '../widgets/effect_animations.dart';
+import '../widgets/outlined_text_widget.dart';
 import '../managers/audio_manager.dart';
 
 class SignInPage extends StatefulWidget {
@@ -256,20 +257,13 @@ class _SignInPageState extends State<SignInPage>
                             // 标题
                             Container(
                               padding: EdgeInsets.symmetric(vertical: 35),
-                              child: Text(
-                                'SIGN',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  shadows: [
-                                    Shadow(
-                                      color: Colors.black.withOpacity(0.5),
-                                      offset: Offset(2, 2),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
+                              child: OutlinedTextWidget(
+                                text: 'SIGN',
+                                fontSize: 32,
+                                textColor: Colors.white,
+                                strokeColor: Colors.black,
+                                strokeWidth: 2.0,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
 
@@ -332,13 +326,13 @@ class _SignInPageState extends State<SignInPage>
                                             ),
                                           ),
                                           child: Center(
-                                            child: Text(
-                                              'GET',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                            child: OutlinedTextWidget(
+                                              text: 'GET',
+                                              fontSize: 18,
+                                              textColor: Colors.white,
+                                              strokeColor: Colors.black,
+                                              strokeWidth: 1.5,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                         ),
@@ -366,13 +360,13 @@ class _SignInPageState extends State<SignInPage>
                                                   size: 16,
                                                 ),
                                                 SizedBox(width: 5),
-                                                Text(
-                                                  'x2',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
+                                                OutlinedTextWidget(
+                                                  text: 'x2',
+                                                  fontSize: 16,
+                                                  textColor: Colors.white,
+                                                  strokeColor: Colors.black,
+                                                  strokeWidth: 1.0,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
                                               ],
                                             ),
@@ -387,13 +381,13 @@ class _SignInPageState extends State<SignInPage>
                                       color: Colors.grey,
                                       borderRadius: BorderRadius.circular(25),
                                     ),
-                                    child: Text(
-                                      '今日已签到',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    child: OutlinedTextWidget(
+                                      text: '今日已签到',
+                                      fontSize: 18,
+                                      textColor: Colors.white,
+                                      strokeColor: Colors.grey,
+                                      strokeWidth: 1.0,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                             ),
@@ -469,13 +463,13 @@ class _SignInPageState extends State<SignInPage>
         children: [
         if (!isDay7)
           // 天数
-          Text(
-            'Day $day',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: isToday ? Colors.white : Colors.black,
-            ),
+          OutlinedTextWidget(
+            text: 'Day $day',
+            fontSize: 12,
+            textColor: isToday ? Colors.white : Colors.black,
+            strokeColor: isToday ? Colors.black : Colors.white,
+            strokeWidth: 0.8,
+            fontWeight: FontWeight.bold,
           ),
           
           SizedBox(height: 5),
@@ -491,13 +485,13 @@ class _SignInPageState extends State<SignInPage>
                   children: [
                     Image.asset(Assets.mainMainIconCoin, height: 45),
                     SizedBox(width: 3),
-                    Text(
-                      'X${reward['coins']}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: HexColor("#FBFF1D"),
-                      ),
+                    OutlinedTextWidget(
+                      text: 'X${reward['coins']}',
+                      fontSize: 18,
+                      textColor: HexColor("#FBFF1D"),
+                      strokeColor: Colors.black,
+                      strokeWidth: 1.0,
+                      fontWeight: FontWeight.bold,
                     ),
                   ],
                 ),
@@ -508,13 +502,13 @@ class _SignInPageState extends State<SignInPage>
                   children: [
                     Image.asset(Assets.imagesIconHeart2x, height: 35),
                     SizedBox(width: 3),
-                    Text(
-                      'X${reward['hearts']}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: HexColor("#FBFF1D"),
-                      ),
+                    OutlinedTextWidget(
+                      text: 'X${reward['hearts']}',
+                      fontSize: 18,
+                      textColor: HexColor("#FBFF1D"),
+                      strokeColor: Colors.black,
+                      strokeWidth: 1.0,
+                      fontWeight: FontWeight.bold,
                     ),
                   ],
                 ),
@@ -527,13 +521,13 @@ class _SignInPageState extends State<SignInPage>
                 Assets.mainMainIconCoin,
                 height: 20,
               ),
-              Text(
-                'X${reward['coins']}',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: HexColor("#FF9B9B"),
-                ),
+              OutlinedTextWidget(
+                text: 'X${reward['coins']}',
+                fontSize: 10,
+                textColor: HexColor("#FF9B9B"),
+                strokeColor: Colors.black,
+                strokeWidth: 0.5,
+                fontWeight: FontWeight.bold,
               ),
             ],
             
@@ -542,13 +536,13 @@ class _SignInPageState extends State<SignInPage>
                 Assets.imagesIconHeart2x,
                 height: 20,
               ),
-              Text(
-                '+${reward['hearts']}',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: isToday ? Colors.white : Colors.black,
-                ),
+              OutlinedTextWidget(
+                text: '+${reward['hearts']}',
+                fontSize: 10,
+                textColor: isToday ? Colors.white : Colors.black,
+                strokeColor: isToday ? Colors.black : Colors.white,
+                strokeWidth: 0.5,
+                fontWeight: FontWeight.bold,
               ),
             ],
           ],
@@ -577,13 +571,13 @@ class _SignInPageState extends State<SignInPage>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // 标题
-                  Text(
-                    _isDoubleReward ? '双倍奖励!' : '签到成功!',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: HexColor("#8B4513"),
-                    ),
+                  OutlinedTextWidget(
+                    text: _isDoubleReward ? '双倍奖励!' : '签到成功!',
+                    fontSize: 28,
+                    textColor: HexColor("#8B4513"),
+                    strokeColor: Colors.white,
+                    strokeWidth: 2.0,
+                    fontWeight: FontWeight.bold,
                   ),
                   
                   SizedBox(height: 30),
@@ -595,13 +589,13 @@ class _SignInPageState extends State<SignInPage>
                       if (_rewardCoins > 0) ...[
                         Image.asset(Assets.mainMainIconCoin, height: 50),
                         SizedBox(width: 10),
-                        Text(
-                          '+$_rewardCoins',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: HexColor("#FFD700"),
-                          ),
+                        OutlinedTextWidget(
+                          text: '+$_rewardCoins',
+                          fontSize: 24,
+                          textColor: HexColor("#FFD700"),
+                          strokeColor: Colors.black,
+                          strokeWidth: 1.5,
+                          fontWeight: FontWeight.bold,
                         ),
                         if (_rewardHearts > 0) SizedBox(width: 30),
                       ],
@@ -609,13 +603,13 @@ class _SignInPageState extends State<SignInPage>
                       if (_rewardHearts > 0) ...[
                         Image.asset(Assets.imagesIconHeart2x, height: 50),
                         SizedBox(width: 10),
-                        Text(
-                          '+$_rewardHearts',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: HexColor("#FF69B4"),
-                          ),
+                        OutlinedTextWidget(
+                          text: '+$_rewardHearts',
+                          fontSize: 24,
+                          textColor: HexColor("#FF69B4"),
+                          strokeColor: Colors.black,
+                          strokeWidth: 1.5,
+                          fontWeight: FontWeight.bold,
                         ),
                       ],
                     ],
@@ -636,13 +630,13 @@ class _SignInPageState extends State<SignInPage>
                         ),
                       ),
                       child: Center(
-                        child: Text(
-                          '确认',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        child: OutlinedTextWidget(
+                          text: '确认',
+                          fontSize: 18,
+                          textColor: Colors.white,
+                          strokeColor: Colors.black,
+                          strokeWidth: 1.5,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),

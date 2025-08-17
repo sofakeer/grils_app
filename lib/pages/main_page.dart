@@ -14,6 +14,7 @@ import 'package:spine_flutter/spine_flutter.dart' as spine;
 import '../main_old.dart';
 import '../managers/audio_manager.dart';
 import '../utils/audio_assets.dart';
+import '../widgets/outlined_text_widget.dart';
 import 'spine_preview_page.dart';
 
 class MainPage extends ConsumerStatefulWidget {
@@ -420,20 +421,13 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                       ),
                       Positioned(
                         bottom: 15,
-                        child: Text(
-                          'Level $_currentLevel',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withOpacity(0.5),
-                                offset: const Offset(1, 1),
-                                blurRadius: 2,
-                              ),
-                            ],
-                          ),
+                        child: OutlinedTextWidget(
+                          text: 'Level $_currentLevel',
+                          fontSize: 16,
+                          textColor: Colors.white,
+                          strokeColor: Colors.black,
+                          strokeWidth: 1.5,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
@@ -561,14 +555,14 @@ class _TakeoffButtonAnimationState extends State<TakeoffButtonAnimation> {
           borderRadius: BorderRadius.circular(60),
         ),
         child: const Center(
-          child: Text(
-            'SPINE\n加载失败',
+          child: OutlinedTextWidget(
+            text: 'SPINE\n加载失败',
+            fontSize: 12,
+            textColor: Colors.white,
+            strokeColor: Colors.red,
+            strokeWidth: 1.0,
+            fontWeight: FontWeight.bold,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
           ),
         ),
       );
