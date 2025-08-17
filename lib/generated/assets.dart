@@ -169,6 +169,7 @@ class Assets {
   static const String ballBottleCap04 = 'assets/images/ball_bottle/cap_04.png';
   static const String ballBottleCap05 = 'assets/images/ball_bottle/cap_05.png';
   static const String ballBottleCap06 = 'assets/images/ball_bottle/cap_06.png';
+  static const String fontAnjaEliane2 = 'assets/font/Anja-Eliane-2.ttf';
   static const String gallaryGallaryBg = 'assets/images/gallary/Gallary_bg.png';
   static const String gallaryGallaryBtnDownload = 'assets/images/gallary/Gallary_btn_download.png';
   static const String gallaryGallaryBtnNext = 'assets/images/gallary/Gallary_btn_next.png';

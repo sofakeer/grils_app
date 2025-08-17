@@ -1269,70 +1269,85 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   // 切换到下一个idle动画
   void _nextIdleAnimation() async {
     if (_currentIdleIndex < 4 && _spineController != null && _isControllerReady) {
-      // 1. 获取当前idle编号
-      int takeoffIndex = _currentIdleIndex; // 使用当前索引作为takeoff索引
-      String takeoffName = 'take_off_0${takeoffIndex + 1}';
+      // 1. 获取当前idle编号和对应的takeoff动画
+      // idle01 -> idle02 播放 takeoff_01
+      // idle02 -> idle03 播放 takeoff_02  
+      // idle03 -> idle04 播放 takeoff_03
+      // idle04 -> underwear 播放 takeoff_04
+      int takeoffIndex = _currentIdleIndex + 1; // takeoff动画对应下一阶段
+      String takeoffName = 'takeoff_0${takeoffIndex}';
 
-      print("Attempting to play takeoff animation: $takeoffName for girl $_currentIndex");
+      print("Transitioning from idle${_currentIdleIndex + 1} to idle${takeoffIndex + 1} using $takeoffName");
 
       // 2. 播放takeoff音效
-      await AudioManager().playTakeoffSound(_currentIndex, takeoffIndex);
+      await AudioManager().playTakeoffSound(_currentIndex, _currentIdleIndex);
 
       // 3. 验证takeoff动画是否存在
       if (_isAnimationAvailable(takeoffName)) {
         // 4. 获取动画时长
         final animation = _spineController!.skeleton.getData()!.findAnimation(takeoffName);
-        double duration = 1.0; // 默认1秒
+        double duration = 1.5; // 默认1.5秒
         if (animation != null) {
           duration = animation.getDuration();
         }
         
         print("Playing takeoff animation: $takeoffName with duration: ${duration}s");
         
-        // 5. 播放takeoff动画（不循环）
+        // 5. 清除当前动画轨道
+        _spineController!.animationState.clearTracks();
+        
+        // 6. 播放takeoff动画（不循环）
         _spineController!.animationState.setAnimationByName(0, takeoffName, false);
         setState(() {
           _isAnimating = true;
         });
         
-        // 6. 等待动画播完后切换到下一个idle
+        // 7. 等待动画播完
         await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+        
+        print("Takeoff animation $takeoffName completed");
       } else {
-        print("Takeoff animation '$takeoffName' not found, skipping transition");
+        print("Takeoff animation '$takeoffName' not found, skipping transition animation");
+        // 没有takeoff动画也要等一下，保持体验一致性
+        await Future.delayed(Duration(milliseconds: 500));
       }
 
-      // 7. 切换到下一个idle状态
+      // 8. 切换到下一个idle状态
       setState(() {
         _currentIdleIndex = (_currentIdleIndex + 1) % 5;
+        print("Switched to idle state: $_currentIdleIndex");
       });
       
-      // 8. 如果进入underwear模式，重置皮肤选择
+      // 9. 如果进入underwear模式，重置皮肤选择
       if (_currentIdleIndex == 4) {
         _currentSkinIndices = {
-          0: 0,
-          1: 0,
-          2: 0,
-          3: 0,
+          0: 0, // bra: 默认皮肤
+          1: 0, // pants: 默认皮肤
+          2: 0, // hands/head: 默认皮肤
+          3: 0, // socks: 默认皮肤
         };
         _selectedUnderwearButton = -1;
+        print("Entered underwear mode, reset skin selections");
       }
       
-      // 9. 播放下一个idle动画
+      // 10. 播放下一个idle动画
       _playCurrentIdleAnimation();
     } else {
-      // underwear模式或异常，直接切换
+      // underwear模式或异常情况，直接循环回到idle01
+      print("In underwear mode or controller not ready, cycling back to idle01");
       setState(() {
         _currentIdleIndex = (_currentIdleIndex + 1) % 5;
+        if (_currentIdleIndex == 0) {
+          // 回到idle01时重置所有状态
+          _selectedUnderwearButton = -1;
+          _currentSkinIndices = {
+            0: 0,
+            1: 0, 
+            2: 0,
+            3: 0,
+          };
+        }
       });
-      if (_currentIdleIndex == 4) {
-        _currentSkinIndices = {
-          0: 0,
-          1: 0,
-          2: 0,
-          3: 0,
-        };
-        _selectedUnderwearButton = -1;
-      }
       _playCurrentIdleAnimation();
     }
   }
