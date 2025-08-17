@@ -55,21 +55,30 @@ class UserService extends ChangeNotifier {
 
   /// 增加金币
   Future<void> addCoins(int amount) async {
-    if (_userModel != null) {
+    if (_userModel != null && amount > 0) {
+      print("UserService: Adding $amount coins (current: ${_userModel!.coinCount})");
       _userModel!.addCoins(amount);
+      print("UserService: After adding - coins: ${_userModel!.coinCount}");
       notifyListeners();
+    } else {
+      print("UserService: Cannot add coins - _userModel is null or amount <= 0");
     }
   }
 
   /// 消费金币
   Future<bool> spendCoins(int amount) async {
-    if (_userModel != null) {
+    if (_userModel != null && amount > 0) {
+      print("UserService: Spending $amount coins (current: ${_userModel!.coinCount})");
       final success = _userModel!.spendCoins(amount);
       if (success) {
+        print("UserService: After spending - coins: ${_userModel!.coinCount}");
         notifyListeners();
+      } else {
+        print("UserService: Spending failed - insufficient coins");
       }
       return success;
     }
+    print("UserService: Cannot spend coins - _userModel is null or amount <= 0");
     return false;
   }
 

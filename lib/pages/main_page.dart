@@ -15,6 +15,7 @@ import '../main_old.dart';
 import '../managers/audio_manager.dart';
 import '../utils/audio_assets.dart';
 import '../widgets/outlined_text_widget.dart';
+import '../services/user_service.dart';
 import 'spine_preview_page.dart';
 
 class MainPage extends ConsumerStatefulWidget {
@@ -32,8 +33,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   spine.SpineWidgetController? _backgroundSpineController;
   bool _isBackgroundSpineReady = false;
 
-  int _coinCount = 1000;
-  int _heartCount = 50;
+  // 使用UserService管理金币和爱心
+  late UserService _userService;
   int _currentLevel = 1;
   
   // 最新解锁的图片索引
@@ -42,6 +43,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   @override
   void initState() {
     super.initState();
+    _userService = UserService.instance;
     _initializeAnimations();
     _loadUserData();
     _initializeBackgroundSpine();
@@ -157,17 +159,19 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   }
 
   Future<void> _loadUserData() async {
+    // 初始化UserService
+    await _userService.initialize();
+    
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
-        _coinCount = prefs.getInt('coin_count') ?? 1000;
-        _heartCount = prefs.getInt('heart_count') ?? 50;
         _currentLevel = prefs.getInt('current_level') ?? 1;
         
         // 加载最新解锁的图片
         _latestUnlockedImageIndex = _getLatestUnlockedImageIndex(prefs);
       });
     }
+    print("MainPage: UserService初始化完成，金币: ${_userService.coinCount}, 爱心: ${_userService.heartCount}");
   }
   
   // 获取最新解锁的图片索引
@@ -198,8 +202,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
 
   Future<void> _saveUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('coin_count', _coinCount);
-    await prefs.setInt('heart_count', _heartCount);
+    // 金币和爱心通过UserService自动保存，这里只保存其他数据
     await prefs.setInt('current_level', _currentLevel);
   }
 

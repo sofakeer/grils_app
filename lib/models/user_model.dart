@@ -39,7 +39,9 @@ class UserModel {
   /// 增加金币
   void addCoins(int amount) {
     if (amount > 0) {
+      print("UserModel: 增加金币 $amount, 当前: $_coinCount");
       _coinCount += amount;
+      print("UserModel: 增加后金币: $_coinCount");
       _saveCoinCount();
     }
   }
@@ -47,10 +49,13 @@ class UserModel {
   /// 减少金币
   bool spendCoins(int amount) {
     if (amount > 0 && _coinCount >= amount) {
+      print("UserModel: 消费金币 $amount, 当前: $_coinCount");
       _coinCount -= amount;
+      print("UserModel: 消费后金币: $_coinCount");
       _saveCoinCount();
       return true;
     }
+    print("UserModel: 消费失败 - 需要$amount, 但只有$_coinCount");
     return false;
   }
 

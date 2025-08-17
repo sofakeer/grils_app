@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/widgets/common_header.dart';
 import 'package:grils_app/widgets/insufficient_coins_dialog.dart';
+import 'package:grils_app/services/user_service.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/outlined_text_widget.dart';
@@ -22,7 +23,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
   bool _isTubeSelected = true; // true为TUBE标签，false为BALL标签
   int _selectedItemIndex = 0; // 当前选中的商品索引，默认选择第一个
   
-  int _coinCount = 1000;
+  late UserService _userService;
   
   // 瓶子皮肤配置 (按照你的要求排列)
   final List<Map<String, dynamic>> _tubeSkins = [
@@ -48,9 +49,35 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _userService = UserService.instance;
+    _initializeUserService();
     _initializeAnimations();
-    _loadUserData();
     _loadPurchaseData();
+  }
+  
+  void _initializeUserService() async {
+    print("ShopPage: 初始化UserService");
+    await _userService.initialize();
+    _userService.addListener(_onUserDataChanged);
+    print("ShopPage: 初始金币数量: ${_userService.coinCount}");
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _onUserDataChanged() {
+    print("ShopPage: _onUserDataChanged called, 当前金币: ${_userService.coinCount}");
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _userService.removeListener(_onUserDataChanged);
+    _animationController.dispose();
+    _switchAnimationController.dispose();
+    super.dispose();
   }
 
   void _initializeAnimations() {
@@ -83,14 +110,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
     _animationController.forward();
   }
 
-  Future<void> _loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _coinCount = prefs.getInt('coin_count') ?? 1000;
-      });
-    }
-  }
+
 
   Future<void> _loadPurchaseData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -126,13 +146,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _updateCoinCount(int newCount) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('coin_count', newCount);
-    setState(() {
-      _coinCount = newCount;
-    });
-  }
+
 
   void _switchTab(bool isTube) {
     if (_isTubeSelected != isTube) {
@@ -147,7 +161,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
     }
   }
 
-  void _selectItem(int index) {
+  Future<void> _selectItem(int index) async {
     final currentSkins = _isTubeSelected ? _tubeSkins : _ballSkins;
     final skin = currentSkins[index];
     final price = skin['price'] as int;
@@ -163,16 +177,23 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
     
     // 如果未解锁，尝试购买
     if (!isUnlocked) {
-      if (_coinCount >= price) {
+      if (_userService.hasEnoughCoins(price)) {
         // 金币足够，执行购买
         _purchaseItem(index);
       } else {
-        // 金币不足，显示弹窗
-        InsufficientCoinsDialog.show(
+        // 金币不足，显示弹窗 - 显示实际需要的金币数量
+        final currentCoins = _userService.coinCount;
+        final neededCoins = price - currentCoins;
+        final result = await InsufficientCoinsDialog.show(
           context: context,
           title: 'More Coin',
-          requiredCoins: price,
+          requiredCoins: neededCoins > 0 ? neededCoins : price,
         );
+        
+        // 如果用户看了广告获得金币，检查是否可以购买
+        if (result == true && _userService.hasEnoughCoins(price)) {
+          _purchaseItem(index);
+        }
       }
       return;
     }
@@ -208,7 +229,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
       return;
     }
     
-    if (_coinCount < price) {
+    if (!_userService.hasEnoughCoins(price)) {
       // 金币不足
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -227,29 +248,43 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
     }
     
     // 执行购买
+    final oldCoins = _userService.coinCount;
     setState(() {
       skin['unlocked'] = true;
       _selectedItemIndex = index; // 购买成功后自动选中
     });
     
-    await _updateCoinCount(_coinCount - price);
-    await _savePurchaseData();
-    
-    // 显示购买成功
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: OutlinedTextWidget(
-          text: '购买成功！${skin['name']} 已解锁',
-          fontSize: 14,
-          textColor: Colors.white,
-          strokeColor: Colors.black,
-          strokeWidth: 1.0,
-          fontWeight: FontWeight.w600,
+    final spendSuccess = await _userService.spendCoins(price);
+    if (spendSuccess) {
+      final newCoins = _userService.coinCount;
+      print("购买成功: ${skin['name']}, 金币消费: $oldCoins -> $newCoins (-$price)");
+      
+      await _savePurchaseData();
+      
+      // 显示购买成功
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: OutlinedTextWidget(
+            text: '购买成功！${skin['name']} 已解锁',
+            fontSize: 14,
+            textColor: Colors.white,
+            strokeColor: Colors.black,
+            strokeWidth: 1.0,
+            fontWeight: FontWeight.w600,
+          ),
+          backgroundColor: Colors.green,
         ),
-        backgroundColor: Colors.green,
-      ),
-    );
+      );
+    } else {
+      print("购买失败: 金币消费不成功");
+      // 如果消费失败，恢复状态
+      setState(() {
+        skin['unlocked'] = false;
+        _selectedItemIndex = 0;
+      });
+    }
   }
+
 
   void _close() {
     _animationController.reverse().then((_) {
@@ -257,12 +292,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
     });
   }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    _switchAnimationController.dispose();
-    super.dispose();
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -371,7 +401,7 @@ class _ShopPageState extends State<ShopPage> with TickerProviderStateMixin {
                 ),
                 SizedBox(width: 8),
                 OutlinedTextWidget(
-                  text: '$_coinCount',
+                  text: '${_userService.coinCount}',
                   fontSize: 18,
                   textColor: HexColor("#8B4513"),
                   strokeColor: Colors.white,

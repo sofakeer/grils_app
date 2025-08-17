@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/widgets/animated_popup.dart';
+import 'package:grils_app/services/user_service.dart';
+import 'package:grils_app/managers/audio_manager.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'outlined_text_widget.dart';
 
@@ -18,13 +20,13 @@ class InsufficientCoinsDialog extends StatefulWidget {
   });
 
   /// 显示金币不足弹窗
-  static Future<void> show({
+  static Future<bool?> show({
     required BuildContext context,
     String title = 'More Coin',
     required int requiredCoins,
     VoidCallback? onGetPressed,
   }) {
-    return AnimatedPopup.show(
+    return AnimatedPopup.show<bool>(
       context: context,
       child: InsufficientCoinsDialog(
         title: title,
@@ -68,7 +70,7 @@ class _InsufficientCoinsDialogState extends State<InsufficientCoinsDialog> with 
 
   void _closeDialog() async {
     if (mounted) {
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(false);
     }
   }
 
@@ -131,7 +133,7 @@ class _InsufficientCoinsDialogState extends State<InsufficientCoinsDialog> with 
                           ),
                           const SizedBox(width: 10),
                           OutlinedTextWidget(
-                            text: 'X ${widget.requiredCoins}',
+                            text: 'X 100',
                             fontSize: 25,
                             textColor: Colors.white,
                             strokeColor: HexColor("#760E0E"),
@@ -143,8 +145,16 @@ class _InsufficientCoinsDialogState extends State<InsufficientCoinsDialog> with 
                     ),
                     const SizedBox(height: 30),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.of(context).pop();
+                      onTap: () async {
+                        // 播放金币获得音效
+                        await AudioManager().playCoinEffect();
+                        
+                        // 固定增加100金币（观看广告奖励）
+                        final userService = UserService.instance;
+                        await userService.addCoins(100);
+                        
+                        // 返回true表示获得了金币，可以尝试购买
+                        Navigator.of(context).pop(true);
                         widget.onGetPressed?.call();
                       },
                       child: Container(
