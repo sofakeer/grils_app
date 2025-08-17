@@ -35,6 +35,9 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   int _coinCount = 1000;
   int _heartCount = 50;
   int _currentLevel = 1;
+  
+  // 最新解锁的图片索引
+  int _latestUnlockedImageIndex = 0;
 
   @override
   void initState() {
@@ -160,8 +163,37 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
         _coinCount = prefs.getInt('coin_count') ?? 1000;
         _heartCount = prefs.getInt('heart_count') ?? 50;
         _currentLevel = prefs.getInt('current_level') ?? 1;
+        
+        // 加载最新解锁的图片
+        _latestUnlockedImageIndex = _getLatestUnlockedImageIndex(prefs);
       });
     }
+  }
+  
+  // 获取最新解锁的图片索引
+  int _getLatestUnlockedImageIndex(SharedPreferences prefs) {
+    // 总共75张图片，从后往前查找最新解锁的
+    for (int i = 74; i >= 0; i--) {
+      // 前5张图片默认解锁
+      if (i < 5) {
+        print("使用默认解锁图片: Bg_${(i + 1).toString().padLeft(2, '0')}.png");
+        return i;
+      }
+      if (prefs.getBool('photo_unlocked_$i') ?? false) {
+        print("找到最新解锁图片: Bg_${(i + 1).toString().padLeft(2, '0')}.png");
+        return i;
+      }
+    }
+    // 如果没有找到，返回第一张图片
+    print("没有找到解锁图片，使用默认第一张");
+    return 0;
+  }
+  
+  // 获取图片路径
+  String _getImagePath(int index) {
+    // 图片索引从0开始，但文件名从01开始
+    final imageNumber = (index + 1).toString().padLeft(2, '0');
+    return 'assets/images/grils_list/Bg_$imageNumber.png';
   }
 
   Future<void> _saveUserData() async {
@@ -184,14 +216,6 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     });
   }
 
-  void _navigateToGallery() async {
-    await AudioManager().playPopupOpen();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const GalleryPage(),
-      ),
-    );
-  }
 
   void _navigateToShop() async {
     await AudioManager().playPopupOpen();
@@ -206,13 +230,28 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
       _loadUserData();
     });
   }
+  
+  void _navigateToGallery() async {
+    await AudioManager().playPopupOpen();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const GalleryPage(),
+      ),
+    ).then((_) {
+      // 从图鉴页面返回时重新加载数据，可能有新图片解锁
+      _loadUserData();
+    });
+  }
 
   void _navigateToGame() {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const GamePage(),
       ),
-    );
+    ).then((_) {
+      // 从游戏页面返回时重新加载数据，可能有新图片解锁
+      _loadUserData();
+    });
   }
 
   void _switchToNextGirl() async {
@@ -231,7 +270,10 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
       MaterialPageRoute(
         builder: (context) => const SpinePreviewPage(),
       ),
-    );
+    ).then((_) {
+      // 从预览页面返回时重新加载数据，可能有新图片解锁
+      _loadUserData();
+    });
   }
 
   @override
@@ -341,8 +383,9 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(15),
                         child: Image.asset(
-                          Assets.grilsListBg01,
-                          fit: BoxFit.fitWidth,
+                          _getImagePath(_latestUnlockedImageIndex),
+                          fit: BoxFit.cover, // 使用cover填充整个容器
+                          alignment: Alignment.topCenter, // 确保头部优先显示
                         ),
                       ),
                     ),
