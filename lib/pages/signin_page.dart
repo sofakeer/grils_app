@@ -6,7 +6,11 @@ import 'dart:math';
 import '../widgets/animated_popup.dart';
 import '../widgets/effect_animations.dart';
 import '../widgets/outlined_text_widget.dart';
+import '../widgets/common_header.dart';
 import '../managers/audio_manager.dart';
+import '../managers/ad_manager.dart';
+import '../managers/effect_manager.dart';
+import '../services/user_service.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -28,16 +32,14 @@ class SignInPage extends StatefulWidget {
 class _SignInPageState extends State<SignInPage> 
     with TickerProviderStateMixin {
   late AnimationController _animationController;
-  late AnimationController _rewardAnimationController;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _rewardScaleAnimation;
   
   int _currentDay = 1; // 当前签到天数 (1-7)
   List<bool> _signedDays = List.filled(7, false); // 签到状态
   DateTime? _lastSignInDate;
   bool _canSignToday = true;
-  bool _showRewardDialog = false;
-  
+  bool _showSuccessOverlay = false; // 是否显示签到成功覆盖层
+  int _successDay = 0; // 签到成功的天数
   // 奖励配置
   final List<Map<String, dynamic>> _rewards = [
     {'day': 1, 'coins': 100, 'hearts': 0},
@@ -49,9 +51,6 @@ class _SignInPageState extends State<SignInPage>
     {'day': 7, 'coins': 500, 'hearts': 20}, // 第7天双奖励
   ];
   
-  int _rewardCoins = 0;
-  int _rewardHearts = 0;
-  bool _isDoubleReward = false;
 
   @override
   void initState() {
@@ -66,25 +65,12 @@ class _SignInPageState extends State<SignInPage>
       vsync: this,
     );
     
-    _rewardAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
     _scaleAnimation = Tween<double>(
       begin: 0.8,
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.elasticOut,
-    ));
-    
-    _rewardScaleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _rewardAnimationController,
-      curve: Curves.bounceOut,
     ));
 
     _animationController.forward();
@@ -141,12 +127,13 @@ class _SignInPageState extends State<SignInPage>
   }
 
   Future<void> _updateUserCurrency(int coins, int hearts) async {
-    final prefs = await SharedPreferences.getInstance();
-    final currentCoins = prefs.getInt('coin_count') ?? 1000;
-    final currentHearts = prefs.getInt('heart_count') ?? 50;
-    
-    await prefs.setInt('coin_count', currentCoins + coins);
-    await prefs.setInt('heart_count', currentHearts + hearts);
+    final userService = UserService.instance;
+    if (coins > 0) {
+      await userService.addCoins(coins);
+    }
+    if (hearts > 0) {
+      await userService.addHearts(hearts);
+    }
   }
 
   void _signIn({bool doubleReward = false}) async {
@@ -164,10 +151,8 @@ class _SignInPageState extends State<SignInPage>
     setState(() {
       _signedDays[_currentDay - 1] = true;
       _canSignToday = false;
-      _rewardCoins = coins;
-      _rewardHearts = hearts;
-      _isDoubleReward = doubleReward;
-      _showRewardDialog = true;
+      _showSuccessOverlay = true; // 显示成功覆盖层
+      _successDay = _currentDay; // 记录签到成功的天数
     });
     
     // 更新货币
@@ -176,38 +161,58 @@ class _SignInPageState extends State<SignInPage>
     // 保存签到数据
     await _saveSignInData();
     
-    // 显示奖励动画
-    _rewardAnimationController.forward();
+    // 延迟2秒后隐藏覆盖层并关闭弹窗
+    await Future.delayed(const Duration(seconds: 2));
     
-    // 如果是第7天，重置到第1天
-    if (_currentDay == 7) {
+    if (mounted) {
       setState(() {
-        _currentDay = 1;
-        _signedDays = List.filled(7, false);
+        _showSuccessOverlay = false;
       });
-    } else {
-      setState(() {
-        _currentDay++;
-      });
+      
+      // 如果是第7天，重置到第1天
+      if (_currentDay == 7) {
+        setState(() {
+          _currentDay = 1;
+          _signedDays = List.filled(7, false);
+        });
+      } else {
+        setState(() {
+          _currentDay++;
+        });
+      }
+      
+      // 关闭签到弹窗
+      Navigator.of(context).pop();
+      
+      // 延迟播放特效，确保弹窗已关闭
+      await Future.delayed(const Duration(milliseconds: 100));
+      _playSignInEffects(coins, hearts);
     }
   }
 
-  void _closeRewardDialog() async {
-    // 显示特效
-    if (_rewardCoins > 0) {
-      EffectOverlay.showCoinEffect(context);
-      await AudioManager().playCoinEffect();
+  void _signInWithAd() async {
+    if (!_canSignToday) return;
+
+    // 显示广告
+    final adSuccess = await AdManager.instance.showRewardedAd(
+      context: context,
+      onAdCompleted: () {
+        print("签到广告播放完成");
+      },
+      onAdFailed: () {
+        print("签到广告播放失败");
+      },
+    );
+
+    if (adSuccess) {
+      // 广告播放成功，给予双倍奖励
+      _signIn(doubleReward: true);
     }
-    if (_rewardHearts > 0) {
-      EffectOverlay.showHeartEffect(context);
-      await AudioManager().playHeartEffect();
-    }
-    
-    _rewardAnimationController.reverse().then((_) {
-      setState(() {
-        _showRewardDialog = false;
-      });
-    });
+  }
+
+  void _playSignInEffects(int coins, int hearts) async {
+    // 使用CommonHeader的静态方法播放特效
+    await CommonHeader.playSignInEffects(context, coins, hearts);
   }
 
   void _close() async {
@@ -218,7 +223,6 @@ class _SignInPageState extends State<SignInPage>
   @override
   void dispose() {
     _animationController.dispose();
-    _rewardAnimationController.dispose();
     super.dispose();
   }
 
@@ -234,51 +238,52 @@ class _SignInPageState extends State<SignInPage>
                 scale: _scaleAnimation.value,
                 child: Center(
                   child: Stack(
-                    alignment: Alignment.center,
                     children: [
                       // 背景
-                      Container(
-                        width: MediaQuery.of(context).size.width * 0.9,
-                        height: MediaQuery.of(context).size.height * 0.8,
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: AssetImage(Assets.signSignFrameBg),
-                            fit: BoxFit.fill,
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 40),
+                        child: Container(
+                          width: MediaQuery.of(context).size.width * 0.9,
+                          height: 530,
+                          decoration: const BoxDecoration(
+                            image: DecorationImage(
+                              image: AssetImage(Assets.signSignFrameBg),
+                              fit: BoxFit.fill,
+                            ),
                           ),
                         ),
                       ),
-
                       // 内容
                       Container(
                         width: MediaQuery.of(context).size.width * 0.8,
-                        height: MediaQuery.of(context).size.height * 0.7,
+                        height: 465,
                         child: Column(
                           children: [
+                            const SizedBox(height: 30,),
                             // 标题
                             Container(
-                              padding: EdgeInsets.symmetric(vertical: 35),
+                              padding: const EdgeInsets.symmetric(vertical: 35),
                               child: OutlinedTextWidget(
                                 text: 'SIGN',
-                                fontSize: 32,
+                                fontSize: 25,
                                 textColor: Colors.white,
-                                strokeColor: Colors.black,
-                                strokeWidth: 2.0,
+                                strokeColor: HexColor("#D802E4"),
+                                strokeWidth: 6,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-
                             // 签到格子
                             Expanded(
                               child: Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 20),
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
                                 child: Column(
                                   children: [
                                     // 前6天，每行3个
                                     Expanded(
                                       flex: 2,
                                       child: GridView.builder(
-                                        physics: NeverScrollableScrollPhysics(),
-                                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                        physics: const NeverScrollableScrollPhysics(),
+                                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                           crossAxisCount: 3,
                                           childAspectRatio: 0.9,
                                           crossAxisSpacing: 15,
@@ -290,9 +295,6 @@ class _SignInPageState extends State<SignInPage>
                                         },
                                       ),
                                     ),
-                                    
-                                    SizedBox(height: 20),
-                                    
                                     // 第7天单独一行，宽度匹配
                                     Expanded(
                                       flex: 1,
@@ -306,91 +308,91 @@ class _SignInPageState extends State<SignInPage>
                               ),
                             ),
 
-                            // 签到按钮区域
-                            Container(
-                              padding: EdgeInsets.symmetric(vertical: 30),
-                              child: _canSignToday 
-                                ? Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      // 普通签到
-                                      GestureDetector(
-                                        onTap: () => _signIn(doubleReward: false),
-                                        child: Container(
-                                          width: 120,
-                                          height: 50,
-                                          decoration: BoxDecoration(
-                                            image: DecorationImage(
-                                              image: AssetImage(Assets.popPopBtnGreen),
-                                              fit: BoxFit.fill,
-                                            ),
-                                          ),
-                                          child: Center(
-                                            child: OutlinedTextWidget(
-                                              text: 'GET',
-                                              fontSize: 18,
-                                              textColor: Colors.white,
-                                              strokeColor: Colors.black,
-                                              strokeWidth: 1.5,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      
-                                      // 双倍签到
-                                      GestureDetector(
-                                        onTap: () => _signIn(doubleReward: true),
-                                        child: Container(
-                                          width: 120,
-                                          height: 50,
-                                          decoration: BoxDecoration(
-                                            image: DecorationImage(
-                                              image: AssetImage(Assets.signSignBtnDouble),
-                                              fit: BoxFit.fill,
-                                            ),
-                                          ),
-                                          child: Center(
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  Icons.play_arrow,
-                                                  color: Colors.white,
-                                                  size: 16,
-                                                ),
-                                                SizedBox(width: 5),
-                                                OutlinedTextWidget(
-                                                  text: 'x2',
-                                                  fontSize: 16,
-                                                  textColor: Colors.white,
-                                                  strokeColor: Colors.black,
-                                                  strokeWidth: 1.0,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey,
-                                      borderRadius: BorderRadius.circular(25),
-                                    ),
-                                    child: OutlinedTextWidget(
-                                      text: '今日已签到',
-                                      fontSize: 18,
-                                      textColor: Colors.white,
-                                      strokeColor: Colors.grey,
-                                      strokeWidth: 1.0,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                            ),
+                            // // 签到按钮区域
+                            // Container(
+                            //   padding: EdgeInsets.symmetric(vertical: 30),
+                            //   child: _canSignToday
+                            //     ? Row(
+                            //         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            //         children: [
+                            //           // 普通签到
+                            //           GestureDetector(
+                            //             onTap: () => _signIn(doubleReward: false),
+                            //             child: Container(
+                            //               width: 120,
+                            //               height: 50,
+                            //               decoration: BoxDecoration(
+                            //                 image: DecorationImage(
+                            //                   image: AssetImage(Assets.popPopBtnGreen),
+                            //                   fit: BoxFit.fill,
+                            //                 ),
+                            //               ),
+                            //               child: Center(
+                            //                 child: OutlinedTextWidget(
+                            //                   text: 'GET',
+                            //                   fontSize: 18,
+                            //                   textColor: Colors.white,
+                            //                   strokeColor: Colors.black,
+                            //                   strokeWidth: 1.5,
+                            //                   fontWeight: FontWeight.bold,
+                            //                 ),
+                            //               ),
+                            //             ),
+                            //           ),
+                            //
+                            //           // 双倍签到
+                            //           GestureDetector(
+                            //             onTap: () => _signIn(doubleReward: true),
+                            //             child: Container(
+                            //               width: 120,
+                            //               height: 50,
+                            //               decoration: BoxDecoration(
+                            //                 image: DecorationImage(
+                            //                   image: AssetImage(Assets.signSignBtnDouble),
+                            //                   fit: BoxFit.fill,
+                            //                 ),
+                            //               ),
+                            //               child: Center(
+                            //                 child: Row(
+                            //                   mainAxisAlignment: MainAxisAlignment.center,
+                            //                   children: [
+                            //                     Icon(
+                            //                       Icons.play_arrow,
+                            //                       color: Colors.white,
+                            //                       size: 16,
+                            //                     ),
+                            //                     SizedBox(width: 5),
+                            //                     OutlinedTextWidget(
+                            //                       text: 'x2',
+                            //                       fontSize: 16,
+                            //                       textColor: Colors.white,
+                            //                       strokeColor: Colors.black,
+                            //                       strokeWidth: 1.0,
+                            //                       fontWeight: FontWeight.bold,
+                            //                     ),
+                            //                   ],
+                            //                 ),
+                            //               ),
+                            //             ),
+                            //           ),
+                            //         ],
+                            //       )
+                            //     : Container(
+                            //         padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                            //         decoration: BoxDecoration(
+                            //           color: Colors.grey,
+                            //           borderRadius: BorderRadius.circular(25),
+                            //         ),
+                            //         child: OutlinedTextWidget(
+                            //           text: '今日已签到',
+                            //           fontSize: 18,
+                            //           textColor: Colors.white,
+                            //           strokeColor: Colors.grey,
+                            //           strokeWidth: 1.0,
+                            //           fontWeight: FontWeight.bold,
+                            //         ),
+                            //       ),
+                            // ),
                           ],
                         ),
                       ),
@@ -404,7 +406,7 @@ class _SignInPageState extends State<SignInPage>
                           child: Container(
                             width: 50,
                             height: 50,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               image: DecorationImage(
                                 image: AssetImage(Assets.signSignBtnClose),
                                 fit: BoxFit.fill,
@@ -413,6 +415,96 @@ class _SignInPageState extends State<SignInPage>
                           ),
                         ),
                       ),
+
+                      // 签到按钮区域
+                      if (_canSignToday)
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // DOUBLE按钮（看广告获得双倍奖励）
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  GestureDetector(
+                                    onTap: _signInWithAd,
+                                    child: Container(
+                                      width: 150,
+                                      height: 60,
+                                      decoration: const BoxDecoration(
+                                        image: DecorationImage(
+                                          image: AssetImage(Assets.shopShopBtnBuy),
+                                          fit: BoxFit.fill,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Image.asset(
+                                            Assets.imagesLabelAd,
+                                            height: 30,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          const OutlinedTextWidget(
+                                            text: 'DOUBLE',
+                                            fontSize: 16,
+                                            textColor: Colors.white,
+                                            strokeColor: Colors.black,
+                                            strokeWidth: 2,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              // GET按钮（单倍奖励）
+                              GestureDetector(
+                                onTap: () => _signIn(doubleReward: false),
+                                child: const OutlinedTextWidget(
+                                  text: 'GET',
+                                  fontSize: 16,
+                                  textColor: Colors.white,
+                                  strokeColor: Colors.black,
+                                  strokeWidth: 2,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: Colors.white,
+                                  decorationThickness: 5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        // 已签到状态
+                        // Positioned(
+                        //   bottom: 20,
+                        //   left: 0,
+                        //   right: 0,
+                        //   child: Center(
+                        //     child: Container(
+                        //       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                        //       decoration: BoxDecoration(
+                        //         color: Colors.grey,
+                        //         borderRadius: BorderRadius.circular(25),
+                        //       ),
+                        //       child: const OutlinedTextWidget(
+                        //         text: '今日已签到',
+                        //         fontSize: 18,
+                        //         textColor: Colors.white,
+                        //         strokeColor: Colors.grey,
+                        //         strokeWidth: 1.0,
+                        //         fontWeight: FontWeight.bold,
+                        //       ),
+                        //     ),
+                        //   ),
+                        // ),
+
                     ],
                   ),
                 ),
@@ -420,8 +512,6 @@ class _SignInPageState extends State<SignInPage>
             },
           ),
 
-        // 奖励弹窗
-        if (_showRewardDialog) _buildRewardDialog(),
         ],
     );
   }
@@ -431,222 +521,155 @@ class _SignInPageState extends State<SignInPage>
     final isSigned = _signedDays[day - 1];
     final isToday = day == _currentDay;
     final isDay7 = day == 7;
+    final isShowingSuccess = _showSuccessOverlay && _successDay == day;
     
-    String frameAsset;
+    // 基础背景框架
+    String baseFrameAsset;
     if (isDay7) {
-      if (isSigned) {
-        frameAsset = Assets.signSignFrameDay7Finish;
-      } else if (isToday) {
-        frameAsset = Assets.signSignFrameDay7Selected;
+      if (isToday) {
+        baseFrameAsset = Assets.signSignFrameDay7Selected;
       } else {
-        frameAsset = Assets.signSignFrameDay7Normal;
+        baseFrameAsset = Assets.signSignFrameDay7Normal;
       }
     } else {
-      if (isSigned) {
-        frameAsset = Assets.signSignFrameDayFinish;
-      } else if (isToday) {
-        frameAsset = Assets.signSignFrameDaySelected;
+      if (isToday) {
+        baseFrameAsset = Assets.signSignFrameDaySelected;
       } else {
-        frameAsset = Assets.signSignFrameDayNormal;
+        baseFrameAsset = Assets.signSignFrameDayNormal;
       }
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage(frameAsset),
-          fit: BoxFit.fill,
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-        if (!isDay7)
-          // 天数
-          OutlinedTextWidget(
-            text: 'Day $day',
-            fontSize: 12,
-            textColor: isToday ? Colors.white : Colors.black,
-            strokeColor: isToday ? Colors.black : Colors.white,
-            strokeWidth: 0.8,
-            fontWeight: FontWeight.bold,
-          ),
-          
-          SizedBox(height: 5),
-          
-          // 第7天特殊布局 - 水平展示双奖励，宽度匹配
-          if (isDay7 && reward['coins'] > 0 && reward['hearts'] > 0) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                // 金币奖励
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(Assets.mainMainIconCoin, height: 45),
-                    SizedBox(width: 3),
-                    OutlinedTextWidget(
-                      text: 'X${reward['coins']}',
-                      fontSize: 18,
-                      textColor: HexColor("#FBFF1D"),
-                      strokeColor: Colors.black,
-                      strokeWidth: 1.0,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ],
-                ),
-                
-                // 爱心奖励
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(Assets.imagesIconHeart2x, height: 35),
-                    SizedBox(width: 3),
-                    OutlinedTextWidget(
-                      text: 'X${reward['hearts']}',
-                      fontSize: 18,
-                      textColor: HexColor("#FBFF1D"),
-                      strokeColor: Colors.black,
-                      strokeWidth: 1.0,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ],
-                ),
-              ],
+    return Stack(
+      children: [
+        // 基础背景
+        Container(
+          width: isDay7 ? double.infinity: 110,
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(baseFrameAsset),
+              fit: BoxFit.fill,
             ),
-          ] else ...[
-            // 普通天的奖励显示
-            if (reward['coins'] > 0) ...[
-              Image.asset(
-                Assets.mainMainIconCoin,
-                height: 20,
-              ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8,),
+            if (!isDay7)
+              // 天数
               OutlinedTextWidget(
-                text: 'X${reward['coins']}',
-                fontSize: 10,
-                textColor: HexColor("#FF9B9B"),
+                text: 'Day $day',
+                fontSize: 12,
+                textColor: Colors.white,
                 strokeColor: Colors.black,
-                strokeWidth: 0.5,
+                strokeWidth: 2,
                 fontWeight: FontWeight.bold,
               ),
+
+              const SizedBox(height: 5),
+
+              // 第7天特殊布局 - 水平展示双奖励，宽度匹配
+              if (isDay7 && reward['coins'] > 0 && reward['hearts'] > 0) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 25),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // 金币奖励
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(Assets.mainMainIconCoin, height: 55),
+                          const SizedBox(width: 3),
+                          OutlinedTextWidget(
+                            text: 'X${reward['coins']}',
+                            fontSize: 18,
+                            textColor: HexColor("#FBFF1D"),
+                            strokeColor: Colors.black,
+                            strokeWidth: 3.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ],
+                      ),
+
+                      // 爱心奖励
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(Assets.imagesIconHeart2x, height: 55),
+                          const SizedBox(width: 3),
+                          OutlinedTextWidget(
+                            text: 'X${reward['hearts']}',
+                            fontSize: 18,
+                            textColor: HexColor("#FBFF1D"),
+                            strokeColor: Colors.black,
+                            strokeWidth: 3.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // 普通天的奖励显示
+                if (reward['coins'] > 0) ...[
+                  Image.asset(
+                    Assets.mainMainIconCoin,
+                    height: 30,
+                  ),
+                  const SizedBox(
+                    height: 5
+                  ),
+                  OutlinedTextWidget(
+                    text: 'X${reward['coins']}',
+                    fontSize: 15,
+                    textColor: HexColor("#FF9B9B"),
+                    strokeColor: Colors.black,
+                    strokeWidth: 2,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ],
+
+                if (reward['hearts'] > 0) ...[
+                  Image.asset(
+                    Assets.imagesIconHeart2x,
+                    height: 30,
+                  ),
+                  const SizedBox(
+                    height: 5
+                  ),
+                  OutlinedTextWidget(
+                    text: 'X${reward['hearts']}',
+                    fontSize: 15,
+                    textColor: HexColor("#FF9B9B"),
+                    strokeColor: Colors.black,
+                    strokeWidth: 2,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ],
+              ],
             ],
-            
-            if (reward['hearts'] > 0) ...[
-              Image.asset(
-                Assets.imagesIconHeart2x,
-                height: 20,
+          ),
+        ),
+        
+        // 签到成功覆盖层
+        if (isSigned || isShowingSuccess)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(
+                    isDay7 ? Assets.signSignFrameDay7Finish : Assets.signSignFrameDayFinish
+                  ),
+                  fit: BoxFit.fitWidth, // 使用fitWidth适配宽度
+                  alignment: Alignment.center,
+                ),
               ),
-              OutlinedTextWidget(
-                text: '+${reward['hearts']}',
-                fontSize: 10,
-                textColor: isToday ? Colors.white : Colors.black,
-                strokeColor: isToday ? Colors.black : Colors.white,
-                strokeWidth: 0.5,
-                fontWeight: FontWeight.bold,
-              ),
-            ],
-          ],
-        ],
-      ),
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _buildRewardDialog() {
-    return AnimatedBuilder(
-      animation: _rewardScaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _rewardScaleAnimation.value,
-          child: Center(
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.8,
-              height: MediaQuery.of(context).size.height * 0.5,
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage(Assets.popPopBtnBlue),
-                  fit: BoxFit.fill,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // 标题
-                  OutlinedTextWidget(
-                    text: _isDoubleReward ? '双倍奖励!' : '签到成功!',
-                    fontSize: 28,
-                    textColor: HexColor("#8B4513"),
-                    strokeColor: Colors.white,
-                    strokeWidth: 2.0,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  
-                  SizedBox(height: 30),
-                  
-                  // 奖励显示
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_rewardCoins > 0) ...[
-                        Image.asset(Assets.mainMainIconCoin, height: 50),
-                        SizedBox(width: 10),
-                        OutlinedTextWidget(
-                          text: '+$_rewardCoins',
-                          fontSize: 24,
-                          textColor: HexColor("#FFD700"),
-                          strokeColor: Colors.black,
-                          strokeWidth: 1.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        if (_rewardHearts > 0) SizedBox(width: 30),
-                      ],
-                      
-                      if (_rewardHearts > 0) ...[
-                        Image.asset(Assets.imagesIconHeart2x, height: 50),
-                        SizedBox(width: 10),
-                        OutlinedTextWidget(
-                          text: '+$_rewardHearts',
-                          fontSize: 24,
-                          textColor: HexColor("#FF69B4"),
-                          strokeColor: Colors.black,
-                          strokeWidth: 1.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ],
-                    ],
-                  ),
-                  
-                  SizedBox(height: 40),
-                  
-                  // 确认按钮
-                  GestureDetector(
-                    onTap: _closeRewardDialog,
-                    child: Container(
-                      width: 120,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: AssetImage(Assets.popPopBtnGreen),
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                      child: Center(
-                        child: OutlinedTextWidget(
-                          text: '确认',
-                          fontSize: 18,
-                          textColor: Colors.white,
-                          strokeColor: Colors.black,
-                          strokeWidth: 1.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }

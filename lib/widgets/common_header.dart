@@ -4,6 +4,8 @@ import 'package:grils_app/generated/assets.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:grils_app/services/user_service.dart';
 import 'package:grils_app/debug/user_service_test.dart';
+import 'package:grils_app/managers/effect_manager.dart';
+import 'package:grils_app/managers/audio_manager.dart';
 
 import 'outlined_text_widget.dart';
 
@@ -32,6 +34,18 @@ class CommonHeader extends StatefulWidget {
     this.showBackButton = true,
     this.settingsButton = false,
   });
+
+  /// 播放签到奖励特效
+  static Future<void> playSignInEffects(BuildContext context, int coins, int hearts) async {
+    if (coins > 0) {
+      EffectManager.instance.playCoinEffect(context);
+      await AudioManager().playCoinEffect();
+    }
+    if (hearts > 0) {
+      EffectManager.instance.playHeartEffect(context);
+      await AudioManager().playHeartEffect();
+    }
+  }
 
   @override
   State<CommonHeader> createState() => _CommonHeaderState();
