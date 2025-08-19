@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:hexcolor/hexcolor.dart';
+import 'outlined_text_widget.dart';
 
 class PrivacyDialog extends StatefulWidget {
   final VoidCallback onAccept;
@@ -17,8 +18,7 @@ class PrivacyDialog extends StatefulWidget {
   State<PrivacyDialog> createState() => _PrivacyDialogState();
 }
 
-class _PrivacyDialogState extends State<PrivacyDialog>
-    with SingleTickerProviderStateMixin {
+class _PrivacyDialogState extends State<PrivacyDialog> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
 
@@ -93,7 +93,7 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                 Container(
                   width: MediaQuery.of(context).size.width * 0.85,
                   height: MediaQuery.of(context).size.height * 0.6,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     image: DecorationImage(
                       image: AssetImage(Assets.popPopAsk),
                       fit: BoxFit.fill,
@@ -102,7 +102,7 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                 ),
 
                 // 内容
-                Container(
+                SizedBox(
                   width: MediaQuery.of(context).size.width * 0.75,
                   height: MediaQuery.of(context).size.height * 0.5,
                   child: Column(
@@ -111,14 +111,16 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                       Padding(
                         padding: const EdgeInsets.only(top: 50),
                         child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 20,),
-                          child: Text(
-                            'Notice',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 20,
+                          ),
+                          child:  OutlinedTextWidget(
+                            text: 'Notice',
+                            fontSize: 34,
+                            strokeColor: HexColor("#EA00FF"),
+                            textColor: Colors.white,
+                            strokeWidth: 10,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -126,56 +128,58 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                       // 内容区域
                       Expanded(
                         child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
                           child: SingleChildScrollView(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                SizedBox(height: 30),
-                                Text(
-                                  'By clicking Yes, you acknowledge and agree to our',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: HexColor("#4A4A4A"),
-                                  ),
+                                const SizedBox(height: 30),
+                                OutlinedTextWidget(
+                                  text: 'By clicking Yes, you acknowledge and agree to our',
+                                  fontSize: 20,
+                                  textColor: HexColor("#8C5D00"),
+                                  strokeColor: Colors.transparent,
+                                  strokeWidth: 1,
+                                  fontWeight: FontWeight.normal,
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.visible,
                                 ),
 
-                                SizedBox(height: 10),
+                                const SizedBox(height: 10),
 
-                                // 链接区域
-                                GestureDetector(
-                                  onTap: _launchPrivacyPolicy,
-                                  child: Text(
-                                    'Privacy Policy ',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.blue,
-                                      decoration: TextDecoration.underline,
+                                // 链接区域（自动换行）
+                                Column(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: _launchPrivacyPolicy,
+                                      child: OutlinedTextWidget.link(
+                                        textColor: HexColor("#8C5D00"),
+                                        text: 'Privacy Policy',
+                                        fontSize: 20,
+                                        underlineColor: HexColor("#8C5D00"),
+                                        decorationThickness: 10,
+                                      ),
                                     ),
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: _launchTeamStatement,
-                                  child: Text(
-                                    'and',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.blue,
-                                      decoration: TextDecoration.underline,
+                                    GestureDetector(
+                                      onTap: _launchTeamStatement,
+                                      child: OutlinedTextWidget.link(
+                                        text: ' and ',
+                                        textColor: HexColor("#8C5D00"),
+                                        fontSize: 20,
+                                        underlineColor: HexColor("#8C5D00"),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: _launchTeamStatement,
-                                  child: Text(
-                                    'Terms of Service.',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.blue,
-                                      decoration: TextDecoration.underline,
+                                    GestureDetector(
+                                      onTap: _launchTeamStatement,
+                                      child: OutlinedTextWidget.link(
+                                        textColor: HexColor("#8C5D00"),
+                                        text: 'Terms of Service.',
+                                        decorationThickness: 10,
+                                        underlineColor: HexColor("#8C5D00"),
+                                        fontSize: 20,
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -185,7 +189,7 @@ class _PrivacyDialogState extends State<PrivacyDialog>
 
                       // 按钮区域
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
@@ -195,20 +199,20 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                               child: Container(
                                 width: 100,
                                 height: 40,
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   image: DecorationImage(
                                     image: AssetImage(Assets.popPopBtnBlue),
                                     fit: BoxFit.fill,
                                   ),
                                 ),
-                                child: Center(
-                                  child: Text(
-                                    'NO',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                child: const Center(
+                                  child: OutlinedTextWidget(
+                                    text: 'NO',
+                                    fontSize: 16,
+                                    textColor: Colors.white,
+                                    strokeColor: Colors.black,
+                                    strokeWidth: 2,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
@@ -220,20 +224,20 @@ class _PrivacyDialogState extends State<PrivacyDialog>
                               child: Container(
                                 width: 100,
                                 height: 40,
-                                decoration: BoxDecoration(
+                                decoration: const BoxDecoration(
                                   image: DecorationImage(
                                     image: AssetImage(Assets.popPopBtnGreen),
                                     fit: BoxFit.fill,
                                   ),
                                 ),
-                                child: Center(
-                                  child: Text(
-                                    'YES',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                child: const Center(
+                                  child: OutlinedTextWidget(
+                                    text: 'YES',
+                                    fontSize: 16,
+                                    textColor: Colors.white,
+                                    strokeColor: Colors.black,
+                                    strokeWidth: 2,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),

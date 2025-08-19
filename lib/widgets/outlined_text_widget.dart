@@ -234,6 +234,7 @@ class OutlinedTextWidget extends StatelessWidget {
     TextAlign textAlign = TextAlign.center,
     int? maxLines,
     String fontFamily = 'Anja-Eliane',
+    double decorationThickness = 1.0,
   }) {
     return OutlinedTextWidget(
       text: text,
@@ -248,7 +249,7 @@ class OutlinedTextWidget extends StatelessWidget {
       decoration: TextDecoration.underline,
       decorationColor: underlineColor,
       decorationStyle: TextDecorationStyle.solid,
-      decorationThickness: 1.0,
+      decorationThickness: decorationThickness,
     );
   }
 

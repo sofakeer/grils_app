@@ -58,14 +58,14 @@ class _LoadingPageState extends State<LoadingPage>
   Future<void> _checkFirstLaunch() async {
     final prefs = await SharedPreferences.getInstance();
     final isFirstLaunch = prefs.getBool('is_first_launch') ?? true;
-    // _showPrivacyDialog();
-    if (isFirstLaunch && mounted) {
-      // 首次启动，显示隐私协议弹窗
-      _showPrivacyDialog();
-    } else {
-      // 非首次启动，直接进入主页面
-      _navigateToMainPage();
-    }
+    _showPrivacyDialog();
+    // if (isFirstLaunch && mounted) {
+    //   // 首次启动，显示隐私协议弹窗
+    //   _showPrivacyDialog();
+    // } else {
+    //   // 非首次启动，直接进入主页面
+    //   _navigateToMainPage();
+    // }
   }
 
   void _showPrivacyDialog() {

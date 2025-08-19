@@ -86,7 +86,15 @@ class CommonPopup extends StatefulWidget {
     bool? result = await show<bool>(
       context: context,
       title: title,
-      content: content.isNotEmpty ? Text(content) : null,
+      content: content.isNotEmpty ? OutlinedTextWidget(
+        text: content,
+        fontSize: 16,
+        textColor: Colors.white,
+        strokeColor: Colors.black,
+        strokeWidth: 1,
+        fontWeight: FontWeight.normal,
+        textAlign: TextAlign.center,
+      ) : null,
       buttons: [
         CommonPopupButton(
           text: cancelText,
@@ -124,7 +132,15 @@ class CommonPopup extends StatefulWidget {
     return show(
       context: context,
       title: title,
-      content: content.isNotEmpty ? Text(content) : null,
+      content: content.isNotEmpty ? OutlinedTextWidget(
+        text: content,
+        fontSize: 16,
+        textColor: Colors.white,
+        strokeColor: Colors.black,
+        strokeWidth: 1,
+        fontWeight: FontWeight.normal,
+        textAlign: TextAlign.center,
+      ) : null,
       buttons: [
         CommonPopupButton(
           text: buttonText,
