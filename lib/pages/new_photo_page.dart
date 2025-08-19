@@ -371,62 +371,63 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                         ),
 
                         // 进度条
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 30),
-                          child: Column(
-                            children: [
-                              // 进度条背景
-                              Container(
-                                width: 300,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                  color: Colors.pink.withOpacity(0.3),
-                                ),
-                                child: Stack(
-                                  children: [
-                                    // 进度条填充
-                                    AnimatedContainer(
-                                      duration: const Duration(milliseconds: 500),
-                                      width: 300 * _progress,
-                                      height: 20,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(10),
-                                        gradient: LinearGradient(
-                                          colors: _isUnlocked 
-                                              ? [Colors.green, Colors.lightGreen]
-                                              : [Colors.pink, Colors.pinkAccent],
-                                        ),
-                                      ),
-                                    ),
-                                    // 进度文字
-                                    Center(
-                                      child: OutlinedTextWidget(
-                                        text: '${(_progress * 100).toInt()}%',
-                                        fontSize: 14,
-                                        textColor: Colors.white,
-                                        strokeColor: Colors.black,
-                                        strokeWidth: 1.0,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              // 进度条图标
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                        Stack(
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 30,top: 10),
+                              child: Column(
                                 children: [
-                                  Image.asset(
-                                    Assets.newPhotoNewPhotoIconSlider,
-                                    width: 20,
-                                    height: 20,
+                                  // 进度条背景
+                                  Container(
+                                    width: 300,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      color: Colors.pink.withOpacity(0.3),
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        // 进度条填充
+                                        AnimatedContainer(
+                                          duration: const Duration(milliseconds: 500),
+                                          width: 300 * _progress,
+                                          height: 30,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(20),
+                                            gradient: LinearGradient(
+                                              colors: _isUnlocked
+                                                  ? [Colors.green, Colors.lightGreen]
+                                                  : [Colors.pink, Colors.pinkAccent],
+                                            ),
+                                          ),
+                                        ),
+                                        // 进度文字
+                                        Center(
+                                          child: OutlinedTextWidget(
+                                            text: '${(_progress * 100).toInt()}%',
+                                            fontSize: 14,
+                                            textColor: Colors.white,
+                                            strokeColor: Colors.black,
+                                            strokeWidth: 1.0,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
+
                                 ],
                               ),
-                            ],
-                          ),
+                            ),
+                            Positioned(
+                              right:0 ,
+                              child: Image.asset(
+                                Assets.newPhotoNewPhotoIconSlider,
+                                width: 50,
+                                height: 50,
+                              ),
+                            ),
+                          ],
                         ),
 
                         // DOWNLOAD 按钮 - 锁定/解锁状态
@@ -449,39 +450,42 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                             child: Stack(
                               children: [
                                 // 按钮内容
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    // 相机图标
-                                    Image.asset(
-                                      Assets.newPhotoNewPhotoIconAd,
-                                      height: 30,
-                                      color: _isUnlocked ? null : Colors.grey,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    OutlinedTextWidget(
-                                      text: 'Download',
-                                      fontSize: 20,
-                                      textColor: _isUnlocked ? Colors.white : Colors.grey,
-                                      strokeColor: Colors.black,
-                                      strokeWidth: 1.5,
-                                      fontWeight: FontWeight.bold,
-                                      shadows: [
-                                        Shadow(
-                                          offset: const Offset(1, 1),
-                                          blurRadius: 2,
-                                          color: Colors.black54,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 13),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // 相机图标
+                                      Image.asset(
+                                        Assets.newPhotoNewPhotoIconAd,
+                                        height: 30,
+                                      ),
+                                      //color: Colors.grey,
+                                      const SizedBox(width: 10),
+                                      OutlinedTextWidget(
+                                        text: 'DOWNLOAD',
+                                        fontSize: 20,
+                                        textColor: _isUnlocked ? Colors.white : Colors.grey,
+                                        strokeColor: Colors.black,
+                                        strokeWidth: 1.5,
+                                        fontWeight: FontWeight.bold,
+                                        shadows: [
+                                          Shadow(
+                                            offset: const Offset(1, 1),
+                                            blurRadius: 2,
+                                            color: Colors.black54,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 // 锁定覆盖层
                                 if (!_isUnlocked)
                                   Positioned.fill(
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(30),
+                                        borderRadius: BorderRadius.circular(18),
                                         color: Colors.black.withOpacity(0.5),
                                       ),
                                       child: const Center(

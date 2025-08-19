@@ -422,7 +422,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                                 Image(image: AssetImage(Assets.imagesLabelAd),width: 30,height: 30),
                                 SizedBox(width: 5),
                                 Text(
-                                  'Download',
+                                  'DOWNLOAD',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 18,

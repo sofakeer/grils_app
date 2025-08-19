@@ -37,14 +37,65 @@ class CommonHeader extends StatefulWidget {
 
   /// 播放签到奖励特效
   static Future<void> playSignInEffects(BuildContext context, int coins, int hearts) async {
+    final topPadding = MediaQuery.of(context).padding.top;
+    
     if (coins > 0) {
-      EffectManager.instance.playCoinEffect(context);
+      // 金币图标位置精确计算：
+      // 外层容器左边距: 20px
+      // 金币图标直接在Stack顶层，无额外边距
+      // 金币图标大小: 50px，中心位置: 20 + 25 = 45px
+      // 顶部位置: 外层容器顶部(topPadding + 10) + 金币图标中心(25) = topPadding + 35px
+      final coinPosition = Offset(45, topPadding + 35);
+      print("金币特效目标位置: $coinPosition");
+      EffectManager.instance.playCoinEffect(context, targetPosition: coinPosition);
       await AudioManager().playCoinEffect();
+      
+      // 调试: 显示红点标记目标位置
+      _showDebugDot(context, coinPosition, Colors.red);
     }
     if (hearts > 0) {
-      EffectManager.instance.playHeartEffect(context);
+      // 爱心图标位置计算：
+      // 金币完整宽度: 50px
+      // 中间间距: 10px
+      // 爱心Stack左边距: 10px (padding)
+      // 爱心图标大小: 45px，中心位置: 20 + 50 + 10 + 10 + 22.5 = 112.5px
+      // 顶部位置: 外层容器顶部(topPadding + 10) + 爱心padding(8) + 爱心图标中心(22.5) = topPadding + 40.5px
+      final heartPosition = Offset(112.5, topPadding + 40.5);
+      print("爱心特效目标位置: $heartPosition");
+      EffectManager.instance.playHeartEffect(context, targetPosition: heartPosition);
       await AudioManager().playHeartEffect();
+      
+      // 调试: 显示蓝点标记目标位置
+      _showDebugDot(context, heartPosition, Colors.blue);
     }
+  }
+  
+  /// 调试用：显示目标位置红点
+  static void _showDebugDot(BuildContext context, Offset position, Color color) {
+    final overlay = Overlay.of(context);
+    late OverlayEntry overlayEntry;
+    
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: position.dx - 5,
+        top: position.dy - 5,
+        child: Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+    
+    overlay.insert(overlayEntry);
+    
+    // 3秒后移除调试点
+    Future.delayed(const Duration(seconds: 3), () {
+      overlayEntry.remove();
+    });
   }
 
   @override
@@ -216,31 +267,53 @@ class _CommonHeaderState extends State<CommonHeader> with TickerProviderStateMix
                 // 按钮区域
                 Row(
                   children: [
-                    // 调试按钮（临时添加）
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const UserServiceTestPage(),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: Colors.blue,
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: const Icon(
-                          Icons.bug_report,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
+                    // // 特效测试按钮
+                    // GestureDetector(
+                    //   onTap: () {
+                    //     // 测试特效
+                    //     CommonHeader.playSignInEffects(context, 100, 10);
+                    //   },
+                    //   child: Container(
+                    //     width: 30,
+                    //     height: 30,
+                    //     decoration: BoxDecoration(
+                    //       color: Colors.green,
+                    //       borderRadius: BorderRadius.circular(15),
+                    //     ),
+                    //     child: const Icon(
+                    //       Icons.star,
+                    //       color: Colors.white,
+                    //       size: 16,
+                    //     ),
+                    //   ),
+                    // ),
+                    // const SizedBox(width: 5),
+                    //
+                    // // 调试按钮（临时添加）
+                    // GestureDetector(
+                    //   onTap: () {
+                    //     Navigator.push(
+                    //       context,
+                    //       MaterialPageRoute(
+                    //         builder: (context) => const UserServiceTestPage(),
+                    //       ),
+                    //     );
+                    //   },
+                    //   child: Container(
+                    //     width: 30,
+                    //     height: 30,
+                    //     decoration: BoxDecoration(
+                    //       color: Colors.blue,
+                    //       borderRadius: BorderRadius.circular(15),
+                    //     ),
+                    //     child: const Icon(
+                    //       Icons.bug_report,
+                    //       color: Colors.white,
+                    //       size: 16,
+                    //     ),
+                    //   ),
+                    // ),
+                    // const SizedBox(width: 10),
                     
                     // 返回按钮 - 使用指定图片
                     if (widget.showBackButton)

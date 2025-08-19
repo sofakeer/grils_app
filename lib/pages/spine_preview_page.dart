@@ -1548,26 +1548,51 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
 
     // underwear阶段切换皮肤时，先播放idlesp_underwear动画
     if (_currentIdleIndex == 4 && _spineController != null && _isControllerReady) {
+      print("Playing idlesp_underwear animation for skin change");
+      
+      // 先应用新的皮肤设置
+      _applyCurrentSkins();
+      
       String animName = 'idlesp_underwear';
 
       // 验证动画是否存在
       if (_isAnimationAvailable(animName)) {
-        final animation = _spineController!.skeleton.getData()!.findAnimation(animName);
-        double duration = 1.0;
-        if (animation != null) {
-          duration = animation.getDuration();
-        }
+        // 清除当前动画轨道
+        _spineController!.animationState.clearTracks();
+        
+        // 播放idlesp_underwear动画（不循环）
         _spineController!.animationState.setAnimationByName(0, animName, false);
         setState(() {
           _isAnimating = true;
         });
+        
+        // 获取动画时长
+        final animation = _spineController!.skeleton.getData()!.findAnimation(animName);
+        double duration = 1.0; // 默认1秒
+        if (animation != null) {
+          duration = animation.getDuration();
+        }
+        
+        print("Playing idlesp_underwear for ${duration}s");
+        
+        // 等待动画播放完成
         await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+        
+        // 动画播放完成后，回到正常的idle_underwear循环动画
+        if (mounted && _spineController != null && _isControllerReady) {
+          print("idlesp_underwear completed, switching back to idle_underwear loop");
+          _spineController!.animationState.setAnimationByName(0, 'idle_underwear', true);
+        }
       } else {
         print("Animation '$animName' not found, skipping transition");
+        // 如果没有idlesp_underwear动画，直接应用皮肤
+        _applyCurrentSkins();
       }
+    } else {
+      // 非underwear阶段，直接应用皮肤
+      _applyCurrentSkins();
     }
-    // 应用新的皮肤
-    _applyCurrentSkins();
+    
     print("Skin button tapped: type=$buttonType, skin=$skinIndex");
   }
 

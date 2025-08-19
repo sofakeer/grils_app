@@ -13,24 +13,28 @@ class EffectManager {
   /// 播放金币特效
   /// [context] - 上下文
   /// [duration] - 播放时长（秒）
-  Future<void> playCoinEffect(BuildContext context, {int duration = 3}) async {
+  /// [targetPosition] - 特效目标位置（从中心飘到目标位置）
+  Future<void> playCoinEffect(BuildContext context, {int duration = 3, Offset? targetPosition}) async {
     return _playSpineEffect(
       context: context,
       atlasAsset: Assets.assetsSpineCoinEff01,
       skeletonAsset: Assets.assetsSpineCoinEff01.replaceAll('.atlas', '.skel'),
       duration: duration,
+      targetPosition: targetPosition,
     );
   }
 
   /// 播放爱心特效
   /// [context] - 上下文  
   /// [duration] - 播放时长（秒）
-  Future<void> playHeartEffect(BuildContext context, {int duration = 3}) async {
+  /// [targetPosition] - 特效目标位置（从中心飘到目标位置）
+  Future<void> playHeartEffect(BuildContext context, {int duration = 3, Offset? targetPosition}) async {
     return _playSpineEffect(
       context: context,
       atlasAsset: Assets.assetsSpineHeartEff01,
       skeletonAsset: Assets.assetsSpineHeartEff01.replaceAll('.atlas', '.skel'),
       duration: duration,
+      targetPosition: targetPosition,
     );
   }
 
@@ -40,6 +44,7 @@ class EffectManager {
     required String atlasAsset,
     required String skeletonAsset,
     required int duration,
+    Offset? targetPosition,
   }) async {
     final overlay = Overlay.of(context);
     late OverlayEntry overlayEntry;
@@ -49,6 +54,7 @@ class EffectManager {
         atlasAsset: atlasAsset,
         skeletonAsset: skeletonAsset,
         duration: duration,
+        targetPosition: targetPosition,
         onComplete: () {
           overlayEntry.remove();
         },
@@ -64,12 +70,14 @@ class _SpineEffectWidget extends StatefulWidget {
   final String atlasAsset;
   final String skeletonAsset;
   final int duration;
+  final Offset? targetPosition;
   final VoidCallback onComplete;
 
   const _SpineEffectWidget({
     required this.atlasAsset,
     required this.skeletonAsset,
     required this.duration,
+    this.targetPosition,
     required this.onComplete,
   });
 
@@ -78,10 +86,12 @@ class _SpineEffectWidget extends StatefulWidget {
 }
 
 class _SpineEffectWidgetState extends State<_SpineEffectWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   spine.SpineWidgetController? _spineController;
   late AnimationController _fadeController;
+  late AnimationController _positionController;
   late Animation<double> _fadeAnimation;
+  late Animation<Offset> _positionAnimation;
 
   @override
   void initState() {
@@ -92,6 +102,11 @@ class _SpineEffectWidgetState extends State<_SpineEffectWidget>
       vsync: this,
     );
     
+    _positionController = AnimationController(
+      duration: const Duration(milliseconds: 2000), // 2秒位置动画
+      vsync: this,
+    );
+    
     _fadeAnimation = Tween<double>(
       begin: 1.0,
       end: 0.0,
@@ -99,6 +114,12 @@ class _SpineEffectWidgetState extends State<_SpineEffectWidget>
       parent: _fadeController,
       curve: const Interval(0.7, 1.0, curve: Curves.easeOut),
     ));
+
+    // 先创建一个默认的位置动画
+    _positionAnimation = Tween<Offset>(
+      begin: const Offset(0, 0),
+      end: const Offset(0, 0),
+    ).animate(_positionController);
 
     _initializeSpine();
     _startEffect();
@@ -123,6 +144,8 @@ class _SpineEffectWidgetState extends State<_SpineEffectWidget>
   }
 
   void _startEffect() async {
+    // 同时启动位置动画和淡出动画
+    _positionController.forward();
     _fadeController.forward();
     
     // 等待动画完成
@@ -136,6 +159,7 @@ class _SpineEffectWidgetState extends State<_SpineEffectWidget>
   @override
   void dispose() {
     _fadeController.dispose();
+    _positionController.dispose();
     _spineController = null;
     super.dispose();
   }
@@ -143,29 +167,45 @@ class _SpineEffectWidgetState extends State<_SpineEffectWidget>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _fadeAnimation,
+      animation: Listenable.merge([_fadeAnimation, _positionController]),
       builder: (context, child) {
+        final screenSize = MediaQuery.of(context).size;
+        
+        // 计算当前位置
+        Offset currentPosition;
+        if (widget.targetPosition != null) {
+          // 从屏幕中心开始，动画到目标位置
+          final startPosition = Offset(screenSize.width / 2, screenSize.height / 2);
+          final endPosition = widget.targetPosition!;
+          currentPosition = Offset.lerp(startPosition, endPosition, _positionController.value)!;
+        } else {
+          // 无目标位置，保持在屏幕中心
+          currentPosition = Offset(screenSize.width / 2, screenSize.height / 2);
+        }
+        
         return Opacity(
           opacity: _fadeAnimation.value,
           child: Material(
             color: Colors.transparent,
-            child: Container(
-              width: double.infinity,
-              height: double.infinity,
-              child: Center(
-                child: SizedBox(
-                  width: 300,
-                  height: 300,
-                  child: _spineController != null
-                      ? spine.SpineWidget.fromAsset(
-                          widget.atlasAsset,
-                          widget.skeletonAsset,
-                          _spineController!,
-                          boundsProvider: const spine.SetupPoseBounds(),
-                        )
-                      : const SizedBox(),
+            child: Stack(
+              children: [
+                Positioned(
+                  left: currentPosition.dx - 100, // 特效宽度的一半
+                  top: currentPosition.dy - 100,  // 特效高度的一半
+                  child: SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: _spineController != null
+                        ? spine.SpineWidget.fromAsset(
+                            widget.atlasAsset,
+                            widget.skeletonAsset,
+                            _spineController!,
+                            boundsProvider: const spine.SetupPoseBounds(),
+                          )
+                        : const SizedBox(),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         );
