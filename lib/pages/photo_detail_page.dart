@@ -5,9 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:io';
+import '../managers/ad_manager.dart';
 
 class PhotoDetailPage extends StatefulWidget {
   final int imageIndex;
@@ -116,25 +118,33 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
     try {
       print('开始下载图片流程...');
       
-      // 模拟观看广告
-      setState(() {
-        _showUnlockDialog = true;
-      });
-      _unlockAnimationController.forward();
+      // 触发视频广告
+      bool adCompleted = await AdManager.instance.showRewardedAd(
+        context: context,
+        onAdCompleted: () async {
+          print('广告播放完成，开始保存图片...');
+          // 广告完成后保存无水印图片到相册
+          await _saveImageToGallery();
+        },
+        onAdFailed: () {
+          print('广告播放失败');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('广告播放失败，请重试'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        },
+      );
       
-      // 延迟2秒模拟广告时间
-      await Future.delayed(Duration(seconds: 2));
-      
-      // 保存图片到应用目录
-      await _saveImageToGallery();
-      
-      if (mounted) {
-        _closeUnlockDialog();
+      if (!adCompleted) {
+        print('用户取消广告或广告失败');
       }
     } catch (e) {
       print('下载图片失败: $e');
       if (mounted) {
-        _closeUnlockDialog();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('保存失败: $e'),
@@ -149,68 +159,56 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
     try {
       print('开始请求存储权限...');
       
-      // 检查当前权限状态
-      var photosStatus = await Permission.photos.status;
-      var storageStatus = await Permission.storage.status;
-      var mediaImagesStatus = await Permission.photos.status; // READ_MEDIA_IMAGES
-      
-      print('当前权限状态:');
-      print('photos: $photosStatus');
-      print('storage: $storageStatus');
-      print('mediaImages: $mediaImagesStatus');
-      
-      // 如果已经有权限，直接返回true
-      if (photosStatus.isGranted || storageStatus.isGranted) {
-        print('已有存储权限，直接返回true');
-        return true;
+      // iOS平台
+      if (Platform.isIOS) {
+        var status = await Permission.photosAddOnly.status;
+        if (status.isGranted) {
+          return true;
+        }
+        status = await Permission.photosAddOnly.request();
+        if (status.isGranted) {
+          return true;
+        }
+        
+        // 如果photosAddOnly权限失败，尝试photos权限
+        status = await Permission.photos.status;
+        if (status.isGranted) {
+          return true;
+        }
+        status = await Permission.photos.request();
+        return status.isGranted;
       }
       
-      // 请求权限 - 按优先级尝试
-      print('开始请求权限...');
-      
-      // 1. 先尝试请求 photos 权限 (Android 13+)
-      var photosResult = await Permission.photos.request();
-      print('photos权限请求结果: $photosResult');
-      if (photosResult.isGranted) {
-        print('photos权限获取成功');
-        return true;
-      }
-      
-      // 2. 再尝试请求 storage 权限 (Android 13以下)
-      var storageResult = await Permission.storage.request();
-      print('storage权限请求结果: $storageResult');
-      if (storageResult.isGranted) {
-        print('storage权限获取成功');
-        return true;
-      }
-      
-      // 3. 如果权限被拒绝，显示详细提示
-      print('所有权限都被拒绝');
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text('需要存储权限'),
-              content: Text('保存图片需要访问存储权限。请在设置中开启相册访问权限。'),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: Text('取消'),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    openAppSettings();
-                  },
-                  child: Text('去设置'),
-                ),
-              ],
-            );
-          },
-        );
+      // Android平台 - 先尝试photos权限（Android 13+），再尝试storage权限
+      if (Platform.isAndroid) {
+        // 先尝试photos权限
+        var photosStatus = await Permission.photos.status;
+        if (photosStatus.isGranted) {
+          return true;
+        }
+        
+        photosStatus = await Permission.photos.request();
+        if (photosStatus.isGranted) {
+          return true;
+        }
+        
+        // 如果photos权限失败，尝试storage权限（适用于Android 13以下）
+        var storageStatus = await Permission.storage.status;
+        if (storageStatus.isGranted) {
+          return true;
+        }
+        
+        storageStatus = await Permission.storage.request();
+        if (storageStatus.isGranted) {
+          return true;
+        }
+        
+        // 如果都失败了，显示提示
+        if (mounted && (photosStatus.isPermanentlyDenied || storageStatus.isPermanentlyDenied)) {
+          _showPermissionDialog();
+        }
+        
+        return false;
       }
       
       return false;
@@ -219,13 +217,55 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
       return false;
     }
   }
+  
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('需要存储权限'),
+          content: const Text('保存图片需要访问存储权限。请在设置中开启相册访问权限。'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                openAppSettings();
+              },
+              child: const Text('去设置'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Future<void> _saveImageToGallery() async {
     try {
+      // 先请求权限
+      bool hasPermission = await _requestPermission();
+      if (!hasPermission) {
+        print('没有存储权限');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('需要存储权限才能保存图片'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+      
       final imageNumber = (_currentIndex + 1).toString().padLeft(2, '0');
       final imagePath = 'assets/images/grils_list/Bg_$imageNumber.png';
       
-      print('开始保存图片: $imagePath');
+      print('开始保存图片到相册: $imagePath');
       
       // 加载图片数据
       final byteData = await rootBundle.load(imagePath);
@@ -233,29 +273,44 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
       
       print('图片数据加载成功，大小: ${uint8List.length} bytes');
       
-      // 获取应用文档目录
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'girl_image_$imageNumber.png';
-      final file = File('${directory.path}/$fileName');
+      // 使用image_gallery_saver保存到相册
+      final result = await ImageGallerySaver.saveImage(
+        uint8List,
+        name: 'girl_image_${DateTime.now().millisecondsSinceEpoch}_$imageNumber',
+        quality: 100,
+      );
       
-      // 保存文件
-      await file.writeAsBytes(uint8List);
-      
-      print('图片保存到: ${file.path}');
+      print('保存结果: $result');
       
       // 显示成功消息
       if (mounted) {
+        if (result != null && result['isSuccess'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('图片已保存到相册'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('保存失败，请重试'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('保存图片失败: $e');
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('图片已保存到: ${file.path}'),
-            backgroundColor: Colors.green,
+            content: Text('保存失败: ${e.toString()}'),
+            backgroundColor: Colors.red,
           ),
         );
       }
-      
-    } catch (e) {
-      print('保存图片失败: $e');
-      rethrow;
     }
   }
 
