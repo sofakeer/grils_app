@@ -18,6 +18,7 @@ class GameStateManager {
   static const String _keyHasSeenTakeoff = 'has_seen_takeoff';
   static const String _keyCurrentLevel = 'current_level';
   static const String _keyUnlockedGirls = 'unlocked_girls';
+  static const String _keyPendingUnlockGirl = 'pending_unlock_girl';
   
   // 初始化
   Future<void> init() async {
@@ -199,7 +200,12 @@ class GameStateManager {
       // 默认只解锁第一个女生
       return [0];
     }
-    return List<int>.from(json.decode(jsonStr));
+    List<int> unlocked = List<int>.from(json.decode(jsonStr));
+    // 确保第一个女生总是解锁的
+    if (!unlocked.contains(0)) {
+      unlocked.insert(0, 0);
+    }
+    return unlocked;
   }
   
   // 解锁女生
@@ -266,5 +272,39 @@ class GameStateManager {
       }
     }
     return null;
+  }
+  
+  // 获取待解锁的女生
+  int? getPendingUnlockGirl() {
+    return _prefs.getInt(_keyPendingUnlockGirl);
+  }
+  
+  // 设置待解锁的女生
+  Future<void> setPendingUnlockGirl(int? girlIndex) async {
+    if (girlIndex == null) {
+      await _prefs.remove(_keyPendingUnlockGirl);
+    } else {
+      await _prefs.setInt(_keyPendingUnlockGirl, girlIndex);
+    }
+  }
+  
+  // 检查并解锁女生（公开方法）
+  Future<int?> checkAndUnlockGirls() async {
+    int level = getCurrentLevel();
+    return await _checkAndUnlockGirls(level);
+  }
+  
+  // 测试方法：解锁所有女生
+  Future<void> unlockAllGirlsForTesting() async {
+    List<int> allGirls = [0, 1, 2];
+    await _prefs.setString(_keyUnlockedGirls, json.encode(allGirls));
+    print("All girls unlocked for testing: $allGirls");
+  }
+  
+  // 测试方法：重置为只解锁第一个女生
+  Future<void> resetGirlUnlocksForTesting() async {
+    List<int> defaultUnlocked = [0];
+    await _prefs.setString(_keyUnlockedGirls, json.encode(defaultUnlocked));
+    print("Girl unlocks reset to default: $defaultUnlocked");
   }
 }

@@ -282,6 +282,68 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                               ),
                             ],
                           ),
+                          const SizedBox(height: 20),
+                          // 测试按钮：解锁所有女生
+                          GestureDetector(
+                            onTap: () async {
+                              await GameStateManager().unlockAllGirlsForTesting();
+                              setState(() {});
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('All girls unlocked for testing!'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const OutlinedTextWidget(
+                                text: 'Unlock All Girls (Test)',
+                                fontSize: 16,
+                                textColor: Colors.white,
+                                strokeColor: Colors.black,
+                                strokeWidth: 1.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          // 测试按钮：重置解锁状态
+                          GestureDetector(
+                            onTap: () async {
+                              await GameStateManager().resetGirlUnlocksForTesting();
+                              setState(() {});
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Girl unlocks reset to default!'),
+                                  backgroundColor: Colors.orange,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const OutlinedTextWidget(
+                                text: 'Reset Girl Unlocks',
+                                fontSize: 16,
+                                textColor: Colors.white,
+                                strokeColor: Colors.black,
+                                strokeWidth: 1.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
