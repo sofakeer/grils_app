@@ -344,6 +344,37 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                               ),
                             ),
                           ),
+                          const SizedBox(height: 10),
+                          // 测试按钮：触发特殊关卡
+                          GestureDetector(
+                            onTap: () async {
+                              // 重置特殊关卡状态，让下一次回到主页面时触发
+                              await GameStateManager().setLastSpecialStageLevel(_currentLevel - 5);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Special stage will trigger on next main page visit!'),
+                                  backgroundColor: Colors.purple,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.purple.withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const OutlinedTextWidget(
+                                text: 'Trigger Special Stage',
+                                fontSize: 16,
+                                textColor: Colors.white,
+                                strokeColor: Colors.black,
+                                strokeWidth: 1.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),

@@ -71,6 +71,16 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   late AnimationController _skinListAnimationController;
   late Animation<Offset> _skinListSlideAnimation;
   bool _isAnimatingList = false;
+  
+  // 点击特效控制
+  SpineWidgetController? _tapEffectController;
+  bool _showTapEffect = false;
+  Offset _tapEffectPosition = Offset.zero;
+  
+  // 解锁特效控制
+  SpineWidgetController? _unlockEffectController;
+  bool _showUnlockEffect = false;
+  Offset _unlockEffectPosition = Offset.zero;
 
   // 每个部位的当前皮肤索引 (0-3, 对应1-4号皮肤)
   Map<int, int> _currentSkinIndices = {
@@ -149,6 +159,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     _loadSpineInfo();
     _initializeSpineController();
     _initializeTakeoffController();
+    _initializeTapEffectController();
+    _initializeUnlockEffectController();
 
     // 启动idle动画循环
     _startIdleAnimationCycle();
@@ -256,6 +268,178 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       });
     } catch (e) {
       print("Takeoff controller creation failed: $e");
+    }
+  }
+  
+  // 初始化点击特效控制器
+  void _initializeTapEffectController() {
+    if (_tapEffectController != null) {
+      _tapEffectController = null;
+    }
+    
+    try {
+      _tapEffectController = SpineWidgetController(onInitialized: (controller) {
+        try {
+          controller.animationState.getData().setDefaultMix(0.2);
+          final animations = controller.skeleton.getData()?.getAnimations();
+          if (animations != null && animations.isNotEmpty) {
+            print("Tap effect controller initialized with animations: ${animations.map((a) => a.getName()).toList()}");
+          }
+        } catch (e) {
+          print("Tap effect initialization failed: $e");
+        }
+      });
+    } catch (e) {
+      print("Tap effect controller creation failed: $e");
+    }
+  }
+  
+  // 初始化解锁特效控制器
+  void _initializeUnlockEffectController() {
+    if (_unlockEffectController != null) {
+      _unlockEffectController = null;
+    }
+    
+    try {
+      _unlockEffectController = SpineWidgetController(onInitialized: (controller) {
+        try {
+          controller.animationState.getData().setDefaultMix(0.2);
+          final animations = controller.skeleton.getData()?.getAnimations();
+          if (animations != null && animations.isNotEmpty) {
+            print("Unlock effect controller initialized with animations: ${animations.map((a) => a.getName()).toList()}");
+          }
+        } catch (e) {
+          print("Unlock effect initialization failed: $e");
+        }
+      });
+    } catch (e) {
+      print("Unlock effect controller creation failed: $e");
+    }
+  }
+  
+  // 播放点击特效
+  void _playTapEffect(Offset position) async {
+    if (_tapEffectController == null) return;
+    
+    try {
+      // 先获取所有可用的动画
+      final animations = _tapEffectController!.skeleton.getData()?.getAnimations();
+      if (animations == null || animations.isEmpty) {
+        print("No animations found in Takeoff_Tap_Eff");
+        return;
+      }
+      
+      // 打印所有可用的动画名称
+      print("Available tap effect animations: ${animations.map((a) => a.getName()).toList()}");
+      
+      // 尝试查找正确的动画名称
+      String animationName = "";
+      for (var anim in animations) {
+        String? name = anim.getName();
+        if (name != null) {
+          animationName = name;
+          break; // 使用第一个可用的动画
+        }
+      }
+      
+      if (animationName.isEmpty) {
+        print("No valid animation name found");
+        return;
+      }
+      
+      setState(() {
+        _tapEffectPosition = position;
+        _showTapEffect = true;
+      });
+      
+      // 播放动画
+      _tapEffectController!.animationState.setAnimationByName(0, animationName, false);
+      
+      // 获取动画时长
+      final animation = _tapEffectController!.skeleton.getData()?.findAnimation(animationName);
+      double duration = 1.0;
+      if (animation != null) {
+        duration = animation.getDuration();
+      }
+      
+      print("Playing tap effect animation: $animationName for ${duration}s");
+      
+      // 等待动画完成后隐藏
+      await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+      
+      if (mounted) {
+        setState(() {
+          _showTapEffect = false;
+        });
+      }
+    } catch (e) {
+      print("Error playing tap effect: $e");
+      setState(() {
+        _showTapEffect = false;
+      });
+    }
+  }
+  
+  // 播放解锁特效
+  void _playUnlockEffect(Offset position) async {
+    if (_unlockEffectController == null) return;
+    
+    try {
+      // 先获取所有可用的动画
+      final animations = _unlockEffectController!.skeleton.getData()?.getAnimations();
+      if (animations == null || animations.isEmpty) {
+        print("No animations found in Takeoff_ClothUnloch_Eff");
+        return;
+      }
+      
+      // 打印所有可用的动画名称
+      print("Available unlock effect animations: ${animations.map((a) => a.getName()).toList()}");
+      
+      // 尝试查找正确的动画名称
+      String animationName = "";
+      for (var anim in animations) {
+        String? name = anim.getName();
+        if (name != null) {
+          animationName = name;
+          break; // 使用第一个可用的动画
+        }
+      }
+      
+      if (animationName.isEmpty) {
+        print("No valid animation name found");
+        return;
+      }
+      
+      setState(() {
+        _unlockEffectPosition = position;
+        _showUnlockEffect = true;
+      });
+      
+      // 播放动画
+      _unlockEffectController!.animationState.setAnimationByName(0, animationName, false);
+      
+      // 获取动画时长
+      final animation = _unlockEffectController!.skeleton.getData()?.findAnimation(animationName);
+      double duration = 1.0;
+      if (animation != null) {
+        duration = animation.getDuration();
+      }
+      
+      print("Playing unlock effect animation: $animationName for ${duration}s");
+      
+      // 等待动画完成后隐藏
+      await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+      
+      if (mounted) {
+        setState(() {
+          _showUnlockEffect = false;
+        });
+      }
+    } catch (e) {
+      print("Error playing unlock effect: $e");
+      setState(() {
+        _showUnlockEffect = false;
+      });
     }
   }
 
@@ -904,7 +1088,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   }
 
   // 播放特殊动画
-  void _playSpecialAnimation() async {
+  void _playSpecialAnimation(Offset tapPosition) async {
+    // 播放点击特效（异步执行，不阻塞主动画）
+    _playTapEffect(tapPosition);
+    
     // 所有女孩都支持特殊动画
     setState(() {
       _girlStates[_currentIndex] = _girlStates[_currentIndex].copyWith(isPlayingSpecial: true);
@@ -952,6 +1139,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     if (_takeoffController != null) {
       // _takeoffController!.dispose();
       _takeoffController = null;
+    }
+    
+    if (_tapEffectController != null) {
+      _tapEffectController = null;
+    }
+    
+    if (_unlockEffectController != null) {
+      _unlockEffectController = null;
     }
 
     // 恢复主界面BGM
@@ -1019,6 +1214,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         color: Colors.transparent,
         child: Stack(
           children: [
+            // 背景色，避免切换时白色闪烁
+            Container(
+              color: Colors.black,
+              width: MediaQuery.of(context).size.width,
+              height: MediaQuery.of(context).size.height,
+            ),
+            
             // Spine动画预览区域 - 全屏显示，禁用左右滑动
             PageView.builder(
               controller: _pageController,
@@ -1063,6 +1265,44 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
                 ),
               ),
 
+            // 点击特效层
+            if (_showTapEffect && _tapEffectController != null)
+              Positioned(
+                left: _tapEffectPosition.dx - 100, // 特效中心点偏移
+                top: _tapEffectPosition.dy - 100,
+                child: IgnorePointer(
+                  child: SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: SpineWidget.fromAsset(
+                      "assets/spine/Takeoff_Tap_Eff.atlas",
+                      "assets/spine/Takeoff_Tap_Eff.skel",
+                      _tapEffectController!,
+                      boundsProvider: SetupPoseBounds(),
+                    ),
+                  ),
+                ),
+              ),
+            
+            // 解锁特效层
+            if (_showUnlockEffect && _unlockEffectController != null)
+              Positioned(
+                left: _unlockEffectPosition.dx - 150, // 特效中心点偏移
+                top: _unlockEffectPosition.dy - 150,
+                child: IgnorePointer(
+                  child: SizedBox(
+                    width: 300,
+                    height: 300,
+                    child: SpineWidget.fromAsset(
+                      "assets/spine/Takeoff_ClothUnloch_Eff.atlas",
+                      "assets/spine/Takeoff_ClothUnloch_Eff.skel",
+                      _unlockEffectController!,
+                      boundsProvider: SetupPoseBounds(),
+                    ),
+                  ),
+                ),
+              ),
+            
             // 顶部控制区域浮动
             Positioned(
               top: MediaQuery.of(context).padding.top, // 避开状态栏
@@ -1376,6 +1616,17 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       return;
     }
     
+    // 保存当前女孩的状态
+    if (_currentIndex >= 0 && _currentIndex < 3) {
+      // 保存当前女孩的idle索引
+      GameStateManager().setCurrentIdleIndex(_currentIdleIndex);
+      // 保存当前女孩的皮肤选择
+      for (int i = 0; i < 4; i++) {
+        String partName = _getPartName(i);
+        GameStateManager().setCurrentSkin(_currentIndex, partName, _currentSkinIndices[i]!);
+      }
+    }
+    
     setState(() {
       _currentIndex = index;
       _showSecondImage = false;
@@ -1385,23 +1636,27 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       _isControllerReady = false; // 重置控制器状态
       _availableAnimations = [];
       _currentAnimationIndex = 0;
-      // 切换女孩时重置idle状态为0
-      _currentIdleIndex = 0;
+      
+      // 恢复新女孩的状态
+      // 不再重置，而是读取保存的状态
+      _currentIdleIndex = GameStateManager().getCurrentIdleIndex();
+      
       // 重置underwear按钮选择
       _selectedUnderwearButton = -1;
       _previousUnderwearButton = -1;
-      // 重置皮肤选择
+      
+      // 恢复新女孩的皮肤选择
+      Map<String, int> savedSkins = GameStateManager().getCurrentSkins(index);
       _currentSkinIndices = {
-        0: 0,
-        1: 0,
-        2: 0,
-        3: 0,
+        0: savedSkins['bra'] ?? 0,
+        1: savedSkins['pants'] ?? 0,
+        2: savedSkins[index == 0 ? 'hands' : 'head'] ?? 0,
+        3: savedSkins['socks'] ?? 0,
       };
     });
     
     // 保存当前女孩索引
     GameStateManager().setCurrentGirlIndex(index);
-    GameStateManager().setCurrentIdleIndex(0);
 
     // 停止之前的动画循环
     _animationTimer?.cancel();
@@ -1476,9 +1731,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   }
 
   // 处理手势点击 - 触发特殊动画
-  void _handleGirlTap() {
+  void _handleGirlTap(TapDownDetails details) {
     // 所有女孩都支持点击事件
-    _playSpecialAnimation();
+    _playSpecialAnimation(details.globalPosition);
   }
 
   // 切换到下一个idle动画
@@ -1586,7 +1841,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         print("Entered underwear mode, reset skin selections");
       }
       
-      // 10. 播放下一个idle动画
+      // 10. 重新设置皮肤状态（重要！这是为了确保takeoff后皮肤正确显示）
+      if (_spineController != null && _isControllerReady) {
+        _setDefaultSkinForCurrentGirl(_spineController!);
+      }
+      
+      // 11. 播放下一个idle动画
       _playCurrentIdleAnimation();
     } else {
       // underwear模式或异常情况，直接循环回到idle01
@@ -1630,7 +1890,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         width: double.infinity,
         height: double.infinity,
         child: GestureDetector(
-          onTap: _handleGirlTap,
+          onTapDown: _handleGirlTap,
           child: SpineWidget.fromAsset(
             _spineAssets[index].atlasFile,
             _spineAssets[index].skeletonFile,
@@ -1842,10 +2102,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     String partName = _getPartName(buttonType);
     bool isUnlocked = GameStateManager().isSkinUnlocked(_currentIndex, partName, skinIndex);
     int price = GameStateManager().getSkinPrice(skinIndex);
+    
+    // 创建GlobalKey来获取按钮位置
+    final GlobalKey buttonKey = GlobalKey();
 
     return GestureDetector(
-      onTap: () => _onSkinButtonTap(buttonType, skinIndex),
+      onTap: () => _onSkinButtonTap(buttonType, skinIndex, buttonKey),
       child: Stack(
+        key: buttonKey,
         alignment: Alignment.center,
         children: [
           // 皮肤按钮图片
@@ -1937,7 +2201,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // Girl02: bra, pants, head, socks
       switch (buttonType) {
         case 0: return "bra";
-        case 1: return "hands";
+        case 1: return "pants";  // Girl02的第二个按钮是pants，不是hands
         case 2: return "head";
         case 3: return "socks";
         default: return "bra";
@@ -1977,9 +2241,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   }
 
   // 处理皮肤按钮点击
-  void _onSkinButtonTap(int buttonType, int skinIndex) async {
+  void _onSkinButtonTap(int buttonType, int skinIndex, GlobalKey buttonKey) async {
     String partName = _getPartName(buttonType);
     bool isUnlocked = GameStateManager().isSkinUnlocked(_currentIndex, partName, skinIndex);
+    bool wasUnlocked = isUnlocked; // 记录原始解锁状态
     
     if (!isUnlocked) {
       // 未解锁，检查是否可以购买
@@ -2000,7 +2265,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
             _heartCount = GameStateManager().getHeartCount();
           });
           // 递归调用，重新尝试购买
-          _onSkinButtonTap(buttonType, skinIndex);
+          _onSkinButtonTap(buttonType, skinIndex, buttonKey);
         }
         return;
       }
@@ -2015,6 +2280,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         
         // 播放购买成功音效
         await AudioManager().playHeartEffect();
+        
+        // 获取按钮位置并播放解锁特效
+        RenderBox? renderBox = buttonKey.currentContext?.findRenderObject() as RenderBox?;
+        if (renderBox != null) {
+          Offset buttonPosition = renderBox.localToGlobal(Offset(renderBox.size.width / 2, renderBox.size.height / 2));
+          _playUnlockEffect(buttonPosition);
+        }
       } else {
         // 购买失败
         return;

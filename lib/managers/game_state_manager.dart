@@ -19,6 +19,8 @@ class GameStateManager {
   static const String _keyCurrentLevel = 'current_level';
   static const String _keyUnlockedGirls = 'unlocked_girls';
   static const String _keyPendingUnlockGirl = 'pending_unlock_girl';
+  static const String _keyLastSpecialStageLevel = 'last_special_stage_level';
+  static const String _keySpecialStageCompleted = 'special_stage_completed';
   
   // 初始化
   Future<void> init() async {
@@ -292,6 +294,40 @@ class GameStateManager {
   Future<int?> checkAndUnlockGirls() async {
     int level = getCurrentLevel();
     return await _checkAndUnlockGirls(level);
+  }
+  
+  // 获取上次触发特殊关卡的关卡
+  int getLastSpecialStageLevel() {
+    return _prefs.getInt(_keyLastSpecialStageLevel) ?? 0;
+  }
+  
+  // 设置上次触发特殊关卡的关卡
+  Future<void> setLastSpecialStageLevel(int level) async {
+    await _prefs.setInt(_keyLastSpecialStageLevel, level);
+  }
+  
+  // 检查是否应该触发特殊关卡
+  bool shouldTriggerSpecialStage() {
+    int currentLevel = getCurrentLevel();
+    int lastSpecialLevel = getLastSpecialStageLevel();
+    
+    // 每5关触发一次特殊关卡，但不超过当前关卡
+    return currentLevel > 0 && currentLevel % 5 == 0 && currentLevel > lastSpecialLevel;
+  }
+  
+  // 标记特殊关卡已触发
+  Future<void> markSpecialStageTriggered() async {
+    await setLastSpecialStageLevel(getCurrentLevel());
+  }
+  
+  // 检查特殊关卡是否已完成
+  bool isSpecialStageCompleted() {
+    return _prefs.getBool(_keySpecialStageCompleted) ?? false;
+  }
+  
+  // 设置特殊关卡完成状态
+  Future<void> setSpecialStageCompleted(bool completed) async {
+    await _prefs.setBool(_keySpecialStageCompleted, completed);
   }
   
   // 测试方法：解锁所有女生

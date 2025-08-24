@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/widgets/common_header.dart';
-import 'package:grils_app/pages/new_photo_page.dart';
+import 'package:grils_app/pages/special_game_page.dart';
+import 'package:grils_app/pages/win_heart_page.dart';
+import 'package:spine_flutter/spine_flutter.dart' hide Animation;
+import 'package:audioplayers/audioplayers.dart';
+import 'dart:ui' as ui;
 import '../widgets/outlined_text_widget.dart';
+import '../managers/audio_manager.dart';
+import '../managers/game_state_manager.dart';
 
 class SpecialPage extends StatefulWidget {
   const SpecialPage({super.key});
@@ -19,10 +25,23 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
   late Animation<double> _fadeAnimation;
   late Animation<double> _heartAnimation;
 
+  // Spine动画控制器
+  SpineWidgetController? _spineController;
+  bool _isSpineReady = false;
+  bool _isPlayingBornAnimation = true;
+
+  // 视频广告状态
+  bool _isShowingAd = false;
+  bool _isAdCompleted = false;
+
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
+    _initializeSpine();
+    
+    // 播放特殊关卡音效
+    AudioManager().playSpecialEffect();
   }
 
   void _initializeAnimations() {
@@ -79,11 +98,183 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
     });
   }
 
-  void _playSpecial() {
-    // 跳转到新照片页面
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const NewPhotoPage(),
+  void _initializeSpine() {
+    try {
+      _spineController = SpineWidgetController(onInitialized: (controller) {
+        try {
+          final animations = controller.skeleton.getData()?.getAnimations();
+          if (animations != null && animations.isNotEmpty) {
+            if (mounted) {
+              setState(() {
+                _isSpineReady = true;
+              });
+            }
+
+            // 先播放 Special_Eff_born 动画
+            final bornAnim = animations.firstWhere(
+              (anim) => anim.getName().toLowerCase().contains('born'),
+              orElse: () => animations.first,
+            );
+            
+            if (bornAnim != null) {
+              final duration = bornAnim.getDuration();
+              controller.animationState.setAnimationByName(0, bornAnim.getName(), false);
+              
+              // born 动画播完后循环播放 idle 动画
+              Future.delayed(Duration(milliseconds: (duration * 1000).toInt()), () {
+                if (mounted && _spineController != null) {
+                  setState(() {
+                    _isPlayingBornAnimation = false;
+                  });
+                  
+                  final idleAnim = animations.firstWhere(
+                    (anim) => anim.getName().toLowerCase().contains('idle'),
+                    orElse: () => animations.last,
+                  );
+                  
+                  if (idleAnim != null) {
+                    controller.animationState.setAnimationByName(0, idleAnim.getName(), true);
+                  }
+                }
+              });
+            }
+          }
+        } catch (e) {
+          print('Special effect spine animation initialization failed: $e');
+        }
+      });
+    } catch (e) {
+      print('Special effect spine controller creation failed: $e');
+    }
+  }
+
+  void _playSpecial() async {
+    if (_isShowingAd) return; // 防止重复点击
+    
+    setState(() {
+      _isShowingAd = true;
+    });
+    
+    // 播放按钮音效
+    await AudioManager().playPopupOpen();
+    
+    // 模拟视频广告播放
+    await _showVideoAd();
+    
+    if (_isAdCompleted) {
+      // 广告播放完成，进入特殊关卡
+      Navigator.of(context).pop(); // 关闭特殊关卡弹窗
+      
+      // 跳转到特殊关卡游戏页面（这里使用新照片页面作为示例）
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const SpecialGamePage(),
+        ),
+      ).then((_) {
+        // 特殊关卡完成后，显示翻倍领取爱心货币界面
+        _showHeartRewardDialog();
+      });
+    } else {
+      // 广告未完成，恢复状态
+      setState(() {
+        _isShowingAd = false;
+      });
+    }
+  }
+
+  // 模拟视频广告播放
+  Future<void> _showVideoAd() async {
+    // 显示广告加载提示
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Loading Ad...'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Please wait while the video ad loads...'),
+          ],
+        ),
+      ),
+    );
+    
+    // 模拟广告加载时间
+    await Future.delayed(const Duration(seconds: 2));
+    
+    if (mounted) {
+      Navigator.of(context).pop(); // 关闭加载提示
+      
+      // 模拟广告播放
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Video Ad'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.play_circle, size: 64, color: Colors.blue),
+              SizedBox(height: 16),
+              Text('Video ad is playing...\nPlease watch the full ad.'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  _isAdCompleted = false;
+                });
+              },
+              child: const Text('Skip'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  _isAdCompleted = true;
+                });
+              },
+              child: const Text('Complete'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  // 显示爱心货币奖励弹窗
+  void _showHeartRewardDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Special Stage Complete!'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.favorite, size: 64, color: Colors.red),
+            SizedBox(height: 16),
+            Text('Congratulations! You completed the special stage!\n\nYou earned double heart rewards!'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // 跳转到爱心货币界面
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const WinHeartPage(),
+                ),
+              );
+            },
+            child: const Text('Claim Rewards'),
+          ),
+        ],
       ),
     );
   }
@@ -98,6 +289,7 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
     _scaleController.dispose();
     _fadeController.dispose();
     _heartController.dispose();
+    _spineController = null;
     super.dispose();
   }
 
@@ -157,7 +349,7 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                                     text: 'Play special levels to win extra hearts!',
                                     fontSize: 20,
                                     textColor: Colors.white,
-                                    strokeColor: Color(0xffF306FF),
+                                    strokeColor: ui.Color(0xffF306FF),
                                     strokeWidth: 2.0,
                                     fontWeight: FontWeight.bold,
                                     textAlign: TextAlign.center,
@@ -165,7 +357,7 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                                       Shadow(
                                         offset: Offset(2, 2),
                                         blurRadius: 2,
-                                        color: Color(0xffF306FF),
+                                        color: ui.Color(0xffF306FF),
                                       ),
                                     ],
                                   ),
@@ -177,46 +369,52 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
 
                         // PLAY 按钮
                         GestureDetector(
-                          onTap: _playSpecial,
-                          child: Container(
-                            width: 200,
-                            height: 60,
-                            margin: const EdgeInsets.only(bottom: 20),
-                            decoration: const BoxDecoration(
-                              image: DecorationImage(
-                                image: AssetImage(Assets.newPhotoNewPhotoBtnBlueBig),
-                                fit: BoxFit.fill,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // 相机图标
-                                Image.asset(Assets.newPhotoNewPhotoIconAd,height: 30,),
-                                const SizedBox(width: 10),
-                                const OutlinedTextWidget(
-                                  text: 'Play',
-                                  fontSize: 20,
-                                  textColor: Colors.white,
-                                  strokeColor: Colors.black,
-                                  strokeWidth: 1.5,
-                                  fontWeight: FontWeight.bold,
+                          onTap: _isShowingAd ? null : _playSpecial,
+                          child: Opacity(
+                            opacity: _isShowingAd ? 0.5 : 1.0,
+                            child: Container(
+                              width: 200,
+                              height: 60,
+                              margin: const EdgeInsets.only(bottom: 20),
+                              decoration: const BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage(Assets.newPhotoNewPhotoBtnBlueBig),
+                                  fit: BoxFit.fill,
                                 ),
-                              ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // 相机图标
+                                  Image.asset(Assets.newPhotoNewPhotoIconAd,height: 30,),
+                                  const SizedBox(width: 10),
+                                  const OutlinedTextWidget(
+                                    text: 'Play',
+                                    fontSize: 20,
+                                    textColor: Colors.white,
+                                    strokeColor: Colors.black,
+                                    strokeWidth: 1.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
 
                         // SKIP 按钮
                         GestureDetector(
-                          onTap: _skipSpecial,
-                          child: const OutlinedTextWidget(
-                            text: 'SKIP',
-                            fontSize: 18,
-                            textColor: Colors.white,
-                            strokeColor: Colors.black,
-                            strokeWidth: 1.0,
-                            fontWeight: FontWeight.bold,
+                          onTap: _isShowingAd ? null : _skipSpecial,
+                          child: Opacity(
+                            opacity: _isShowingAd ? 0.5 : 1.0,
+                            child: const OutlinedTextWidget(
+                              text: 'SKIP',
+                              fontSize: 18,
+                              textColor: Colors.white,
+                              strokeColor: Colors.black,
+                              strokeWidth: 1.0,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
@@ -226,87 +424,25 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
               ),
             ),
 
-            // // 装饰性爱心
-            // ...List.generate(3, (index) {
-            //   return Positioned(
-            //     top: 100 + (index * 30),
-            //     left: 20 + (index * 40),
-            //     child: AnimatedBuilder(
-            //       animation: _heartAnimation,
-            //       builder: (context, child) {
-            //         return Opacity(
-            //           opacity: _heartAnimation.value * 0.8,
-            //           child: Transform.scale(
-            //             scale: 0.8 + (0.2 * _heartAnimation.value),
-            //             child: Container(
-            //               width: 30,
-            //               height: 30,
-            //               decoration: BoxDecoration(
-            //                 color: index == 0
-            //                     ? Colors.pink
-            //                     : index == 1
-            //                         ? Colors.blue
-            //                         : Colors.blue,
-            //                 shape: BoxShape.circle,
-            //                 boxShadow: [
-            //                   BoxShadow(
-            //                     color: Colors.lightBlue.withOpacity(0.6),
-            //                     blurRadius: 15,
-            //                     spreadRadius: 2,
-            //                   ),
-            //                 ],
-            //               ),
-            //               child: const Icon(
-            //                 Icons.favorite,
-            //                 color: Colors.white,
-            //                 size: 20,
-            //               ),
-            //             ),
-            //           ),
-            //         );
-            //       },
-            //     ),
-            //   );
-            // }),
-
-            // // 右侧装饰性爱心
-            // ...List.generate(2, (index) {
-            //   return Positioned(
-            //     top: 150 + (index * 50),
-            //     right: 30 + (index * 20),
-            //     child: AnimatedBuilder(
-            //       animation: _heartAnimation,
-            //       builder: (context, child) {
-            //         return Opacity(
-            //           opacity: _heartAnimation.value * 0.6,
-            //           child: Transform.scale(
-            //             scale: 0.6 + (0.4 * _heartAnimation.value),
-            //             child: Container(
-            //               width: 25,
-            //               height: 25,
-            //               decoration: BoxDecoration(
-            //                 color: Colors.pink.withOpacity(0.8),
-            //                 shape: BoxShape.circle,
-            //                 boxShadow: [
-            //                   BoxShadow(
-            //                     color: Colors.pink.withOpacity(0.5),
-            //                     blurRadius: 10,
-            //                     spreadRadius: 1,
-            //                   ),
-            //                 ],
-            //               ),
-            //               child: const Icon(
-            //                 Icons.favorite,
-            //                 color: Colors.white,
-            //                 size: 15,
-            //               ),
-            //             ),
-            //           ),
-            //         );
-            //       },
-            //     ),
-            //   );
-            // }),
+            // Spine特效动画
+            if (_isSpineReady)
+              Positioned(
+                top: 100,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: SizedBox(
+                    width: 300,
+                    height: 200,
+                    child: SpineWidget.fromAsset(
+                      "assets/spine/Special_Eff.atlas",
+                      "assets/spine/Special_Eff.skel",
+                      _spineController!,
+                      boundsProvider: const SetupPoseBounds(),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

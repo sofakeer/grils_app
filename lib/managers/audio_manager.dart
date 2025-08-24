@@ -159,6 +159,10 @@ class AudioManager {
     await playSoundEffect(AudioAssets.coinEffect);
   }
 
+  Future<void> playSpecialEffect() async {
+    await playSoundEffect(AudioAssets.specialEffect);
+  }
+
   // Volume and Settings
   void setBgmVolume(double volume) {
     _bgmVolume = volume.clamp(0.0, 1.0);

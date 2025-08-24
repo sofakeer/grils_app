@@ -7,12 +7,14 @@ import 'package:grils_app/pages/signin_page.dart';
 import 'package:grils_app/pages/gallery_page.dart';
 import 'package:grils_app/pages/shop_page.dart';
 import 'package:grils_app/pages/game_page.dart';
+import 'package:grils_app/pages/special_page.dart';
 import 'package:grils_app/providers/app_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spine_flutter/spine_flutter.dart' as spine;
 
 import '../main_old.dart';
 import '../managers/audio_manager.dart';
+import '../managers/game_state_manager.dart';
 import '../utils/audio_assets.dart';
 import '../widgets/outlined_text_widget.dart';
 import '../services/user_service.dart';
@@ -172,6 +174,32 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
       });
     }
     print("MainPage: UserService初始化完成，金币: ${_userService.coinCount}, 爱心: ${_userService.heartCount}");
+    
+    // 检查是否应该触发特殊关卡
+    await _checkForSpecialStage();
+  }
+  
+  // 检查是否应该触发特殊关卡
+  Future<void> _checkForSpecialStage() async {
+    await GameStateManager().init();
+    
+    if (GameStateManager().shouldTriggerSpecialStage()) {
+      // 延迟一下，等页面完全加载后再显示弹窗
+      await Future.delayed(Duration(milliseconds: 500));
+      
+      if (mounted) {
+        // 标记特殊关卡已触发
+        await GameStateManager().markSpecialStageTriggered();
+        
+        // 显示特殊关卡弹窗
+        await AudioManager().playPopupOpen();
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const SpecialPage(),
+        );
+      }
+    }
   }
   
   // 获取最新解锁的图片索引

@@ -28,6 +28,7 @@ class AudioAssets {
   // Special Effects
   static const String heartEffect = 'audio/taoxin01.mp3';  // 获得桃心币特效音效
   static const String coinEffect = 'audio/jinbi01.mp3';  // 获得金币特效音效
+  static const String specialEffect = 'audio/special01.mp3';  // 特殊关卡音效
 
   // Girl Takeoff Sounds
   static String getTakeoffSound(int girlIndex, int takeoffIndex) {
