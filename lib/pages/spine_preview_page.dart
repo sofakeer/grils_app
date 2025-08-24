@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:hexcolor/hexcolor.dart';
-import 'package:spine_flutter/spine_flutter.dart';
+import 'package:spine_flutter/spine_flutter.dart' hide Animation;
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import '../models/girl_state.dart';
 import '../managers/audio_manager.dart';
+import '../managers/game_state_manager.dart';
 import '../utils/audio_assets.dart';
 import '../widgets/outlined_text_widget.dart';
+import '../widgets/insufficient_coins_dialog.dart';
+import '../widgets/gril_waiting_dialog.dart';
 
 
 class SpinePreviewPage extends StatefulWidget {
@@ -19,7 +23,7 @@ class SpinePreviewPage extends StatefulWidget {
   State<SpinePreviewPage> createState() => _SpinePreviewPageState();
 }
 
-class _SpinePreviewPageState extends State<SpinePreviewPage> {
+class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProviderStateMixin {
   int _currentIndex = 0;
   bool _showSecondImage = false;
   bool _isLoading = false;
@@ -37,10 +41,11 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   bool _showTakeoffOverlay = true;
 
   // 心形数量
-  int _heartCount = 5;
+  int _heartCount = 20;
 
   // 弹窗状态
-  bool _showHeartDialog = false;
+  int _pendingUnlockSkinIndex = -1; // 待解锁的皮肤索引
+  int _pendingUnlockButtonType = -1; // 待解锁的部位类型
 
   // 页面切换动画控制器
   late PageController _pageController;
@@ -59,6 +64,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
 
   // 当前选中的underwear按钮索引 (-1表示未选中)
   int _selectedUnderwearButton = -1;
+  int _previousUnderwearButton = -1; // 记录上一个选中的按钮
+  
+  // 皮肤选择列表动画控制器
+  late AnimationController _skinListAnimationController;
+  late Animation<Offset> _skinListSlideAnimation;
+  bool _isAnimatingList = false;
 
   // 每个部位的当前皮肤索引 (0-3, 对应1-4号皮肤)
   Map<int, int> _currentSkinIndices = {
@@ -104,6 +115,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     //   systemNavigationBarColor: Colors.transparent,
     // ));
 
+    // 初始化游戏状态
+    _initGameState();
+
     // 初始化页面控制器
     _pageController = PageController(initialPage: _currentIndex);
 
@@ -116,6 +130,20 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
 
     // 初始化音频播放器
     _audioPlayer = AudioPlayer();
+    
+    // 初始化皮肤列表动画控制器
+    _skinListAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    
+    _skinListSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _skinListAnimationController,
+      curve: Curves.easeOutCubic,
+    ));
 
     _loadSpineInfo();
     _initializeSpineController();
@@ -126,6 +154,73 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     
     // 切换到预览模式BGM
     AudioManager().switchToPreviewMode();
+    
+    // 检查是否有足够的心币进行操作
+    _checkForAvailableActions();
+  }
+
+  // 初始化游戏状态
+  void _initGameState() async {
+    await GameStateManager().init();
+    
+    // 恢复上次的状态
+    setState(() {
+      _heartCount = GameStateManager().getHeartCount();
+      _currentIndex = GameStateManager().getCurrentGirlIndex();
+      _currentIdleIndex = GameStateManager().getCurrentIdleIndex();
+      _showTakeoffOverlay = !GameStateManager().hasSeenTakeoffGuide();
+      
+      // 恢复每个女孩的皮肤选择
+      for (int i = 0; i < 3; i++) {
+        Map<String, int> skins = GameStateManager().getCurrentSkins(i);
+        if (i == _currentIndex) {
+          _currentSkinIndices[0] = skins['bra'] ?? 0;
+          _currentSkinIndices[1] = skins['pants'] ?? 0;
+          _currentSkinIndices[2] = skins[i == 0 ? 'hands' : 'head'] ?? 0;
+          _currentSkinIndices[3] = skins['socks'] ?? 0;
+        }
+      }
+    });
+  }
+  
+  // 检查是否有可进行的操作
+  void _checkForAvailableActions() async {
+    // 延迟一下，等页面加载完成
+    await Future.delayed(Duration(seconds: 1));
+    
+    if (!mounted) return;
+    
+    // 检查是否可以脱衣或解锁新皮肤
+    bool canTakeoff = GameStateManager().canTakeoff();
+    var affordableSkin = GameStateManager().getAffordableSkin(_currentIndex);
+    
+    if (canTakeoff || affordableSkin != null) {
+      // 显示提醒弹窗
+      await AudioManager().playPopupOpen();
+      await GrilWaitingDialog.show(
+        context: context,
+        onAccept: () {
+          Navigator.of(context).pop();
+          // 用户选择去使用心币
+          if (canTakeoff && _currentIdleIndex < 4) {
+            // 可以脱衣，自动触发脱衣
+            _nextIdleAnimation();
+          } else if (affordableSkin != null && _currentIdleIndex == 4) {
+            // 可以解锁皮肤，引导用户点击对应部位
+            _highlightAffordableSkin(affordableSkin);
+          }
+        },
+        onDecline: () {
+          Navigator.of(context).pop();
+        },
+      );
+    }
+  }
+  
+  // 高亮可解锁的皮肤部位
+  void _highlightAffordableSkin(Map<String, dynamic> affordableSkin) {
+    // 可以添加一些视觉提示，比如闪烁效果
+    print("可解锁皮肤: ${affordableSkin['part']}, 价格: ${affordableSkin['price']}心币");
   }
 
   void _initializeTakeoffController() {
@@ -371,7 +466,6 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
       _currentIdleIndex = 0; // 回到第一个idle动画
       _selectedUnderwearButton = -1; // 重置选中状态
       _heartCount = 10; // 重置心形数量
-      _showHeartDialog = false; // 关闭弹窗
 
       // 重置所有皮肤为默认状态
       _currentSkinIndices = {
@@ -755,6 +849,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     // 恢复系统UI显示
     // SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pageController.dispose();
+    
+    // 销毁动画控制器
+    _skinListAnimationController.dispose();
 
     // 停止动画计时器
     _animationTimer?.cancel();
@@ -859,16 +956,25 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
             ),
 
             // Takeoff 手势覆盖动画
-            // 只在非underwear模式下显示，确保不会遮挡underwear动画
-            if (_currentIdleIndex != 4)
-              Center(
-                child: SizedBox(
-                  height: 200,
-                  child: SpineWidget.fromAsset(
-                    "assets/spine/Takeoff.atlas",
-                    "assets/spine/Takeoff.skel",
-                    _takeoffController!,
-                    boundsProvider: SetupPoseBounds(),
+            // 只在非underwear模式下且未看过引导时显示
+            if (_currentIdleIndex != 4 && _showTakeoffOverlay)
+              GestureDetector(
+                onTap: () async {
+                  // 点击后隐藏引导
+                  setState(() {
+                    _showTakeoffOverlay = false;
+                  });
+                  await GameStateManager().setHasSeenTakeoffGuide(true);
+                },
+                child: Center(
+                  child: SizedBox(
+                    height: 200,
+                    child: SpineWidget.fromAsset(
+                      "assets/spine/Takeoff.atlas",
+                      "assets/spine/Takeoff.skel",
+                      _takeoffController!,
+                      boundsProvider: SetupPoseBounds(),
+                    ),
                   ),
                 ),
               ),
@@ -916,7 +1022,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                                       child: Padding(
                                         padding: const EdgeInsets.only(left: 50),
                                         child: OutlinedTextWidget(
-                                          text: '10',
+                                          text: '$_heartCount',
                                           fontSize: 18,
                                           textColor: HexColor("#95756A"),
                                           strokeColor: Colors.white,
@@ -943,16 +1049,69 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: List.generate(4, (index) {
-                            return Container(
-                              width: 80,
-                              height: 80,
-                              child: ClipOval(
-                                child: Image.asset(
-                                  index < 3
-                                      ? _spineAssets[index].imagePath
-                                      : 'assets/grils/Icon_girl_04_head_unlock.png',
-                                  fit: BoxFit.cover,
-                                ),
+                            bool isUnlocked = index < 3 ? GameStateManager().isGirlUnlocked(index) : false;
+                            return GestureDetector(
+                              onTap: () {
+                                if (index < 3) {
+                                  if (isUnlocked) {
+                                    // 切换到该女生
+                                    _switchToGirl(index);
+                                  } else {
+                                    // 提示未解锁
+                                    _showLockedGirlMessage(index);
+                                  }
+                                }
+                              },
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    width: 80,
+                                    height: 80,
+                                    child: ClipOval(
+                                      child: ColorFiltered(
+                                        colorFilter: isUnlocked || index >= 3
+                                            ? ColorFilter.mode(Colors.transparent, ui.BlendMode.multiply)
+                                            : ColorFilter.mode(Colors.grey, ui.BlendMode.saturation),
+                                        child: Image.asset(
+                                          index < 3
+                                              ? _spineAssets[index].imagePath.replaceAll('unlock', isUnlocked ? 'unlock' : 'lock')
+                                              : 'assets/grils/Icon_girl_04_head_lock.png',
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // 锁定图标
+                                  if (index < 3 && !isUnlocked)
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        width: 25,
+                                        height: 25,
+                                        decoration: BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.lock,
+                                          color: Colors.white,
+                                          size: 15,
+                                        ),
+                                      ),
+                                    ),
+                                  // 当前选中指示器
+                                  if (index == _currentIndex && index < 3)
+                                    Positioned(
+                                      bottom: -5,
+                                      left: 0,
+                                      right: 0,
+                                      child: Container(
+                                        height: 3,
+                                        color: Colors.yellow,
+                                      ),
+                                    ),
+                                ],
                               ),
                             );
                           }),
@@ -1016,24 +1175,24 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
                 left: 0,
                 right: 0,
                 bottom: 20,
-                child: Container(
-                  height: 150,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage('assets/images/Frame_heart_bottom.png'),
-                      fit: BoxFit.cover,
+                child: SlideTransition(
+                  position: _skinListSlideAnimation,
+                  child: Container(
+                    height: 150,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/Frame_heart_bottom.png'),
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 20, bottom: 30),
-                    child: _buildSkinSelectionList(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 20, bottom: 30),
+                      child: _buildSkinSelectionList(),
+                    ),
                   ),
                 ),
               ),
-            // 心形不足弹窗
-            if (_showHeartDialog) _buildHeartDialog(),
-
             // Underwear状态下的四周按钮
             if (_currentIdleIndex == 4) _buildUnderwearButtons(),
           ],
@@ -1137,49 +1296,55 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     _loadSpineInfo();
   }
 
-  // 处理脱衣按钮点击
-  void _handleTakeoffClick() async {
-    if (_heartCount < 10) {
-      // 心形不够，显示弹窗
-      await AudioManager().playPopupOpen();
-      setState(() {
-        _showHeartDialog = true;
-      });
-    } else {
-      // 心形足够，执行脱衣逻辑
-      _heartCount -= 10;
-      // 这里可以添加脱衣动画或其他逻辑
-    }
-  }
 
-  // 关闭弹窗
-  void _closeHeartDialog() async {
-    await AudioManager().playExit();
-    setState(() {
-      _showHeartDialog = false;
-    });
-  }
-
-  // 录制视频获得心形
-  void _recordVideoForHearts() async {
-    // 播放获得桃心币特效音效
-    await AudioManager().playHeartEffect();
+  // 显示心形不足弹窗
+  Future<bool?> _showInsufficientHeartsDialog(int needMore) async {
+    // 调用通用弹窗
+    bool? result = await InsufficientCoinsDialog.show(
+      context: context,
+      title:  'Get More', // needMore <= 3 ? 'Almost There!' :
+      requiredCoins: needMore,
+      onGetPressed: () async {
+        // 这里是点击GET按钮后的回调
+        // 实际已经在弹窗内部处理了增加心币
+        // 此处只需更新本地显示
+        await GameStateManager().addHearts(10); // 看广告获得10个心币
+        setState(() {
+          _heartCount = GameStateManager().getHeartCount();
+        });
+      },
+    );
     
-    // 这里可以添加录制视频的逻辑
-    // 暂时直接给10个心形
-    setState(() {
-      _heartCount += 10;
-      _showHeartDialog = false;
-    });
+    return result;
   }
 
   // 切换到指定女孩
   void _switchToGirl(int index) {
-    if (index != _currentIndex) {
+    if (index != _currentIndex && GameStateManager().isGirlUnlocked(index)) {
       _pageController.animateToPage(
         index,
         duration: Duration(milliseconds: 300),
         curve: Curves.easeInOut,
+      );
+    }
+  }
+  
+  // 显示女生未解锁提示
+  void _showLockedGirlMessage(int girlIndex) {
+    String message = '';
+    if (girlIndex == 1) {
+      message = 'Girl 02 will be unlocked at Level 100';
+    } else if (girlIndex == 2) {
+      message = 'Girl 03 will be unlocked at Level 300';
+    }
+    
+    if (message.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
       );
     }
   }
@@ -1192,7 +1357,35 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
 
   // 切换到下一个idle动画
   void _nextIdleAnimation() async {
+    // 检查心形货币是否足够
+    if (_heartCount < 5) {
+      // 心形不够，显示弹窗
+      await AudioManager().playPopupOpen();
+      bool? gotCoins = await _showInsufficientHeartsDialog(5 - _heartCount);
+      
+      if (gotCoins == true) {
+        // 获得了心币，更新显示并重新尝试
+        setState(() {
+          _heartCount = GameStateManager().getHeartCount();
+        });
+        // 递归调用，重新尝试
+        _nextIdleAnimation();
+      }
+      return;
+    }
+    
     if (_currentIdleIndex < 4 && _spineController != null && _isControllerReady) {
+      // 消耗5个心形
+      bool consumed = await GameStateManager().consumeHearts(5);
+      if (!consumed) {
+        // 消费失败，显示弹窗
+        await _showInsufficientHeartsDialog(5);
+        return;
+      }
+      
+      setState(() {
+        _heartCount = GameStateManager().getHeartCount();
+      });
       // 1. 获取当前idle编号和对应的takeoff动画
       // idle01 -> idle02 播放 takeoff_01
       // idle02 -> idle03 播放 takeoff_02  
@@ -1242,6 +1435,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         print("Switched to idle state: $_currentIdleIndex");
       });
       
+      // 保存状态
+      await GameStateManager().setCurrentIdleIndex(_currentIdleIndex);
+      
       // 9. 如果进入underwear模式，重置皮肤选择
       if (_currentIdleIndex == 4) {
         _currentSkinIndices = {
@@ -1251,6 +1447,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
           3: 0, // socks: 默认皮肤
         };
         _selectedUnderwearButton = -1;
+        _previousUnderwearButton = -1;
+        // 重置动画状态
+        _skinListAnimationController.reset();
         print("Entered underwear mode, reset skin selections");
       }
       
@@ -1264,6 +1463,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
         if (_currentIdleIndex == 0) {
           // 回到idle01时重置所有状态
           _selectedUnderwearButton = -1;
+          _previousUnderwearButton = -1;
           _currentSkinIndices = {
             0: 0,
             1: 0, 
@@ -1416,15 +1616,57 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     // 播放部位按键音效
     await AudioManager().playClothingButton();
     
-    setState(() {
-      if (_selectedUnderwearButton == buttonIndex) {
-        // 如果点击的是已选中的按钮，则取消选中
+    // 如果正在动画中，忽略点击
+    if (_isAnimatingList) return;
+    
+    // 记录之前的选中状态
+    int previousButton = _selectedUnderwearButton;
+    
+    if (_selectedUnderwearButton == buttonIndex) {
+      // 如果点击的是已选中的按钮，执行滑出动画
+      _isAnimatingList = true;
+      
+      // 反向播放动画（滑出）
+      await _skinListAnimationController.reverse();
+      
+      setState(() {
         _selectedUnderwearButton = -1;
+        _previousUnderwearButton = -1;
+        _isAnimatingList = false;
+      });
+    } else {
+      // 选中新按钮
+      if (_selectedUnderwearButton == -1) {
+        // 当前没有选中按钮，直接滑入
+        setState(() {
+          _selectedUnderwearButton = buttonIndex;
+          _previousUnderwearButton = buttonIndex;
+        });
+        
+        // 播放滑入动画
+        _skinListAnimationController.forward();
       } else {
-        // 否则选中新按钮
-        _selectedUnderwearButton = buttonIndex;
+        // 切换到新按钮，先滑出再滑入
+        _isAnimatingList = true;
+        
+        // 先滑出当前列表
+        await _skinListAnimationController.reverse();
+        
+        // 更新选中状态
+        setState(() {
+          _selectedUnderwearButton = buttonIndex;
+          _previousUnderwearButton = buttonIndex;
+        });
+        
+        // 延迟一点再滑入新列表，让切换更明显
+        await Future.delayed(Duration(milliseconds: 100));
+        
+        // 滑入新列表
+        await _skinListAnimationController.forward();
+        
+        _isAnimatingList = false;
       }
-    });
+    }
 
     print("Underwear button $buttonIndex tapped, selected: $_selectedUnderwearButton");
   }
@@ -1463,6 +1705,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
   Widget _buildSkinButton(int buttonType, int skinIndex) {
     String imagePath = _getSkinButtonImagePath(buttonType, skinIndex);
     bool isSelected = _currentSkinIndices[buttonType] == skinIndex;
+    String partName = _getPartName(buttonType);
+    bool isUnlocked = GameStateManager().isSkinUnlocked(_currentIndex, partName, skinIndex);
+    int price = GameStateManager().getSkinPrice(skinIndex);
 
     return GestureDetector(
       onTap: () => _onSkinButtonTap(buttonType, skinIndex),
@@ -1482,6 +1727,42 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
               height: 80,
               width: 80,
             ),
+          // 未解锁时显示价格
+          if (!isUnlocked && price > 0)
+            Positioned(
+              top: 5,
+              bottom: 5,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      Assets.imagesIconHeart2x,
+                      height: 25,
+                      width: 25,
+                    ),
+                    SizedBox(width: 2),
+                    OutlinedTextWidget(
+                      text: 'x$price',
+                      fontSize: 18,
+                      textColor: Colors.white,
+                      strokeColor: Colors.red,
+                      strokeWidth: 2,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    // OutlinedButton(
+                    //   'x$price',
+                    //   style: TextStyle(
+                    //     color: Colors.white,
+                    //     fontSize: 12,
+                    //     fontWeight: FontWeight.bold,
+                    //   ),
+                    // ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1496,8 +1777,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     String partName = _getPartName(buttonType);
     String skinNumber = (skinIndex + 1).toString();
 
-    // 判断是否解锁（这里可以根据实际逻辑调整）
-    bool isUnlocked = skinIndex == 0; // 默认1号皮肤解锁
+    // 判断是否解锁
+    bool isUnlocked = GameStateManager().isSkinUnlocked(_currentIndex, partName, skinIndex);
 
     String lockStatus = isUnlocked ? "unlock" : "lock";
 
@@ -1539,12 +1820,58 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
 
   // 处理皮肤按钮点击
   void _onSkinButtonTap(int buttonType, int skinIndex) async {
+    String partName = _getPartName(buttonType);
+    bool isUnlocked = GameStateManager().isSkinUnlocked(_currentIndex, partName, skinIndex);
+    
+    if (!isUnlocked) {
+      // 未解锁，检查是否可以购买
+      int price = GameStateManager().getSkinPrice(skinIndex);
+      
+      if (_heartCount < price) {
+        // 心形不足，记录待解锁信息
+        _pendingUnlockSkinIndex = skinIndex;
+        _pendingUnlockButtonType = buttonType;
+        
+        // 显示心形不足弹窗
+        await AudioManager().playPopupOpen();
+        bool? gotCoins = await _showInsufficientHeartsDialog(price - _heartCount);
+        
+        if (gotCoins == true) {
+          // 获得了心币，尝试再次购买
+          setState(() {
+            _heartCount = GameStateManager().getHeartCount();
+          });
+          // 递归调用，重新尝试购买
+          _onSkinButtonTap(buttonType, skinIndex);
+        }
+        return;
+      }
+      
+      // 心形足够，购买皮肤
+      bool consumed = await GameStateManager().consumeHearts(price);
+      if (consumed) {
+        await GameStateManager().unlockSkin(_currentIndex, partName, skinIndex);
+        setState(() {
+          _heartCount = GameStateManager().getHeartCount();
+        });
+        
+        // 播放购买成功音效
+        await AudioManager().playHeartEffect();
+      } else {
+        // 购买失败
+        return;
+      }
+    }
+    
     // 播放切换音效
     await AudioManager().playSwitch();
     
     setState(() {
       _currentSkinIndices[buttonType] = skinIndex;
     });
+    
+    // 保存皮肤选择
+    await GameStateManager().setCurrentSkin(_currentIndex, partName, skinIndex);
 
     // underwear阶段切换皮肤时，先播放idlesp_underwear动画
     if (_currentIdleIndex == 4 && _spineController != null && _isControllerReady) {
@@ -1596,182 +1923,6 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> {
     print("Skin button tapped: type=$buttonType, skin=$skinIndex");
   }
 
-  // 构建心形不足弹窗
-  Widget _buildHeartDialog() {
-    return Container(
-      color: Colors.black.withOpacity(0.5), // 半透明背景
-      child: Center(
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.8,
-          height: MediaQuery.of(context).size.height * 0.6,
-          decoration: BoxDecoration(
-            border: Border.all(
-              width: 3,
-            ),
-          ),
-          child: Stack(
-            children: [
-              // 背景图片
-              ClipRRect(
-                borderRadius: BorderRadius.circular(17),
-                child: Image.asset(
-                  Assets.imagesPopBack,
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-
-              // 内容
-              Column(
-                children: [
-                  // 顶部标题栏
-                  Container(
-                    width: double.infinity,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.purple,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(17),
-                        topRight: Radius.circular(17),
-                      ),
-                    ),
-                    child: Center(
-                      child: OutlinedTextWidget(
-                        text: 'Get More',
-                        fontSize: 24,
-                        textColor: Colors.white,
-                        strokeColor: Colors.black,
-                        strokeWidth: 2.0,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-
-                  // 中间内容区域
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // 心形和数量显示
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 30, vertical: 20),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Image.asset(Assets.imagesIconHeart2x, height: 40),
-                                SizedBox(width: 10),
-                                OutlinedTextWidget(
-                                  text: 'x10',
-                                  fontSize: 24,
-                                  textColor: HexColor("#95756A"),
-                                  strokeColor: Colors.white,
-                                  strokeWidth: 1.5,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          SizedBox(height: 30),
-
-                          // 录制视频按钮
-                          GestureDetector(
-                            onTap: _recordVideoForHearts,
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                borderRadius: BorderRadius.circular(25),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
-                                    blurRadius: 5,
-                                    offset: Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // 视频图标（使用文字代替）
-                                  Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(5),
-                                    ),
-                                    child: Center(
-                                      child: Icon(
-                                        Icons.play_arrow,
-                                        color: Colors.red,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(width: 15),
-                                  OutlinedTextWidget(
-                                    text: 'GET',
-                                    fontSize: 20,
-                                    textColor: Colors.white,
-                                    strokeColor: Colors.black,
-                                    strokeWidth: 2.0,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              // 关闭按钮
-              Positioned(
-                top: 10,
-                right: 10,
-                child: GestureDetector(
-                  onTap: _closeHeartDialog,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 3,
-                          offset: Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class SpineAsset {

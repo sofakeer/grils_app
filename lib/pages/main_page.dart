@@ -17,12 +17,6 @@ import '../utils/audio_assets.dart';
 import '../widgets/outlined_text_widget.dart';
 import '../services/user_service.dart';
 import 'spine_preview_page.dart';
-import 'mask_test_page.dart';
-import 'simple_mask_test.dart';
-import 'improved_mask_test.dart';
-import 'advanced_mask_test.dart';
-import 'optimized_mask_test.dart';
-import 'flower_mask_test.dart';
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -285,54 +279,6 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     });
   }
 
-  void _navigateToMaskTest() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => MaskTestPage(),
-      ),
-    );
-  }
-
-  void _navigateToSimpleMaskTest() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => SimpleMaskTest(),
-      ),
-    );
-  }
-
-  void _navigateToImprovedMaskTest() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ImprovedMaskTest(),
-      ),
-    );
-  }
-
-  void _navigateToAdvancedMaskTest() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => AdvancedMaskTest(),
-      ),
-    );
-  }
-
-  void _navigateToOptimizedMaskTest() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => OptimizedMaskTest(),
-      ),
-    );
-  }
-
-  void _navigateToFlowerMaskTest() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => FlowerMaskTest(),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _takeoffController.dispose();
@@ -473,175 +419,37 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
               ),
             ),
             // 右侧功能按钮
-            // Positioned(
-            //   right: 20,
-            //   bottom: 150,
-            //   child: Column(
-            //     children: [
-            //       // 蒙版测试按钮
-            //       GestureDetector(
-            //         onTap: _navigateToMaskTest,
-            //         child: Container(
-            //           margin: EdgeInsets.only(bottom: 10),
-            //           padding: EdgeInsets.all(8),
-            //           decoration: BoxDecoration(
-            //             color: Colors.pink[200],
-            //             borderRadius: BorderRadius.circular(8),
-            //             boxShadow: [
-            //               BoxShadow(
-            //                 color: Colors.black.withOpacity(0.3),
-            //                 blurRadius: 4,
-            //                 offset: Offset(0, 2),
-            //               ),
-            //             ],
-            //           ),
-            //           child: Icon(
-            //             Icons.image,
-            //             color: Colors.white,
-            //             size: 24,
-            //           ),
-            //         ),
-            //       ),
-            //
-            //       // 简单蒙版测试按钮
-            //       GestureDetector(
-            //         onTap: _navigateToSimpleMaskTest,
-            //         child: Container(
-            //           margin: EdgeInsets.only(bottom: 10),
-            //           padding: EdgeInsets.all(8),
-            //           decoration: BoxDecoration(
-            //             color: Colors.blue[200],
-            //             borderRadius: BorderRadius.circular(8),
-            //             boxShadow: [
-            //               BoxShadow(
-            //                 color: Colors.black.withOpacity(0.3),
-            //                 blurRadius: 4,
-            //                 offset: Offset(0, 2),
-            //               ),
-            //             ],
-            //           ),
-            //           child: Icon(
-            //             Icons.filter,
-            //             color: Colors.white,
-            //             size: 24,
-            //           ),
-            //         ),
-            //       ),
-            //
-            //       // 改进版蒙版测试按钮
-            //       GestureDetector(
-            //         onTap: _navigateToImprovedMaskTest,
-            //         child: Container(
-            //           margin: EdgeInsets.only(bottom: 10),
-            //           padding: EdgeInsets.all(8),
-            //           decoration: BoxDecoration(
-            //             color: Colors.green[200],
-            //             borderRadius: BorderRadius.circular(8),
-            //             boxShadow: [
-            //               BoxShadow(
-            //                 color: Colors.black.withOpacity(0.3),
-            //                 blurRadius: 4,
-            //                 offset: Offset(0, 2),
-            //               ),
-            //             ],
-            //           ),
-            //           child: Icon(
-            //             Icons.auto_fix_high,
-            //             color: Colors.white,
-            //             size: 24,
-            //           ),
-            //         ),
-            //       ),
-            //
-            //       // 高级蒙版测试按钮
-            //       GestureDetector(
-            //         onTap: _navigateToAdvancedMaskTest,
-            //         child: Container(
-            //           margin: EdgeInsets.only(bottom: 10),
-            //           padding: EdgeInsets.all(8),
-            //           decoration: BoxDecoration(
-            //             color: Colors.purple[200],
-            //             borderRadius: BorderRadius.circular(8),
-            //             boxShadow: [
-            //               BoxShadow(
-            //                 color: Colors.black.withOpacity(0.3),
-            //                 blurRadius: 4,
-            //                 offset: Offset(0, 2),
-            //               ),
-            //             ],
-            //           ),
-            //           child: Icon(
-            //             Icons.settings,
-            //             color: Colors.white,
-            //             size: 24,
-            //           ),
-            //         ),
-            //       ),
-            //
-            //       // 优化蒙版测试按钮
-            //       GestureDetector(
-            //         onTap: _navigateToOptimizedMaskTest,
-            //         child: Container(
-            //           margin: EdgeInsets.only(bottom: 10),
-            //           padding: EdgeInsets.all(8),
-            //           decoration: BoxDecoration(
-            //             color: Colors.orange[200],
-            //             borderRadius: BorderRadius.circular(8),
-            //             boxShadow: [
-            //               BoxShadow(
-            //                 color: Colors.black.withOpacity(0.3),
-            //                 blurRadius: 4,
-            //                 offset: Offset(0, 2),
-            //               ),
-            //             ],
-            //           ),
-            //           child: Icon(
-            //             Icons.star,
-            //             color: Colors.white,
-            //             size: 24,
-            //           ),
-            //         ),
-            //       ),
-            //
-            //       // 花瓣蒙版测试按钮
-            //       GestureDetector(
-            //         onTap: _navigateToFlowerMaskTest,
-            //         child: Container(
-            //           margin: EdgeInsets.only(bottom: 20),
-            //           padding: EdgeInsets.all(8),
-            //           decoration: BoxDecoration(
-            //             color: Colors.red[200],
-            //             borderRadius: BorderRadius.circular(8),
-            //             boxShadow: [
-            //               BoxShadow(
-            //                 color: Colors.black.withOpacity(0.3),
-            //                 blurRadius: 4,
-            //                 offset: Offset(0, 2),
-            //               ),
-            //             ],
-            //           ),
-            //           child: Icon(
-            //             Icons.local_florist,
-            //             color: Colors.white,
-            //             size: 24,
-            //           ),
-            //         ),
-            //       ),
-            //
-            //       // 换按钮 (动画)
-            //       GestureDetector(
-            //         onTap: () {
-            //           _startTakeOff();
-            //         },
-            //         child: const SizedBox(
-            //           width: 100,
-            //           height: 120,
-            //           child: TakeoffButtonAnimation(),
-            //         ),
-            //       ),
-            //     ],
-            //   ),
-            // ),
+            Positioned(
+              right: 20,
+              bottom: 150,
+              child: Column(
+                children: [
+                  // // 设置按钮
+                  // GestureDetector(
+                  //   onTap: _navigateToSettings,
+                  //   child: Container(
+                  //     margin: EdgeInsets.only(bottom: 40),
+                  //     child: Image.asset(
+                  //       Assets.mainMainBtnSetting,
+                  //       height: 80,
+                  //     ),
+                  //   ),
+                  // ),
+
+                  // 换按钮 (动画)
+                  GestureDetector(
+                    onTap: () {
+                      _startTakeOff();
+                    },
+                    child: const SizedBox(
+                      width: 100,
+                      height: 120,
+                      child: TakeoffButtonAnimation(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
             // 底部开始游戏按钮,
             Positioned(
