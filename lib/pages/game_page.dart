@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/pages/win_page.dart';
+import 'package:grils_app/pages/special_page.dart';
 import '../widgets/outlined_text_widget.dart';
 import '../managers/game_state_manager.dart';
 import '../widgets/unlock_new_gril_dialog.dart';
+import '../widgets/special_level_dialog.dart';
 import '../managers/audio_manager.dart';
 
 class GamePage extends StatefulWidget {
@@ -18,12 +20,18 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
   late Animation<double> _scaleAnimation;
   int _currentLevel = 1;
   int _simulatedLevel = 1; // 模拟关卡用于测试
+  bool _hasShownSpecialLevel = false; // 记录是否已显示过特殊关卡
 
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
     _loadCurrentLevel();
+    
+    // 检查是否需要显示特殊关卡
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForSpecialLevel();
+    });
   }
   
   void _loadCurrentLevel() async {
@@ -32,6 +40,43 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
       _currentLevel = GameStateManager().getCurrentLevel();
       _simulatedLevel = _currentLevel;
     });
+  }
+  
+  // 检查是否应该显示特殊关卡
+  void _checkForSpecialLevel() {
+    // 每5关触发一次特殊关卡
+    if (_currentLevel > 0 && _currentLevel % 5 == 0 && !_hasShownSpecialLevel) {
+      _showSpecialLevelDialog();
+      _hasShownSpecialLevel = true;
+    }
+  }
+  
+  // 显示特殊关卡弹窗
+  void _showSpecialLevelDialog() async {
+    await AudioManager().playSpecialEffect();
+    
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => SpecialLevelDialog(
+          currentLevel: _currentLevel,
+          onSkip: () {
+            // 跳过特殊关卡的回调
+            print("Special level skipped");
+          },
+        ),
+      );
+    }
+  }
+  
+  // 测试特殊关卡入口
+  void _testSpecialLevel() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const SpecialPage(),
+      ),
+    );
   }
 
   void _initializeAnimations() {
@@ -57,6 +102,11 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
     
     // 检查是否解锁新女生
     _checkForNewGirlUnlock(newLevel);
+    
+    // 重置特殊关卡标记
+    if (newLevel % 5 == 0) {
+      _hasShownSpecialLevel = false;
+    }
     
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -150,6 +200,49 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                   fontWeight: FontWeight.normal,
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  // 构建特殊关卡测试按钮
+  Widget _buildSpecialLevelButton() {
+    return GestureDetector(
+      onTap: _testSpecialLevel,
+      child: Container(
+        width: 150,
+        height: 50,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.purple.shade600,
+              Colors.pink.shade600,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color: Colors.white,
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.purple.withOpacity(0.5),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: const Center(
+          child: OutlinedTextWidget(
+            text: '🌟 Special Level',
+            fontSize: 16,
+            textColor: Colors.white,
+            strokeColor: Colors.black,
+            strokeWidth: 1.5,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),
@@ -375,6 +468,9 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
                               ),
                             ),
                           ),
+                          const SizedBox(height: 20),
+                          // 特殊关卡测试按钮
+                          _buildSpecialLevelButton(),
                         ],
                       ),
                     ),
