@@ -84,21 +84,21 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   final List<SpineAsset> _spineAssets = [
     SpineAsset(
       name: "Girl 01",
-      imagePath: "assets/grils/Icon_girl_01_head_unlock.png",
+      imagePath: "assets/grils/Icon_girl_01_head_unlock.png", // Girl01只有解锁状态
       image2Path: "assets/spine/girl01_2.png",
       atlasFile: "assets/spine/girl01.atlas",
       skeletonFile: "assets/spine/girl01.skel",
     ),
     SpineAsset(
       name: "Girl 02",
-      imagePath: "assets/grils/Icon_girl_02_head_lock.png",
+      imagePath: "assets/grils/Icon_girl_02_head_unlock.png", // 使用unlock版本，lock版本通过代码控制
       image2Path: "assets/spine/girl02_2.png",
       atlasFile: "assets/spine/girl02.atlas",
       skeletonFile: "assets/spine/girl02.skel",
     ),
     SpineAsset(
       name: "Girl 03",
-      imagePath: "assets/grils/Icon_girl_03_head_lock.png",
+      imagePath: "assets/grils/Icon_girl_03_head_unlock.png", // 使用unlock版本，lock版本通过代码控制
       image2Path: "assets/spine/girl03_2.png",
       atlasFile: "assets/spine/girl03.atlas",
       skeletonFile: "assets/spine/girl03.skel",
@@ -703,12 +703,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // 创建自定义内衣皮肤
       final customSkin = Skin("girl02-underwear-skin");
 
-      // 根据当前选择的皮肤索引应用皮肤
+      // Girl02在underwear模式下需要: bra, pants(内裤), head, socks
+      // 注意：虽然按钮位置2显示head，但实际皮肤还需要pants
       final skinNames = [
-        "bra/bra_${_currentSkinIndices[0]! + 1}",
-        "hands/hands_${_currentSkinIndices[2]! + 1}",
-        "head/head_${_currentSkinIndices[2]! + 1}", // Girl02使用head而不是pants
-        "socks/socks_${_currentSkinIndices[3]! + 1}",
+        "bra/bra${_currentSkinIndices[0]! + 1}",
+        "pants/pants${_currentSkinIndices[1]! + 1}", // 添加pants皮肤
+        "head/head${_currentSkinIndices[2]! + 1}",   // head皮肤
+        "socks/socks${_currentSkinIndices[3]! + 1}",
       ];
 
       print("=== Applying Girl02 underwear skins ===");
@@ -741,12 +742,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // 创建自定义内衣皮肤
       final customSkin = Skin("girl03-underwear-skin");
 
-      // 根据当前选择的皮肤索引应用皮肤
+      // Girl03在underwear模式下需要: bra, pants, head, socks
       final skinNames = [
-        "bra/bra_${_currentSkinIndices[0]! + 1}",
-        "head/head_${_currentSkinIndices[2]! + 1}", // Girl03使用head而不是hands
-        "pants/pants_${_currentSkinIndices[1]! + 1}",
-        "socks/socks_${_currentSkinIndices[3]! + 1}",
+        "bra/bra${_currentSkinIndices[0]! + 1}",
+        "pants/pants${_currentSkinIndices[1]! + 1}",
+        "head/head${_currentSkinIndices[2]! + 1}",
+        "socks/socks${_currentSkinIndices[3]! + 1}",
       ];
 
       print("=== Applying Girl03 underwear skins ===");
@@ -1160,9 +1161,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
                                             ? ColorFilter.mode(Colors.transparent, ui.BlendMode.multiply)
                                             : ColorFilter.mode(Colors.grey, ui.BlendMode.saturation),
                                         child: Image.asset(
-                                          index < 3
-                                              ? _spineAssets[index].imagePath.replaceAll('unlock', isUnlocked ? 'unlock' : 'lock')
-                                              : 'assets/grils/Icon_girl_04_head_lock.png',
+                                          _getGirlIconPath(index, isUnlocked),
                                           fit: BoxFit.cover,
                                         ),
                                       ),
@@ -1954,6 +1953,27 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       }
     }
     return "bra";
+  }
+
+  // 获取女孩头像路径
+  String _getGirlIconPath(int index, bool isUnlocked) {
+    if (index == 0) {
+      // Girl01只有解锁状态
+      return "assets/grils/Icon_girl_01_head_unlock.png";
+    } else if (index == 1) {
+      // Girl02有锁定和解锁两种状态
+      return isUnlocked 
+          ? "assets/grils/Icon_girl_02_head_unlock.png" 
+          : "assets/grils/Icon_girl_02_head_lock.png";
+    } else if (index == 2) {
+      // Girl03有锁定和解锁两种状态
+      return isUnlocked 
+          ? "assets/grils/Icon_girl_03_head_unlock.png" 
+          : "assets/grils/Icon_girl_03_head_lock.png";
+    } else {
+      // Girl04只有锁定状态（假的）
+      return "assets/grils/Icon_girl_04_head_unlock.png";
+    }
   }
 
   // 处理皮肤按钮点击
