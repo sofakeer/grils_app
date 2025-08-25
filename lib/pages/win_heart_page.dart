@@ -97,42 +97,100 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
     if (_spineController == null || !_isSpineReady) return;
     
     try {
-      // Play HeartGetPage_Eff_born animation
-      _spineController!.animationState.setAnimationByName(0, "HeartGetPage_Eff_born", false);
+      // First try to find the exact animation names
+      final animations = _spineController!.skeleton.getData()?.getAnimations();
+      String? bornAnimName;
+      String? idleAnimName;
       
-      // Get animation duration
-      final animation = _spineController!.skeleton.getData()?.findAnimation("HeartGetPage_Eff_born");
-      double duration = 1.0; // Default 1 second
-      if (animation != null) {
-        duration = animation.getDuration();
+      if (animations != null) {
+        for (var anim in animations) {
+          String? name = anim.getName();
+          if (name != null) {
+            print("Found animation: $name");
+            if (name.toLowerCase().contains('born')) {
+              bornAnimName = name;
+            } else if (name.toLowerCase().contains('idle')) {
+              idleAnimName = name;
+            }
+          }
+        }
       }
       
-      // Wait for born animation to complete
-      await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
-      
-      // Show buttons and heart value after born animation
-      if (mounted) {
+      if (bornAnimName != null) {
+        // Play born animation
+        _spineController!.animationState.setAnimationByName(0, bornAnimName, false);
+        
+        // Get animation duration
+        final animation = _spineController!.skeleton.getData()?.findAnimation(bornAnimName);
+        double duration = 1.0; // Default 1 second
+        if (animation != null) {
+          duration = animation.getDuration();
+        }
+        
+        print("Playing born animation: $bornAnimName for ${duration}s");
+        
+        // Wait for born animation to complete
+        await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+        
+        // Show buttons and heart value after born animation completes
+        if (mounted) {
+          setState(() {
+            _showButtons = true;
+          });
+          
+          // Start animations for UI elements
+          _scaleController.forward();
+          
+          // Start playing idle animation loop
+          if (idleAnimName != null) {
+            _playIdleAnimation(idleAnimName);
+          }
+        }
+      } else {
+        // No born animation found, show UI immediately and play idle if available
+        print("No born animation found, showing UI immediately");
         setState(() {
           _showButtons = true;
         });
+        _scaleController.forward();
         
-        // Start playing idle animation loop
-        _playIdleAnimation();
+        if (idleAnimName != null) {
+          _playIdleAnimation(idleAnimName);
+        }
       }
     } catch (e) {
       print("Failed to play born animation: $e");
-      // Fallback to idle animation
-      _playIdleAnimation();
+      // Fallback: show UI immediately
+      setState(() {
+        _showButtons = true;
+      });
+      _scaleController.forward();
     }
   }
   
   // Play the idle animation loop
-  void _playIdleAnimation() {
+  void _playIdleAnimation([String? animName]) {
     if (_spineController == null || !_isSpineReady) return;
     
     try {
-      // Play HeartGetPage_Eff_idle animation in loop
-      _spineController!.animationState.setAnimationByName(0, "HeartGetPage_Eff_idle", true);
+      if (animName != null) {
+        // Use provided animation name
+        _spineController!.animationState.setAnimationByName(0, animName, true);
+        print("Playing idle animation: $animName");
+      } else {
+        // Try to find idle animation
+        final animations = _spineController!.skeleton.getData()?.getAnimations();
+        if (animations != null) {
+          for (var anim in animations) {
+            String? name = anim.getName();
+            if (name != null && name.toLowerCase().contains('idle')) {
+              _spineController!.animationState.setAnimationByName(0, name, true);
+              print("Playing idle animation: $name");
+              return;
+            }
+          }
+        }
+      }
     } catch (e) {
       print("Failed to play idle animation: $e");
     }
@@ -178,18 +236,9 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
       curve: Curves.easeInOut,
     ));
 
-    // 启动动画序列
+    // 启动动画序列 - 标题立即显示
     _fadeController.forward();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        _scaleController.forward();
-      }
-    });
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted) {
-        _heartController.forward();
-      }
-    });
+    // 按钮和心形数值的动画将在born动画完成后启动
   }
 
   void _getReward() async {
@@ -289,52 +338,74 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
                           ),
                         
                         // Heart reward display (shows after born animation)
-                        if (_showButtons)
-                          Positioned(
-                            top: 140,
-                            child: AnimatedBuilder(
-                              animation: _scaleAnimation,
-                              builder: (context, child) {
-                                return Transform.scale(
-                                  scale: _scaleAnimation.value,
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      // Heart icon
-                                      Image.asset(
+                        AnimatedOpacity(
+                          opacity: _showButtons ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 500),
+                          child: AnimatedBuilder(
+                            animation: _scaleAnimation,
+                            builder: (context, child) {
+                              return Transform.scale(
+                                scale: _showButtons ? _scaleAnimation.value : 0.0,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    // Heart icon with glow effect
+                                    Container(
+                                      width: 100,
+                                      height: 100,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.red.withOpacity(0.5),
+                                            blurRadius: 20,
+                                            spreadRadius: 5,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Image.asset(
                                         Assets.imagesIconHeart2x,
                                         height: 80,
                                       ),
-                                      // Heart count
-                                      Positioned(
-                                        bottom: 10,
-                                        child: OutlinedTextWidget(
-                                          text: '+$_totalHeartReward',
-                                          fontSize: 24,
-                                          textColor: Colors.white,
-                                          strokeColor: Colors.red,
-                                          strokeWidth: 2,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                    ),
+                                    // Heart count
+                                    Positioned(
+                                      bottom: 15,
+                                      child: OutlinedTextWidget(
+                                        text: '+$_totalHeartReward',
+                                        fontSize: 28,
+                                        textColor: Colors.white,
+                                        strokeColor: Colors.red,
+                                        strokeWidth: 2.5,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
+                        ),
                       ],
                     ),
                   ),
 
-                  // Buttons (show after born animation)
-                  if (_showButtons) ...[
-                    // Double reward button
-                    AnimatedBuilder(
-                      animation: _fadeAnimation,
-                      builder: (context, child) {
-                        return Opacity(
-                          opacity: _fadeAnimation.value,
+                  // Buttons (show after born animation with animation)
+                  AnimatedOpacity(
+                    opacity: _showButtons ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 600),
+                    child: AnimatedSlide(
+                      offset: _showButtons ? Offset.zero : const Offset(0, 0.5),
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeOutCubic,
+                      child: Column(
+                        children: [
+                          // Double reward button
+                          AnimatedBuilder(
+                            animation: _scaleAnimation,
+                            builder: (context, child) {
+                              return Transform.scale(
+                                scale: _showButtons ? _scaleAnimation.value : 0.0,
                           child: GestureDetector(
                             onTap: !_hasDoubled ? _doubleReward : null,
                             child: Container(
@@ -372,17 +443,19 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
                                 ],
                               ),
                             ),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
-                    
-                    // GET button
-                    AnimatedBuilder(
-                      animation: _scaleAnimation,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: _scaleAnimation.value,
+                          
+                          const SizedBox(height: 15),
+                          
+                          // GET button
+                          AnimatedBuilder(
+                            animation: _scaleAnimation,
+                            builder: (context, child) {
+                              return Transform.scale(
+                                scale: _showButtons ? _scaleAnimation.value : 0.0,
                           child: GestureDetector(
                             onTap: _getReward,
                             child: Container(
@@ -417,11 +490,14 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
                                 ),
                               ),
                             ),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
