@@ -53,39 +53,71 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
     try {
       _titleSpineController = spine.SpineWidgetController(onInitialized: (controller) {
         try {
-          final animations = controller.skeleton.getData()?.getAnimations();
-          if (animations != null && animations.isNotEmpty) {
-            if (mounted) {
-              setState(() {
-                _isTitleSpineReady = true;
-              });
-            }
+          controller.animationState.getData().setDefaultMix(0.2);
+          final animations = controller.skeleton.getData()?.getAnimations() ?? [];
+          print("NewPhoto_Eff animations: ${animations.map((a) => a.getName()).toList()}");
 
-            // 先播放 NewPhoto_Eff_Born 动画
-            final bornAnim = animations.firstWhere(
-              (anim) => anim.getName().toLowerCase().contains('born'),
-              orElse: () => animations.first,
-            );
-            
-            if (bornAnim != null) {
-              final duration = bornAnim.getDuration();
-              controller.animationState.setAnimationByName(0, bornAnim.getName(), false);
-              
-              // born 动画播完后循环播放 idle 动画
-              Future.delayed(Duration(milliseconds: (duration * 1000).toInt()), () {
-                if (mounted && _titleSpineController != null) {
-                  final idleAnim = animations.firstWhere(
-                    (anim) => anim.getName().toLowerCase().contains('idle'),
-                    orElse: () => animations.last,
-                  );
-                  
-                  if (idleAnim != null) {
-                    controller.animationState.setAnimationByName(0, idleAnim.getName(), true);
-                  }
-                }
-              });
-            }
+          if (mounted) {
+            setState(() {
+              _isTitleSpineReady = true;
+            });
           }
+
+          // 延迟播放动画，确保控件已渲染
+          Future.delayed(const Duration(milliseconds: 200), () async {
+            if (!mounted) return;
+
+            final data = controller.skeleton.getData();
+            String? bornName = animations
+                .map((a) => a.getName())
+                .firstWhere((n) => n == 'NewPhoto_Eff_born', orElse: () => '')
+                .isNotEmpty
+                ? 'NewPhoto_Eff_born'
+                : null;
+            bornName ??= animations
+                .map((a) => a.getName())
+                .firstWhere((n) => n.toLowerCase().contains('born'), orElse: () => '');
+            if (bornName.isEmpty) bornName = null;
+
+            String? idleName = animations
+                .map((a) => a.getName())
+                .firstWhere((n) => n == 'NewPhoto_Eff_idle', orElse: () => '')
+                .isNotEmpty
+                ? 'NewPhoto_Eff_idle'
+                : null;
+            idleName ??= animations
+                .map((a) => a.getName())
+                .firstWhere((n) => n.toLowerCase().contains('idle'), orElse: () => '');
+            if (idleName.isEmpty) idleName = null;
+
+            try {
+              controller.animationState.clearTracks();
+              if (bornName != null && data?.findAnimation(bornName) != null) {
+                controller.animationState.setAnimationByName(0, bornName, false);
+                final duration = (data?.findAnimation(bornName)?.getDuration() ?? 1.0);
+                print('✓ NewPhoto born once: $bornName, duration: $duration s');
+                await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+                if (!mounted) return;
+                final next = idleName ?? animations.first.getName();
+                if (next.isNotEmpty && data?.findAnimation(next) != null) {
+                  controller.animationState.setAnimationByName(0, next, true);
+                  print('→ NewPhoto idle loop: $next');
+                } else {
+                  print('✗ NewPhoto idle not found');
+                }
+              } else {
+                final next = idleName ?? animations.first.getName();
+                if (next.isNotEmpty && data?.findAnimation(next) != null) {
+                  controller.animationState.setAnimationByName(0, next, true);
+                  print('✓ NewPhoto idle directly: $next');
+                } else {
+                  print('✗ NewPhoto no playable animation');
+                }
+              }
+            } catch (e) {
+              print('NewPhoto animations play failed: $e');
+            }
+          });
         } catch (e) {
           print('Title spine animation initialization failed: $e');
         }
@@ -97,10 +129,15 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
     // 初始化解锁特效Spine控制器
     try {
       _unlockEffectController = spine.SpineWidgetController(onInitialized: (controller) {
-        if (mounted) {
-          setState(() {
-            _isUnlockEffectReady = true;
-          });
+        try {
+          controller.animationState.getData().setDefaultMix(0.2);
+          if (mounted) {
+            setState(() {
+              _isUnlockEffectReady = true;
+            });
+          }
+        } catch (e) {
+          print('Unlock effect initialization failed: $e');
         }
       });
     } catch (e) {
@@ -306,14 +343,8 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
-                              // 原始标题作为备用
-                              if (!_isTitleSpineReady)
-                                Image.asset(
-                                  Assets.newPhotoNewPhotoTitle,
-                                  height: 130,
-                                ),
-                              // NewPhoto_Eff Spine动画
-                              if (_titleSpineController != null && _isTitleSpineReady)
+                              // NewPhoto_Eff Spine动画 - 仅判断控制器存在即可渲染
+                              if (_titleSpineController != null)
                                 SizedBox(
                                   width: 300,
                                   height: 130,
