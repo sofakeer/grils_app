@@ -27,18 +27,22 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
   
   // Spine animation controller
   SpineWidgetController? _spineController;
-  bool _isSpineReady = false;
+  // 保留占位：未来若需要基于初始化完成再做UI切换可恢复使用
+  // bool _isSpineReady = false;
   int _coinReward = 0;
 
   @override
   void initState() {
     super.initState();
+    
+    // 立即播放结算音效，避免延迟
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AudioManager().playSettlementCoin();
+    });
+    
     _initializeAnimations();
     _initializeSpine();
     _calculateCoinReward();
-    
-    // 播放结算音效
-    AudioManager().playSettlementCoin();
   }
 
   void _initializeAnimations() {
@@ -86,32 +90,68 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
             controller.animationState.getData().setDefaultMix(0.2);
           } catch (_) {}
 
-          if (mounted) {
-            setState(() {
-              _isSpineReady = true;
-            });
-          }
+          // 已不依赖 _isSpineReady 控制渲染，避免初始化死锁
 
           // 打印所有可用动画名称进行调试
           print('Available animations: ${animations.map((a) => a.getName()).toList()}');
-          
+
           if (animations.isNotEmpty) {
-            // 延迟一点再播放动画，确保控件已经渲染
-            Future.delayed(const Duration(milliseconds: 100), () {
+            // 延迟播放动画，确保控件已经渲染
+            Future.delayed(const Duration(milliseconds: 200), () async {
               if (!mounted) return;
-              
-              final firstAnimation = animations.first.getName();
-              print('Playing animation: $firstAnimation');
-              
+
+              // 先找精确名，再用包含匹配兜底
+              String? bornName = animations
+                  .map((a) => a.getName())
+                  .firstWhere((n) => n == 'CoinWin_Eff_born', orElse: () => '')
+                  .isNotEmpty
+                  ? 'CoinWin_Eff_born'
+                  : null;
+              bornName ??= animations
+                  .map((a) => a.getName())
+                  .firstWhere((n) => n.toLowerCase().contains('born'), orElse: () => '');
+              if (bornName.isEmpty) bornName = null;
+
+              String? idleName = animations
+                  .map((a) => a.getName())
+                  .firstWhere((n) => n == 'CoinWin_Eff_idle', orElse: () => '')
+                  .isNotEmpty
+                  ? 'CoinWin_Eff_idle'
+                  : null;
+              idleName ??= animations
+                  .map((a) => a.getName())
+                  .firstWhere((n) => n.toLowerCase().contains('idle'), orElse: () => '');
+              if (idleName.isEmpty) idleName = null;
+
               try {
-                // 清除现有动画状态
                 controller.animationState.clearTracks();
-                // 设置新动画
-                controller.animationState.setAnimationByName(0, firstAnimation, true);
-                // 强制更新
-                controller.animationState.update(0.016); // 约60fps的一帧
+                if (bornName != null && data?.findAnimation(bornName) != null) {
+                  // 播放 born 一次
+                  controller.animationState.setAnimationByName(0, bornName, false);
+                  final duration = (data?.findAnimation(bornName)?.getDuration() ?? 1.0);
+                  print('✓ Playing born once: $bornName, duration: $duration s');
+                  // 等 born 结束后切 idle 循环；若无 idle 则停留在 born 的最终帧
+                  await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+                  if (!mounted) return;
+                  final next = idleName ?? animations.first.getName();
+                  if (next.isNotEmpty && data?.findAnimation(next) != null) {
+                    controller.animationState.setAnimationByName(0, next, true);
+                    print('→ Switched to idle loop: $next');
+                  } else {
+                    print('✗ Idle animation not found, staying after born');
+                  }
+                } else {
+                  // 没有 born，直接 idle 循环；再没有就用第一条循环
+                  final next = idleName ?? animations.first.getName();
+                  if (next.isNotEmpty && data?.findAnimation(next) != null) {
+                    controller.animationState.setAnimationByName(0, next, true);
+                    print('✓ Started idle loop directly: $next');
+                  } else {
+                    print('✗ No playable animation found');
+                  }
+                }
               } catch (e) {
-                print('Failed to play animation: $e');
+                print('Failed to play animations: $e');
               }
             });
           } else {
@@ -220,14 +260,13 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
-                              Image.asset(
-                                Assets.wincoinWinCoinTitle,
-                                height: 320,
-                              ),
+                              // Image.asset(
+                              //   Assets.wincoinWinCoinTitle,
+                              //   height: 320,
+                              // ),
                               // CoinWin_Eff Spine Animation
-                              if (_spineController != null && _isSpineReady)
+                              if (_spineController != null)
                                 SizedBox(
-                                  width: 400,
                                   height: 300,
                                   child: SpineWidget.fromAsset(
                                     "assets/spine/CoinWin_Eff.atlas",
