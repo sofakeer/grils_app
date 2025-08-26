@@ -97,66 +97,82 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
     if (_spineController == null || !_isSpineReady) return;
     
     try {
-      // First try to find the exact animation names
+      // Get all available animations
       final animations = _spineController!.skeleton.getData()?.getAnimations();
       String? bornAnimName;
       String? idleAnimName;
       
       if (animations != null) {
+        print("=== Available Animations ===");
         for (var anim in animations) {
           String? name = anim.getName();
           if (name != null) {
             print("Found animation: $name");
-            if (name.toLowerCase().contains('born')) {
-              bornAnimName = name;
-            } else if (name.toLowerCase().contains('idle')) {
-              idleAnimName = name;
+            
+            // Look for born animation (various possible names)
+            if (name.toLowerCase().contains('born') || 
+                name.toLowerCase().contains('start') ||
+                name.toLowerCase().contains('appear')) {
+              bornAnimName ??= name;
+            }
+            
+            // Look for idle animation (various possible names)
+            if (name.toLowerCase().contains('idle') || 
+                name.toLowerCase().contains('loop') ||
+                name.toLowerCase().contains('wait')) {
+              idleAnimName ??= name;
             }
           }
         }
+        print("=== End Animation List ===");
       }
       
       if (bornAnimName != null) {
-        // Play born animation
+        // Play born animation (non-looping)
+        print("Playing born animation: $bornAnimName");
         _spineController!.animationState.setAnimationByName(0, bornAnimName, false);
         
         // Get animation duration
         final animation = _spineController!.skeleton.getData()?.findAnimation(bornAnimName);
-        double duration = 1.0; // Default 1 second
+        double duration = 2.0; // Default 2 seconds
         if (animation != null) {
           duration = animation.getDuration();
         }
         
-        print("Playing born animation: $bornAnimName for ${duration}s");
+        print("Born animation duration: ${duration}s");
         
         // Wait for born animation to complete
         await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
         
-        // Show buttons and heart value after born animation completes
+        // Show UI elements after born animation completes
         if (mounted) {
           setState(() {
             _showButtons = true;
           });
-          
-          // Start animations for UI elements
-          _scaleController.forward();
           
           // Start playing idle animation loop
           if (idleAnimName != null) {
             _playIdleAnimation(idleAnimName);
           }
         }
-      } else {
-        // No born animation found, show UI immediately and play idle if available
-        print("No born animation found, showing UI immediately");
+      } else if (animations != null && animations.isNotEmpty) {
+        // No born animation found, play first available animation
+        final firstAnim = animations.first.getName();
+        if (firstAnim != null) {
+          print("No born animation found, playing first animation: $firstAnim");
+          _spineController!.animationState.setAnimationByName(0, firstAnim, true);
+        }
+        
+        // Show UI immediately
         setState(() {
           _showButtons = true;
         });
-        _scaleController.forward();
-        
-        if (idleAnimName != null) {
-          _playIdleAnimation(idleAnimName);
-        }
+      } else {
+        // No animations found at all
+        print("No animations found in spine file!");
+        setState(() {
+          _showButtons = true;
+        });
       }
     } catch (e) {
       print("Failed to play born animation: $e");
@@ -164,7 +180,6 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
       setState(() {
         _showButtons = true;
       });
-      _scaleController.forward();
     }
   }
   
@@ -176,17 +191,28 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
       if (animName != null) {
         // Use provided animation name
         _spineController!.animationState.setAnimationByName(0, animName, true);
-        print("Playing idle animation: $animName");
+        print("Playing idle animation: $animName (looping)");
       } else {
-        // Try to find idle animation
+        // Try to find any idle-like animation
         final animations = _spineController!.skeleton.getData()?.getAnimations();
         if (animations != null) {
           for (var anim in animations) {
             String? name = anim.getName();
-            if (name != null && name.toLowerCase().contains('idle')) {
+            if (name != null && (name.toLowerCase().contains('idle') || 
+                                name.toLowerCase().contains('loop') ||
+                                name.toLowerCase().contains('wait'))) {
               _spineController!.animationState.setAnimationByName(0, name, true);
-              print("Playing idle animation: $name");
+              print("Playing idle animation: $name (looping)");
               return;
+            }
+          }
+          
+          // If no idle animation found, loop the first animation
+          if (animations.isNotEmpty) {
+            final firstAnim = animations.first.getName();
+            if (firstAnim != null) {
+              _spineController!.animationState.setAnimationByName(0, firstAnim, true);
+              print("No idle animation found, looping first animation: $firstAnim");
             }
           }
         }
@@ -236,9 +262,9 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
       curve: Curves.easeInOut,
     ));
 
-    // 启动动画序列 - 标题立即显示
+    // 只启动标题的渐入动画
     _fadeController.forward();
-    // 按钮和心形数值的动画将在born动画完成后启动
+    // UI元素将在Spine born动画完成后显示
   }
 
   void _getReward() async {
@@ -317,187 +343,129 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
                     },
                   ),
 
-                  // Spine动画区域
+                  // Spine动画区域 - 完全由Spine动画控制显示
                   Container(
-                    height: 350,
+                    height: 400,
                     margin: const EdgeInsets.only(bottom: 20),
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Spine animation
+                        // Spine animation - 完全接管中间区域显示
                         if (_spineController != null && _isSpineReady)
                           SizedBox(
-                            width: 350,
-                            height: 350,
+                            width: 400,
+                            height: 400,
                             child: SpineWidget.fromAsset(
                               "assets/spine/HeartGetPage_Eff.atlas",
                               "assets/spine/HeartGetPage_Eff.skel",
                               _spineController!,
-                              boundsProvider: SetupPoseBounds(),
+                              boundsProvider: const SetupPoseBounds(),
+                              fit: BoxFit.contain,
                             ),
                           ),
                         
-                        // Heart reward display (shows after born animation)
-                        AnimatedOpacity(
-                          opacity: _showButtons ? 1.0 : 0.0,
-                          duration: const Duration(milliseconds: 500),
-                          child: AnimatedBuilder(
-                            animation: _scaleAnimation,
-                            builder: (context, child) {
-                              return Transform.scale(
-                                scale: _showButtons ? _scaleAnimation.value : 0.0,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    // Heart icon with glow effect
-                                    Container(
-                                      width: 100,
-                                      height: 100,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.red.withOpacity(0.5),
-                                            blurRadius: 20,
-                                            spreadRadius: 5,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Image.asset(
-                                        Assets.imagesIconHeart2x,
-                                        height: 80,
-                                      ),
-                                    ),
-                                    // Heart count
-                                    Positioned(
-                                      bottom: 15,
-                                      child: OutlinedTextWidget(
-                                        text: '+$_totalHeartReward',
-                                        fontSize: 28,
-                                        textColor: Colors.white,
-                                        strokeColor: Colors.red,
-                                        strokeWidth: 2.5,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
+                        // 只显示桃心数量文字 (在born动画完成后显示)
+                        if (_showButtons)
+                          Positioned(
+                            bottom: 50,
+                            child: OutlinedTextWidget(
+                              text: '+$_totalHeartReward',
+                              fontSize: 32,
+                              textColor: Colors.white,
+                              strokeColor: Colors.red,
+                              strokeWidth: 3.0,
+                              fontWeight: FontWeight.bold,
+                              shadows: const [
+                                Shadow(
+                                  offset: Offset(2, 2),
+                                  blurRadius: 4,
+                                  color: Colors.black54,
                                 ),
-                              );
-                            },
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
 
-                  // Buttons (show after born animation with animation)
-                  AnimatedOpacity(
-                    opacity: _showButtons ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 600),
-                    child: AnimatedSlide(
-                      offset: _showButtons ? Offset.zero : const Offset(0, 0.5),
-                      duration: const Duration(milliseconds: 600),
-                      curve: Curves.easeOutCubic,
-                      child: Column(
-                        children: [
-                          // Double reward button
-                          AnimatedBuilder(
-                            animation: _scaleAnimation,
-                            builder: (context, child) {
-                              return Transform.scale(
-                                scale: _showButtons ? _scaleAnimation.value : 0.0,
-                          child: GestureDetector(
-                            onTap: !_hasDoubled ? _doubleReward : null,
-                            child: Container(
-                              width: 200,
-                              height: 60,
-                              margin: const EdgeInsets.only(bottom: 20),
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: AssetImage(
-                                    _hasDoubled 
-                                      ? Assets.newPhotoNewPhotoBtnBlueBig
-                                      : Assets.newPhotoNewPhotoBtnBlueBig,
-                                  ),
-                                  fit: BoxFit.fill,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  // Ad icon
-                                  Image.asset(
-                                    Assets.newPhotoNewPhotoIconAd,
-                                    height: 30,
-                                    color: _hasDoubled ? Colors.grey : null,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  OutlinedTextWidget(
-                                    text: '+100',
-                                    fontSize: 20,
-                                    textColor: _hasDoubled ? Colors.grey : Colors.white,
-                                    strokeColor: Colors.black,
-                                    strokeWidth: 1.5,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ],
+                  // Buttons (show after born animation completes)
+                  if (_showButtons)
+                    Column(
+                      children: [
+                        // Double reward button
+                        GestureDetector(
+                          onTap: !_hasDoubled ? _doubleReward : null,
+                          child: Container(
+                            width: 200,
+                            height: 60,
+                            margin: const EdgeInsets.only(bottom: 20),
+                            decoration: BoxDecoration(
+                              image: DecorationImage(
+                                image: AssetImage(Assets.newPhotoNewPhotoBtnBlueBig),
+                                fit: BoxFit.fill,
                               ),
                             ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Ad icon
+                                Image.asset(
+                                  Assets.newPhotoNewPhotoIconAd,
+                                  height: 30,
+                                  color: _hasDoubled ? Colors.grey : null,
                                 ),
-                              );
-                            },
-                          ),
-                          
-                          const SizedBox(height: 15),
-                          
-                          // GET button
-                          AnimatedBuilder(
-                            animation: _scaleAnimation,
-                            builder: (context, child) {
-                              return Transform.scale(
-                                scale: _showButtons ? _scaleAnimation.value : 0.0,
-                          child: GestureDetector(
-                            onTap: _getReward,
-                            child: Container(
-                              width: 150,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.green.shade400,
-                                    Colors.green.shade600,
-                                  ],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                                borderRadius: BorderRadius.circular(30),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.green.shade800,
-                                    offset: const Offset(0, 3),
-                                    blurRadius: 0,
-                                  ),
-                                ],
-                              ),
-                              child: const Center(
-                                child: OutlinedTextWidget(
-                                  text: 'GET',
-                                  fontSize: 28,
-                                  textColor: Colors.white,
+                                const SizedBox(width: 10),
+                                OutlinedTextWidget(
+                                  text: '+100',
+                                  fontSize: 20,
+                                  textColor: _hasDoubled ? Colors.grey : Colors.white,
                                   strokeColor: Colors.black,
-                                  strokeWidth: 2.0,
+                                  strokeWidth: 1.5,
                                   fontWeight: FontWeight.bold,
                                 ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        
+                        // GET button
+                        GestureDetector(
+                          onTap: _getReward,
+                          child: Container(
+                            width: 150,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.green.shade400,
+                                  Colors.green.shade600,
+                                ],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                              borderRadius: BorderRadius.circular(30),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.green.shade800,
+                                  offset: const Offset(0, 3),
+                                  blurRadius: 0,
+                                ),
+                              ],
+                            ),
+                            child: const Center(
+                              child: OutlinedTextWidget(
+                                text: 'GET',
+                                fontSize: 28,
+                                textColor: Colors.white,
+                                strokeColor: Colors.black,
+                                strokeWidth: 2.0,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                                ),
-                              );
-                            },
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
                 ],
               ),
             ),

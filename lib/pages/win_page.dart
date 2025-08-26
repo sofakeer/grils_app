@@ -3,6 +3,7 @@ import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/widgets/common_header.dart';
 import 'package:grils_app/pages/new_photo_page.dart';
 import 'package:grils_app/pages/win_heart_page.dart';
+import 'package:hexcolor/hexcolor.dart';
 import 'package:spine_flutter/spine_flutter.dart' hide Animation;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/coin_calculator.dart';
@@ -77,38 +78,44 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
     try {
       _spineController = SpineWidgetController(onInitialized: (controller) {
         try {
-          final animations = controller.skeleton.getData()?.getAnimations();
-          if (animations != null && animations.isNotEmpty) {
-            if (mounted) {
-              setState(() {
-                _isSpineReady = true;
-              });
-            }
+          final data = controller.skeleton.getData();
+          final animations = data?.getAnimations() ?? [];
 
-            // 先播放 CoinWin_Eff_born 动画
-            final bornAnim = animations.firstWhere(
-              (anim) => anim.getName().contains('born'),
-              orElse: () => animations.first,
-            );
-            
-            if (bornAnim != null) {
-              final duration = bornAnim.getDuration();
-              controller.animationState.setAnimationByName(0, bornAnim.getName(), false);
+          // 设置默认混合，避免切换生硬
+          try {
+            controller.animationState.getData().setDefaultMix(0.2);
+          } catch (_) {}
+
+          if (mounted) {
+            setState(() {
+              _isSpineReady = true;
+            });
+          }
+
+          // 打印所有可用动画名称进行调试
+          print('Available animations: ${animations.map((a) => a.getName()).toList()}');
+          
+          if (animations.isNotEmpty) {
+            // 延迟一点再播放动画，确保控件已经渲染
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (!mounted) return;
               
-              // born 动画播完后循环播放 idle 动画
-              Future.delayed(Duration(milliseconds: (duration * 1000).toInt()), () {
-                if (mounted && _spineController != null) {
-                  final idleAnim = animations.firstWhere(
-                    (anim) => anim.getName().contains('idle'),
-                    orElse: () => animations.last,
-                  );
-                  
-                  if (idleAnim != null) {
-                    controller.animationState.setAnimationByName(0, idleAnim.getName(), true);
-                  }
-                }
-              });
-            }
+              final firstAnimation = animations.first.getName();
+              print('Playing animation: $firstAnimation');
+              
+              try {
+                // 清除现有动画状态
+                controller.animationState.clearTracks();
+                // 设置新动画
+                controller.animationState.setAnimationByName(0, firstAnimation, true);
+                // 强制更新
+                controller.animationState.update(0.016); // 约60fps的一帧
+              } catch (e) {
+                print('Failed to play animation: $e');
+              }
+            });
+          } else {
+            print('No animations found in spine file!');
           }
         } catch (e) {
           print('Spine animation initialization failed: $e');
@@ -219,16 +226,15 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                               ),
                               // CoinWin_Eff Spine Animation
                               if (_spineController != null && _isSpineReady)
-                                Positioned(
-                                  child: SizedBox(
-                                    width: 200,
-                                    height: 200,
-                                    child: SpineWidget.fromAsset(
-                                      "assets/spine/CoinWin_Eff.atlas",
-                                      "assets/spine/CoinWin_Eff.skel",
-                                      _spineController!,
-                                      boundsProvider: const SetupPoseBounds(),
-                                    ),
+                                SizedBox(
+                                  width: 400,
+                                  height: 300,
+                                  child: SpineWidget.fromAsset(
+                                    "assets/spine/CoinWin_Eff.atlas",
+                                    "assets/spine/CoinWin_Eff.skel",
+                                    _spineController!,
+                                    boundsProvider: const SetupPoseBounds(),
+                                    fit: BoxFit.contain,
                                   ),
                                 ),
                             ],
@@ -243,16 +249,16 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                             children: [
                               Image.asset(
                                 Assets.wincoinWinCoinIconCoin,
-                                width: 40,
-                                height: 40,
+                                width: 80,
+                                height: 80,
                               ),
                               const SizedBox(width: 10),
                               OutlinedTextWidget(
                                 text: '+$_coinReward',
                                 fontSize: 42,
-                                textColor: Colors.orange,
-                                strokeColor: Colors.black,
-                                strokeWidth: 3.0,
+                                textColor: HexColor("#ffe239"),
+                                strokeColor: HexColor("#d44c0a"),
+                                strokeWidth: 8,
                                 fontWeight: FontWeight.bold,
                                 shadows: const [
                                   Shadow(
