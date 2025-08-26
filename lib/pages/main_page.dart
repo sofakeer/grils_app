@@ -18,6 +18,8 @@ import '../managers/game_state_manager.dart';
 import '../utils/audio_assets.dart';
 import '../widgets/outlined_text_widget.dart';
 import '../services/user_service.dart';
+import '../widgets/unlock_new_gril_dialog.dart';
+import '../widgets/gril_waiting_dialog.dart';
 import 'spine_preview_page.dart';
 
 class MainPage extends ConsumerStatefulWidget {
@@ -41,6 +43,9 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   
   // 最新解锁的图片索引
   int _latestUnlockedImageIndex = 0;
+  
+  // 标记是否已经弹过 GrilWaitingDialog
+  bool _hasShownGrilWaitingDialog = false;
 
   @override
   void initState() {
@@ -177,6 +182,12 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     
     // 检查是否应该触发特殊关卡
     await _checkForSpecialStage();
+    
+    // 检查是否有待解锁的女孩
+    await _checkForUnlockGirl();
+    
+    // 检查是否有可进行的操作
+    await _checkForAvailableActions();
   }
   
   // 检查是否应该触发特殊关卡
@@ -197,6 +208,86 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
           context: context,
           barrierDismissible: false,
           builder: (context) => const SpecialPage(),
+        );
+      }
+    }
+  }
+  
+  // 检查是否有待解锁的女孩
+  Future<void> _checkForUnlockGirl() async {
+    await GameStateManager().init();
+    
+    // 获取待解锁的女孩索引
+    int? pendingUnlockGirl = GameStateManager().getPendingUnlockGirl();
+    
+    if (pendingUnlockGirl != null && mounted) {
+      // 延迟一下，等页面完全加载后再显示弹窗
+      await Future.delayed(Duration(milliseconds: 800));
+      
+      if (mounted) {
+        // 清除待解锁女孩标记
+        await GameStateManager().setPendingUnlockGirl(null);
+        
+        // 显示解锁新女孩弹窗
+        await AudioManager().playPopupOpen();
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => UnlockNewGrilDialog(
+            girlIndex: pendingUnlockGirl,
+            onAccept: () {
+              Navigator.of(context).pop();
+              // 用户同意解锁，可以在这里添加额外的逻辑
+              print("用户同意解锁女孩: $pendingUnlockGirl");
+            },
+            onDecline: () {
+              Navigator.of(context).pop();
+              // 用户拒绝解锁，可以在这里添加额外的逻辑
+              print("用户拒绝解锁女孩: $pendingUnlockGirl");
+            },
+          ),
+        );
+      }
+    }
+  }
+  
+  // 检查是否有可进行的操作
+  Future<void> _checkForAvailableActions() async {
+    await GameStateManager().init();
+    
+    // 如果已经弹过这个弹窗，就不再弹了
+    if (_hasShownGrilWaitingDialog) {
+      return;
+    }
+    
+    // 获取当前女孩索引
+    int currentGirlIndex = GameStateManager().getCurrentGirlIndex();
+    
+    // 检查是否可以脱衣或解锁新皮肤
+    bool canTakeoff = GameStateManager().canTakeoff();
+    var affordableSkin = GameStateManager().getAffordableSkin(currentGirlIndex);
+    
+    if (canTakeoff || affordableSkin != null) {
+      // 延迟一下，等页面完全加载后再显示弹窗
+      await Future.delayed(Duration(milliseconds: 1200));
+      
+      if (mounted) {
+        // 标记已经弹过弹窗
+        _hasShownGrilWaitingDialog = true;
+        
+        // 显示提醒弹窗
+        await AudioManager().playPopupOpen();
+        await GrilWaitingDialog.show(
+          context: context,
+          onAccept: () {
+            Navigator.of(context).pop();
+            // 用户选择去使用心币，导航到预览页面
+            _startTakeOff();
+          },
+          onDecline: () {
+            Navigator.of(context).pop();
+            // 用户拒绝，不做任何操作
+          },
         );
       }
     }
@@ -242,8 +333,10 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   void _navigateToSignIn() async {
     await AudioManager().playPopupOpen();
     SignInPage.showSignInDialog(context).then((_) {
-      // 从签到页面返回时重新加载数据
+      // 从签到页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
+      // 重置弹窗标记，以便在状态变化时可以再次弹窗
+      _hasShownGrilWaitingDialog = false;
     });
   }
 
@@ -257,8 +350,10 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
       ),
     )
         .then((_) {
-      // 从商店页面返回时重新加载数据
+      // 从商店页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
+      // 重置弹窗标记，以便在状态变化时可以再次弹窗
+      _hasShownGrilWaitingDialog = false;
     });
   }
   
@@ -269,8 +364,10 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
         builder: (context) => const GalleryPage(),
       ),
     ).then((_) {
-      // 从图鉴页面返回时重新加载数据，可能有新图片解锁
+      // 从图鉴页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
+      // 重置弹窗标记，以便在状态变化时可以再次弹窗
+      _hasShownGrilWaitingDialog = false;
     });
   }
 
@@ -280,8 +377,10 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
         builder: (context) => const GamePage(),
       ),
     ).then((_) {
-      // 从游戏页面返回时重新加载数据，可能有新图片解锁
+      // 从游戏页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
+      // 重置弹窗标记，以便在状态变化时可以再次弹窗
+      _hasShownGrilWaitingDialog = false;
     });
   }
 
@@ -302,8 +401,10 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
         builder: (context) => const SpinePreviewPage(),
       ),
     ).then((_) {
-      // 从预览页面返回时重新加载数据，可能有新图片解锁
+      // 从预览页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
+      // 重置弹窗标记，以便在状态变化时可以再次弹窗
+      _hasShownGrilWaitingDialog = false;
     });
   }
 

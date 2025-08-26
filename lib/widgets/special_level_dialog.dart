@@ -211,31 +211,10 @@ class _SpecialLevelDialogState extends State<SpecialLevelDialog> with TickerProv
   
   // 模拟视频广告
   Future<bool> _showMockVideoAd() async {
-    return await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Video Ad'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.play_circle_filled, size: 64, color: Colors.blue),
-            SizedBox(height: 16),
-            Text('This is a mock video ad.\nIn production, a real ad would play here.'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Skip'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Watch Complete'),
-          ),
-        ],
-      ),
-    ) ?? false;
+    // 模拟广告播放时间
+    await Future.delayed(const Duration(seconds: 2));
+    // 直接返回 true 表示广告播放完成
+    return true;
   }
 
   void _onSkipPressed() {

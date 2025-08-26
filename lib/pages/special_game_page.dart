@@ -68,10 +68,10 @@ class _SpecialGamePageState extends State<SpecialGamePage> with TickerProviderSt
     // 播放完成音效
     await AudioManager().playSettlementCoin();
     
-    // 延迟后返回
+    // 延迟后返回 true 表示获胜
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
       }
     });
   }
