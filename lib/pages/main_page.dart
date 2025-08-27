@@ -46,6 +46,18 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   
   // 标记是否已经弹过 GrilWaitingDialog
   bool _hasShownGrilWaitingDialog = false;
+  static const String _kHasShownGrilWaitingDialogKey = 'has_shown_gril_waiting_dialog';
+
+  Future<void> _loadHasShownGrilWaitingDialogFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    _hasShownGrilWaitingDialog = prefs.getBool(_kHasShownGrilWaitingDialogKey) ?? false;
+  }
+
+  Future<void> _setHasShownGrilWaitingDialogFlag(bool value) async {
+    _hasShownGrilWaitingDialog = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kHasShownGrilWaitingDialogKey, value);
+  }
 
   @override
   void initState() {
@@ -57,6 +69,9 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     
     // 初始化音频系统并播放主界面BGM
     _initializeAudio();
+    
+    // 读取是否已经弹过GrilWaitingDialog的持久化标记
+    _loadHasShownGrilWaitingDialogFlag();
   }
   
   void _initializeAudio() async {
@@ -272,23 +287,23 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
       await Future.delayed(Duration(milliseconds: 1200));
       
       if (mounted) {
-        // 标记已经弹过弹窗
-        _hasShownGrilWaitingDialog = true;
+        // 标记已经弹过弹窗（持久化）
+        await _setHasShownGrilWaitingDialogFlag(true);
         
         // 显示提醒弹窗
         await AudioManager().playPopupOpen();
-        await GrilWaitingDialog.show(
-          context: context,
-          onAccept: () {
-            Navigator.of(context).pop();
-            // 用户选择去使用心币，导航到预览页面
-            _startTakeOff();
-          },
-          onDecline: () {
-            Navigator.of(context).pop();
-            // 用户拒绝，不做任何操作
-          },
-        );
+        // await GrilWaitingDialog.show(
+        //   context: context,
+        //   onAccept: () {
+        //     Navigator.of(context).pop();
+        //     // 用户选择去使用心币，导航到预览页面
+        //     _startTakeOff();
+        //   },
+        //   onDecline: () {
+        //     Navigator.of(context).pop();
+        //     // 用户拒绝，不做任何操作
+        //   },
+        // );
       }
     }
   }
@@ -335,8 +350,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     SignInPage.showSignInDialog(context).then((_) {
       // 从签到页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
-      // 重置弹窗标记，以便在状态变化时可以再次弹窗
-      _hasShownGrilWaitingDialog = false;
+      // 不再重置已弹标记
     });
   }
 
@@ -352,8 +366,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
         .then((_) {
       // 从商店页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
-      // 重置弹窗标记，以便在状态变化时可以再次弹窗
-      _hasShownGrilWaitingDialog = false;
+      // 不再重置已弹标记
     });
   }
   
@@ -366,8 +379,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     ).then((_) {
       // 从图鉴页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
-      // 重置弹窗标记，以便在状态变化时可以再次弹窗
-      _hasShownGrilWaitingDialog = false;
+      // 不再重置已弹标记
     });
   }
 
@@ -379,8 +391,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     ).then((_) {
       // 从游戏页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
-      // 重置弹窗标记，以便在状态变化时可以再次弹窗
-      _hasShownGrilWaitingDialog = false;
+      // 不再重置已弹标记
     });
   }
 
@@ -403,8 +414,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     ).then((_) {
       // 从预览页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
-      // 重置弹窗标记，以便在状态变化时可以再次弹窗
-      _hasShownGrilWaitingDialog = false;
+      // 不再重置已弹标记，确保跨页面也只弹一次
     });
   }
 
