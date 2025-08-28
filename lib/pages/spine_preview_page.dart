@@ -124,6 +124,20 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   // 页面销毁标记，避免异步回调在销毁后继续操作
   bool _isDisposing = false;
 
+  // 统一日志前缀，便于筛选
+  void _log(String message) {
+    // 使用统一标识便于过滤：SPINE_PREVIEW
+    print('[SPINE_PREVIEW] ' + message);
+  }
+
+  // 可控的详细日志
+  bool _verboseLog = false;
+  void _v(String message) {
+    if (_verboseLog) {
+      _log(message);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -195,8 +209,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         Map<String, int> skins = GameStateManager().getCurrentSkins(i);
         if (i == _currentIndex) {
           _currentSkinIndices[0] = skins['bra'] ?? 0;
-          _currentSkinIndices[1] = skins[i == 0 ? 'pants' : 'hands'] ?? 0;  // Girl01使用pants，Girl02和Girl03使用hands
-          _currentSkinIndices[2] = skins[i == 0 ? 'hands' : 'head'] ?? 0;   // Girl01使用hands，Girl02和Girl03使用head
+          _currentSkinIndices[1] = skins['hands'] ?? 0;  // Girl01使用hands
+          _currentSkinIndices[2] = skins['pants'] ?? 0;   // Girl01使用pants
           _currentSkinIndices[3] = skins['socks'] ?? 0;
         }
       }
@@ -599,14 +613,20 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       }
       
       if (girlIndex == 0 && _spineAssets[girlIndex].name == "Girl 01") {
-        // Girl01的underwear模式是index 4
+        // Girl01的underwear模式是index 4 (idle_05)
         bool isUnderwearMode = girlIdleIndex == 4;
         if (isUnderwearMode) {
           // underwear模式，设置内衣皮肤
+          _log("Girl01 underwear mode: applying saved underwear skin");
           _setGirl01UnderwearSkinForGirl(controller, girlIndex);
         } else {
-          // 普通模式，设置默认皮肤
-          _setGirl01DefaultSkin(controller);
+          // 普通模式：当已到最终非内衣阶段(idle_04, 索引3)时，使用阶段1上身皮肤；否则使用 none 皮肤
+          if (girlIdleIndex >= 3) {
+            _log("Girl01 idle_04: applying stage1 skin");
+            _applyGirl01Stage1Skin(controller);
+          } else {
+            _setGirl01DefaultSkin(controller);
+          }
         }
       } else if (girlIndex == 1 && _spineAssets[girlIndex].name == "Girl 02") {
         // Girl02的underwear模式是index 4
@@ -735,17 +755,17 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       Map<String, int> savedSkins = GameStateManager().getCurrentSkins(girlIndex);
       Map<int, int> girlSkinIndices = {
         0: savedSkins['bra'] ?? 0,
-        1: savedSkins['pants'] ?? 0,
-        2: savedSkins['hands'] ?? 0,
+        1: savedSkins['hands'] ?? 0,  // Girl01内衣模式使用hands
+        2: savedSkins['pants'] ?? 0,  // Girl01内衣模式使用pants
         3: savedSkins['socks'] ?? 0,
       };
 
       // 根据该女孩的皮肤索引应用皮肤
       final skinNames = [
-        "bra/bra${girlSkinIndices[0]! + 1}",
-        "pants/pants${girlSkinIndices[1]! + 1}",
-        "hands/hands${girlSkinIndices[2]! + 1}",
-        "socks/socks${girlSkinIndices[3]! + 1}",
+        girlSkinIndices[0]! == 0 ? "bra/bra_none" : "bra/bra${girlSkinIndices[0]}",
+        girlSkinIndices[1]! == 0 ? "hands/hands_none" : "hands/hands${girlSkinIndices[1]}",
+        girlSkinIndices[2]! == 0 ? "pants/pants_none" : "pants/pants${girlSkinIndices[2]}",
+        girlSkinIndices[3]! == 0 ? "socks/socks_none" : "socks/socks${girlSkinIndices[3]}",
       ];
 
       print("=== Applying Girl01 underwear skins for girl $girlIndex ===");
@@ -1187,80 +1207,104 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
   // 为指定女孩播放动画
   void _playAnimationForGirl(String animationName, bool loop, int girlIndex) {
-    if (_isDisposing || !mounted) return;
+    _v("=== _playAnimationForGirl START ===");
+    _v("Request: animation='$animationName', loop=$loop, girl=$girlIndex");
     
-    if (_spineControllers[girlIndex] == null || !(_controllersReady[girlIndex] ?? false)) {
-      print("Spine controller not ready for girl $girlIndex, cannot play animation");
+    if (_isDisposing || !mounted) {
+      _log("Component disposing or unmounted - ABORTING");
+      return;
+    }
+    
+    // 检查控制器状态
+    bool controllerExists = _spineControllers[girlIndex] != null;
+    bool controllerReady = _controllersReady[girlIndex] ?? false;
+    _v("Controller status - exists: $controllerExists, ready: $controllerReady");
+    
+    if (!controllerExists || !controllerReady) {
+      _v("Spine controller not ready for girl $girlIndex - ABORTING");
       return;
     }
 
     // 安全检查动画名称
     if (animationName.isEmpty) {
-      print("Empty animation name, cannot play");
+      _v("Empty animation name - ABORTING");
       return;
     }
 
     try {
       // 验证动画是否存在
-      if (!_isAnimationAvailableForGirl(animationName, girlIndex)) {
-        print("Animation '$animationName' not found for girl $girlIndex, using first available animation");
+      bool animationExists = _isAnimationAvailableForGirl(animationName, girlIndex);
+      _v("Animation '$animationName' exists for girl $girlIndex: $animationExists");
+      
+      if (!animationExists) {
+        _v("Target animation not found, looking for fallback...");
         if (_girlAnimations[girlIndex]?.isNotEmpty == true) {
           // 使用第一个可用动画，但要再次验证
           String fallbackName = _girlAnimations[girlIndex]!.first;
+          _v("Checking fallback animation: $fallbackName");
+          
           if (_isAnimationAvailableForGirl(fallbackName, girlIndex)) {
             animationName = fallbackName;
-            print("Using verified fallback animation: $animationName for girl $girlIndex");
+            _v("Using verified fallback animation: $animationName");
           } else {
-            print("Even fallback animation is not available for girl $girlIndex, aborting");
+            _log("Animation not available for girl $girlIndex");
             return;
           }
         } else {
-          print("No animations available at all for girl $girlIndex");
+          _log("No animations available for girl $girlIndex");
           return;
         }
       }
 
       // 安全地清除现有动画轨道
+      _v("Clearing existing animation tracks...");
       try {
         if (_spineControllers[girlIndex] != null && (_controllersReady[girlIndex] ?? false)) {
           _spineControllers[girlIndex]!.animationState.clearTracks();
+          _v("Successfully cleared tracks");
         } else {
-          print("Controller became unavailable before clearTracks for girl $girlIndex");
+          _v("Controller became unavailable before clearTracks - ABORTING");
           return;
         }
       } catch (e) {
-        print("Error clearing tracks for girl $girlIndex: $e");
+        _log("Error clearing tracks: $e");
         return; // 如果清除轨道失败，不要继续
       }
       
       // 播放动画 - 添加额外的安全检查
+      _v("Setting animation: $animationName (loop: $loop)");
       try {
         if (_spineControllers[girlIndex] != null && (_controllersReady[girlIndex] ?? false)) {
           _spineControllers[girlIndex]!.animationState.setAnimationByName(0, animationName, loop);
+          _v("Successfully set animation");
         } else {
-          print("Controller became unavailable before setAnimation for girl $girlIndex");
+          _v("Controller became unavailable before setAnimation - ABORTING");
           return;
         }
       } catch (e) {
-        print("Critical error setting animation '$animationName' for girl $girlIndex: $e");
+        _log("Set animation failed: $e");
         return; // 不要尝试再次清除轨道，避免递归错误
       }
       
+      // 更新UI状态（仅对当前女孩）
       if (girlIndex == _currentIndex && mounted) {
         setState(() {
           _isAnimating = true;
         });
+        _v("Updated UI state: _isAnimating = true");
       }
       
-      print("Successfully started animation: $animationName (loop: $loop) for girl $girlIndex");
+      _log("Play: $animationName loop=$loop girl=$girlIndex");
     } catch (e) {
-      print("Error playing animation '$animationName' for girl $girlIndex: $e");
+      _log("Play error '$animationName' girl=$girlIndex: $e");
       if (girlIndex == _currentIndex && mounted) {
         setState(() {
           _isAnimating = false;
         });
+        _v("Updated UI state: _isAnimating = false (due to error)");
       }
     }
+    _v("=== _playAnimationForGirl END ===");
   }
 
   // 为当前女孩播放动画
@@ -1312,16 +1356,29 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
   // 为指定女孩播放当前idle动画
   void _playCurrentIdleAnimationForGirl(int girlIndex) {
-    if (_spineControllers[girlIndex] == null || !(_controllersReady[girlIndex] ?? false)) {
-      print("Spine controller not ready for idle animation for girl $girlIndex");
+    _v("=== _playCurrentIdleAnimationForGirl START ===");
+    _v("Target girl: $girlIndex");
+    
+    // 检查控制器状态
+    bool controllerReady = _spineControllers[girlIndex] != null && (_controllersReady[girlIndex] ?? false);
+    _v("Controller ready for girl $girlIndex: $controllerReady");
+    
+    if (!controllerReady) {
+      _v("Spine controller not ready for idle animation for girl $girlIndex - ABORTING");
       return;
     }
 
     // 获取该女孩的idle索引
-    int girlIdleIndex = _loadGirlIdleIndex(girlIndex);
-    
-    // 使用该女孩的动画索引
-    String animationName;
+    int girlIdleIndex;
+    if (girlIndex == _currentIndex) {
+      // 当前女孩使用实时状态
+      girlIdleIndex = _currentIdleIndex;
+      _v("Using current idle index for girl $girlIndex: $girlIdleIndex");
+    } else {
+      // 其他女孩从存储加载
+      girlIdleIndex = _loadGirlIdleIndex(girlIndex);
+      _v("Loaded idle index for girl $girlIndex: $girlIdleIndex");
+    }
     
     // 根据女孩判断 underwear 模式
     bool isUnderwearMode;
@@ -1332,31 +1389,63 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // Girl01和Girl02的underwear模式是index 4
       isUnderwearMode = girlIdleIndex == 4;
     }
+    _v("Underwear mode for girl $girlIndex (idle $girlIdleIndex): $isUnderwearMode");
+    
+    // 确定动画名称
+    String animationName;
+    bool isSpecial = _girlStates[girlIndex].isPlayingSpecial;
+    _v("Special animation mode for girl $girlIndex: $isSpecial");
     
     if (!isUnderwearMode) {
       // 非underwear模式: Girl01和Girl02有idle_01到idle_04，Girl03有idle_01到idle_05
-      if (_girlStates[girlIndex].isPlayingSpecial) {
+      if (isSpecial) {
         // 播放特殊动画
         animationName = 'idlesp_0${girlIdleIndex + 1}';
+        _v("Selected special animation: $animationName");
       } else {
         // 播放普通idle动画
         animationName = 'idle_0${girlIdleIndex + 1}';
+        _v("Selected normal idle animation: $animationName");
       }
     } else {
       // underwear模式
-      if (_girlStates[girlIndex].isPlayingSpecial) {
+      if (isSpecial) {
         // 播放underwear特殊动画
         animationName = 'idlesp_underwear';
+        _v("Selected underwear special animation: $animationName");
       } else {
         // 播放underwear普通动画
         animationName = 'idle_underwear';
+        _v("Selected underwear normal animation: $animationName");
       }
     }
 
-    print("Attempting to play idle animation for girl $girlIndex: $animationName (index: $girlIdleIndex, special: ${_girlStates[girlIndex].isPlayingSpecial})");
+    // 验证动画是否存在
+    bool animationExists = _isAnimationAvailableForGirl(animationName, girlIndex);
+    _v("Animation '$animationName' exists for girl $girlIndex: $animationExists");
+    
+    if (!animationExists) {
+      _v("Target animation not found, checking available animations...");
+      // 列出可用动画进行调试
+      if (_girlAnimations[girlIndex]?.isNotEmpty == true) {
+        _v("Available animations for girl $girlIndex: ${_girlAnimations[girlIndex]}");
+        // 使用第一个可用动画作为fallback
+        String fallbackAnimation = _girlAnimations[girlIndex]!.first;
+        _v("Using fallback animation: $fallbackAnimation");
+        animationName = fallbackAnimation;
+      } else {
+        _log("No animations available for girl $girlIndex");
+        return;
+      }
+    }
 
+    // 仅输出关键日志
+    _log("Idle: $animationName girl=$girlIndex");
+    
     // 使用安全的动画播放方法
     _playAnimationForGirl(animationName, true, girlIndex);
+    
+    _v("=== _playCurrentIdleAnimationForGirl END ===");
   }
 
   // 播放当前女孩的idle动画
@@ -1395,6 +1484,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   @override
   void dispose() {
     _isDisposing = true;
+    
+    // 保存当前女孩的状态（包括皮肤选择）
+    _saveCurrentGirlState();
+    
     // 恢复系统UI显示
     // SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pageController.dispose();
@@ -1661,6 +1754,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
                                     onTap: () async {
                                       await AudioManager().playExit();
                                       
+                                      // 保存当前女孩的状态（包括皮肤选择）
+                                      await _saveCurrentGirlState();
+                                      
                                       // 检查是否有新解锁的女生
                                       await _checkForNewUnlockOnExit();
                                       
@@ -1837,7 +1933,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     return asset.imagePath;
   }
 
-  void _loadSpineAsset(int index) {
+  void _loadSpineAsset(int index) async {
     if (_isDisposing || !mounted) return;
     
     // 检查是否解锁
@@ -1848,13 +1944,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     
     // 保存当前女孩的状态
     if (_currentIndex >= 0 && _currentIndex < 3) {
-      // 保存当前女孩的idle索引到独立存储
-      _saveGirlIdleIndex(_currentIndex, _currentIdleIndex);
-      // 保存当前女孩的皮肤选择
-      for (int i = 0; i < 4; i++) {
-        String partName = _getPartName(i);
-        GameStateManager().setCurrentSkin(_currentIndex, partName, _currentSkinIndices[i]!);
-      }
+      await _saveCurrentGirlState();
     }
     
     // 停止当前女孩的所有动画，防止并发访问
@@ -1884,8 +1974,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       Map<String, int> savedSkins = GameStateManager().getCurrentSkins(index);
       _currentSkinIndices = {
         0: savedSkins['bra'] ?? 0,
-        1: savedSkins[index == 0 ? 'pants' : 'hands'] ?? 0,  // Girl01使用pants，Girl02和Girl03使用hands
-        2: savedSkins[index == 0 ? 'hands' : 'head'] ?? 0,   // Girl01使用hands，Girl02和Girl03使用head
+        1: savedSkins['hands'] ?? 0,  // Girl01使用hands，Girl02和Girl03也使用hands
+        2: savedSkins['pants'] ?? 0,   // Girl01使用pants，Girl02和Girl03也使用pants
         3: savedSkins['socks'] ?? 0,
       };
     });
@@ -1929,6 +2019,20 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     // 保存到持久化存储
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('girl_${girlIndex}_idle_index', idleIndex);
+  }
+
+  // 保存当前女孩的完整状态（包括idle索引和皮肤选择）
+  Future<void> _saveCurrentGirlState() async {
+    if (_currentIndex >= 0 && _currentIndex < 3) {
+      // 保存当前女孩的idle索引到独立存储
+      await _saveGirlIdleIndex(_currentIndex, _currentIdleIndex);
+      // 保存当前女孩的皮肤选择
+      for (int i = 0; i < 4; i++) {
+        String partName = _getPartName(i);
+        await GameStateManager().setCurrentSkin(_currentIndex, partName, _currentSkinIndices[i]!);
+      }
+      print("Saved current girl state: girl $_currentIndex, idle $_currentIdleIndex, skins $_currentSkinIndices");
+    }
   }
 
   // 加载指定女孩的 idle 索引
@@ -2067,90 +2171,139 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
   // 切换到下一个idle动画
   void _nextIdleAnimation() async {
+    _log("=== _nextIdleAnimation START ===");
+    _log("Current state - Girl: $_currentIndex, IdleIndex: $_currentIdleIndex, Hearts: $_heartCount");
+    
     // Girl01和Girl02是4次脱衣（0-3索引），第4个索引是underwear模式
     // Girl03是5次脱衣（0-4索引），第5个索引是underwear模式
     int maxIdleIndex = _currentIndex == 2 ? 5 : 4;
+    _log("Max idle index for Girl $_currentIndex: $maxIdleIndex");
     
     // 检查心形货币是否足够
     if (_heartCount < 5) {
+      _log("Insufficient hearts: $_heartCount < 5, showing dialog");
       // 心形不够，显示弹窗
       await AudioManager().playPopupOpen();
       bool? gotCoins = await _showInsufficientHeartsDialog(5 - _heartCount);
       
       if (gotCoins == true) {
+        _log("Got coins from dialog, retrying");
         // 获得了心币，更新显示并重新尝试
         if (_isDisposing || !mounted) return;
         setState(() { _heartCount = GameStateManager().getHeartCount(); });
         // 递归调用，重新尝试
         _nextIdleAnimation();
+      } else {
+        _log("User declined to get coins, aborting");
       }
       return;
     }
     
-    if (_isDisposing || !mounted) return;
-    if (_currentIdleIndex < maxIdleIndex && _spineControllers[_currentIndex] != null && (_controllersReady[_currentIndex] ?? false)) {
+    if (_isDisposing || !mounted) {
+      _log("Component disposing or unmounted, aborting");
+      return;
+    }
+    
+    // 检查控制器状态
+    bool controllerReady = _spineControllers[_currentIndex] != null && (_controllersReady[_currentIndex] ?? false);
+    _log("Controller ready: $controllerReady");
+    
+    if (_currentIdleIndex < maxIdleIndex && controllerReady) {
+      _log("=== NORMAL TRANSITION: idle${_currentIdleIndex + 1} -> idle${_currentIdleIndex + 2} ===");
+      
       // 消耗5个心形
+      _log("Attempting to consume 5 hearts");
       bool consumed = await GameStateManager().consumeHearts(5);
       if (!consumed) {
+        _log("Failed to consume hearts, showing dialog");
         // 消费失败，显示弹窗
         await _showInsufficientHeartsDialog(5);
         return;
       }
+      _log("Successfully consumed 5 hearts");
       
       if (_isDisposing || !mounted) return;
       setState(() { _heartCount = GameStateManager().getHeartCount(); });
+      _log("Updated heart count to: $_heartCount");
+      
       // 1. 获取当前idle编号和对应的takeoff动画
-      // idle01 -> idle02 播放 takeoff_01
-      // idle02 -> idle03 播放 takeoff_02  
-      // idle03 -> idle04 播放 takeoff_03
-      // idle04 -> underwear 播放 takeoff_04
       int takeoffIndex = _currentIdleIndex + 1; // takeoff动画对应下一阶段
       String takeoffName = 'takeoff_0${takeoffIndex}';
-
-      print("Transitioning from idle${_currentIdleIndex + 1} to idle${takeoffIndex + 1} using $takeoffName");
+      _log("Transition plan: idle_0${_currentIdleIndex + 1} -> takeoff_0${takeoffIndex} -> idle_0${takeoffIndex + 1}");
 
       // 2. 播放takeoff音效
+      _log("Playing takeoff sound for girl $_currentIndex, idle $_currentIdleIndex");
       await AudioManager().playTakeoffSound(_currentIndex, _currentIdleIndex);
 
       // 3. 验证takeoff动画是否存在
-      if (_isAnimationAvailable(takeoffName)) {
+      bool takeoffExists = _isAnimationAvailable(takeoffName);
+      _log("Takeoff animation '$takeoffName' exists: $takeoffExists");
+      
+      if (takeoffExists) {
         // 4. 获取动画时长
         final data = _spineControllers[_currentIndex]!.skeleton.getData();
         final animation = data?.findAnimation(takeoffName);
         double duration = 1.5; // 默认1.5秒
         if (animation != null) {
           duration = animation.getDuration();
+          _log("Takeoff animation duration from spine: ${duration}s");
+        } else {
+          _log("Could not get animation duration, using default: ${duration}s");
         }
         
-        print("Playing takeoff animation: $takeoffName with duration: ${duration}s");
-        
         // 5. 清除当前动画轨道
-        try { _spineControllers[_currentIndex]!.animationState.clearTracks(); } catch (_) {}
+        _log("Clearing current animation tracks");
+        try { 
+          _spineControllers[_currentIndex]!.animationState.clearTracks(); 
+          _log("Successfully cleared tracks");
+        } catch (e) { 
+          _log("Failed to clear tracks: $e");
+        }
         
         // 6. 播放takeoff动画（不循环）
-        try { _spineControllers[_currentIndex]!.animationState.setAnimationByName(0, takeoffName, false); } catch (e) { print("setAnimation failed: $e"); }
+        _log("Setting takeoff animation: $takeoffName (loop: false)");
+        try { 
+          _spineControllers[_currentIndex]!.animationState.setAnimationByName(0, takeoffName, false); 
+          _log("Successfully set takeoff animation");
+        } catch (e) { 
+          _log("Failed to set takeoff animation: $e");
+        }
+        
         if (_isDisposing || !mounted) return;
         setState(() { _isAnimating = true; });
+        _log("Set _isAnimating = true");
         
         // 7. 等待动画播完
-        await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+        int waitMs = (duration * 1000).toInt();
+        _log("Waiting for takeoff animation to complete: ${waitMs}ms");
+        await Future.delayed(Duration(milliseconds: waitMs));
         
-        print("Takeoff animation $takeoffName completed");
+        _log("Takeoff animation completed");
       } else {
-        print("Takeoff animation '$takeoffName' not found, skipping transition animation");
+        _log("Takeoff animation not found, using fallback delay");
         // 没有takeoff动画也要等一下，保持体验一致性
         await Future.delayed(Duration(milliseconds: 500));
       }
 
       // 8. 切换到下一个idle状态
-      if (_isDisposing || !mounted) return;
-      setState(() { _currentIdleIndex = _currentIdleIndex + 1; print("Switched to idle state: $_currentIdleIndex"); });
+      if (_isDisposing || !mounted) {
+        _log("Component disposing/unmounted during transition, aborting");
+        return;
+      }
+      
+      int newIdleIndex = _currentIdleIndex + 1;
+      _log("Updating idle index: $_currentIdleIndex -> $newIdleIndex");
+      setState(() { 
+        _currentIdleIndex = newIdleIndex;
+      });
+      _log("State updated - new idle index: $_currentIdleIndex");
       
       // 保存状态
+      _log("Saving idle index to storage");
       await _saveGirlIdleIndex(_currentIndex, _currentIdleIndex);
+      _log("Idle index saved successfully");
       
-      // 9. 如果进入underwear模式，重置皮肤选择
-      // 根据当前女孩判断 underwear 模式
+      // 9. 判断是否进入underwear模式
       bool isUnderwearMode;
       if (_currentIndex == 2) {
         // Girl03的underwear模式是index 5
@@ -2159,42 +2312,84 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         // Girl01和Girl02的underwear模式是index 4
         isUnderwearMode = _currentIdleIndex == 4;
       }
+      _log("Underwear mode check: isUnderwearMode = $isUnderwearMode (girl $_currentIndex, idle $_currentIdleIndex)");
       
       if (isUnderwearMode) {
-        _currentSkinIndices = {
-          0: 0, // bra: 默认皮肤
-          1: 0, // pants: 默认皮肤
-          2: 0, // hands/head: 默认皮肤
-          3: 0, // socks: 默认皮肤
-        };
-        _selectedUnderwearButton = -1;
-        _previousUnderwearButton = -1;
-        // 重置动画状态
-        try { _skinListAnimationController.reset(); } catch (_) {}
-        print("Entered underwear mode, reset skin selections");
+        _log("Entering underwear mode - restore saved skin selections");
+        // 进入内衣模式时，读取并恢复上次保存的皮肤索引
+        Map<String, int> savedSkins = GameStateManager().getCurrentSkins(_currentIndex);
+        setState(() {
+          _currentSkinIndices = {
+            0: savedSkins['bra'] ?? 0,
+            1: savedSkins[_currentIndex == 0 ? 'pants' : 'hands'] ?? 0,
+            2: savedSkins[_currentIndex == 0 ? 'hands' : 'head'] ?? 0,
+            3: savedSkins['socks'] ?? 0,
+          };
+          // 不强制清空已选按钮，保留上次交互感；如需清空，可设置为 -1
+          // _selectedUnderwearButton = -1;
+          _previousUnderwearButton = _selectedUnderwearButton;
+        });
+        // 重置动画状态控制器，确保底部列表动画处于初始位置
+        try {
+          _skinListAnimationController.reset();
+          _v("Reset skin list animation controller");
+        } catch (e) {
+          _log("Failed to reset skin list controller: $e");
+        }
+      } else {
+        _log("Normal mode - checking for Girl01 stage1 skin application");
+        // 非 underwear 模式且为 Girl01：应用阶段1皮肤（bra_1/hands_1/pants_1/socks_1）
+        if (_currentIndex == 0 && _spineControllers[_currentIndex] != null && (_controllersReady[_currentIndex] ?? false)) {
+          _log("Applying Girl01 stage1 skin");
+          // _applyGirl01Stage1Skin(_spineControllers[_currentIndex]!);
+        }
       }
       
-      // 10. 重新设置皮肤状态（重要！这是为了确保takeoff后皮肤正确显示）
+      // 10. 重新设置皮肤状态
       if (!_isDisposing && mounted && _spineControllers[_currentIndex] != null && (_controllersReady[_currentIndex] ?? false)) {
-        // 仅在进入 underwear 模式时应用皮肤；非 underwear 模式保持动画自然过渡结果
         if (isUnderwearMode) {
+          _log("Applying current skins for underwear mode");
           _applyCurrentSkins();
+        } else {
+          // 非内衣模式：Girl01 在 idle_04 时需要应用阶段1皮肤
+          if (_currentIndex == 0 && _currentIdleIndex >= 3) {
+            _log("Girl01 idle_04: applying stage1 skin after takeoff");
+            _applyGirl01Stage1Skin(_spineControllers[_currentIndex]!);
+          } else {
+            _log("Skipping skin application for normal mode (preserving takeoff result)");
+          }
         }
       }
       
       // 11. 播放下一个idle动画
       if (!_isDisposing && mounted) {
+        String expectedAnimation = isUnderwearMode ? 
+          ((_girlStates[_currentIndex].isPlayingSpecial) ? 'idlesp_underwear' : 'idle_underwear') :
+          ((_girlStates[_currentIndex].isPlayingSpecial) ? 'idlesp_0${_currentIdleIndex + 1}' : 'idle_0${_currentIdleIndex + 1}');
+        _log("Playing next idle animation: $expectedAnimation");
         _playCurrentIdleAnimation();
+      } else {
+        _log("Skipping idle animation - component not ready");
       }
+      
     } else {
+      _log("=== CYCLE OR SPECIAL CASE ===");
+      _log("Condition check - currentIdleIndex: $_currentIdleIndex, maxIdleIndex: $maxIdleIndex, controllerReady: $controllerReady");
+      
       // underwear模式或异常情况，直接循环回到idle01
-      print("In underwear mode or controller not ready, cycling back to idle01");
       // Girl01和Girl02有5个状态(0-4)，Girl03有6个状态(0-5)
       int maxIndex = _currentIndex == 2 ? 6 : 5;
+      _log("Max cycle index: $maxIndex");
+      
       if (_isDisposing || !mounted) return;
+      
+      int newCycleIndex = (_currentIdleIndex + 1) % maxIndex;
+      _log("Cycling: $_currentIdleIndex -> $newCycleIndex");
+      
       setState(() {
-        _currentIdleIndex = (_currentIdleIndex + 1) % maxIndex;
+        _currentIdleIndex = newCycleIndex;
         if (_currentIdleIndex == 0) {
+          _log("Reset to idle01 - clearing all states");
           // 回到idle01时重置所有状态
           _selectedUnderwearButton = -1;
           _previousUnderwearButton = -1;
@@ -2206,10 +2401,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           };
         }
       });
+      
       if (!_isDisposing && mounted) {
+        _log("Playing cycled idle animation");
         _playCurrentIdleAnimation();
       }
     }
+    
+    _log("=== _nextIdleAnimation END ===");
   }
     
   // 为指定索引构建Spine Widget
@@ -2297,7 +2496,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           ),
         ),
 
-        // 左侧按钮 - 根据女孩类型显示不同按钮（Girl01显示pants，Girl02和Girl03显示hands）
+        // 左侧按钮 - 根据女孩类型显示不同按钮（Girl01显示hands，Girl02和Girl03显示hands）
         Positioned(
           left: 20,
           top: MediaQuery.of(context).size.height * 0.62,
@@ -2305,8 +2504,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
             onTap: () => _onUnderwearButtonTap(1),
             child: Image.asset(
               _isUnderwearButtonSelected(1)
-                  ? (_currentIndex == 0 ? 'assets/images/Btn_pants_selected.png' : 'assets/images/Btn_hand_selected.png')
-                  : (_currentIndex == 0 ? 'assets/images/Btn_pants_normal.png' : 'assets/images/Btn_hand_normal.png'),
+                  ? 'assets/images/Btn_hand_selected.png'
+                  : 'assets/images/Btn_hand_normal.png',
               height: 80,
             ),
           ),
@@ -2320,8 +2519,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
             onTap: () => _onUnderwearButtonTap(2),
             child: Image.asset(
               _isUnderwearButtonSelected(2)
-                  ? (_currentIndex == 0 ? 'assets/images/Btn_hand_selected.png' : 'assets/images/Btn_head_selected.png')
-                  : (_currentIndex == 0 ? 'assets/images/Btn_hand_normal.png' : 'assets/images/Btn_head_normal.png'),
+                  ? (_currentIndex == 0 ? 'assets/images/Btn_pants_selected.png' : 'assets/images/Btn_head_selected.png')
+                  : (_currentIndex == 0 ? 'assets/images/Btn_pants_normal.png' : 'assets/images/Btn_head_normal.png'),
               height: 80,
             ),
           ),
@@ -2529,11 +2728,11 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   // 获取部位名称
   String _getPartName(int buttonType) {
     if (_currentIndex == 0) {
-      // Girl01: bra, pants, hands, socks
+      // Girl01: bra, hands, pants, socks
       switch (buttonType) {
         case 0: return "bra";
-        case 1: return "pants";
-        case 2: return "hands";
+        case 1: return "hands";
+        case 2: return "pants";
         case 3: return "socks";
         default: return "bra";
       }
@@ -2714,16 +2913,56 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       _girlStates[_currentIndex] = _girlStates[_currentIndex].copyWith(isPlayingSpecial: false);
       _currentSkinIndices = {
         0: 0, // bra
-        1: 0, // pants/hands
-        2: 0, // hands/head
+        1: 0, // hands
+        2: 0, // pants/head
         3: 0, // socks
       };
     });
-    // 保存进度并应用皮肤与动画
+    // 保存进度与皮肤索引（全部回到 none/索引0）
     try { await _saveGirlIdleIndex(_currentIndex, 0); } catch (_) {}
+    try {
+      await GameStateManager().setCurrentSkin(_currentIndex, _getPartName(0), 0);
+      await GameStateManager().setCurrentSkin(_currentIndex, _getPartName(1), 0);
+      await GameStateManager().setCurrentSkin(_currentIndex, _getPartName(2), 0);
+      await GameStateManager().setCurrentSkin(_currentIndex, _getPartName(3), 0);
+    } catch (_) {}
+
+    // 立即强制应用 none 默认皮肤（非 underwear 也生效），然后播放 idle
     if (!_isDisposing && mounted && _spineControllers[_currentIndex] != null && (_controllersReady[_currentIndex] ?? false)) {
-      _applyCurrentSkins();
+      try {
+        _setDefaultSkinForGirl(_spineControllers[_currentIndex]!, _currentIndex);
+      } catch (_) {}
       _playCurrentIdleAnimation();
+    }
+  }
+
+  // 应用 Girl01 脱衣后的阶段1皮肤（bra_1/hands_1/pants_1/socks_1）
+  void _applyGirl01Stage1Skin(SpineWidgetController controller) {
+    try {
+      final data = controller.skeletonData;
+      final skeleton = controller.skeleton;
+      final customSkin = Skin("girl01-stage1-skin");
+      bool hasAnySkin = false;
+
+      final braSkin = data.findSkin("bra/bra1");
+      final handsSkin = data.findSkin("hands/hands1");
+      final pantsSkin = data.findSkin("pants/pants1");
+      final socksSkin = data.findSkin("socks/socks1");
+
+      if (braSkin != null) { customSkin.addSkin(braSkin); hasAnySkin = true; _log("Added bra/bra1"); }
+      if (handsSkin != null) { customSkin.addSkin(handsSkin); hasAnySkin = true; _log("Added hands/hands1"); }
+      if (pantsSkin != null) { customSkin.addSkin(pantsSkin); hasAnySkin = true; _log("Added pants/pants1"); }
+      if (socksSkin != null) { customSkin.addSkin(socksSkin); hasAnySkin = true; _log("Added socks/socks1"); }
+
+      if (hasAnySkin) {
+        skeleton.setSkin(customSkin);
+        skeleton.setSlotsToSetupPose();
+        _log("Girl01 stage1 skin applied");
+      } else {
+        _log("Girl01 stage1 skins not found, skip applying");
+      }
+    } catch (e) {
+      _log("Failed to apply Girl01 stage1 skin: $e");
     }
   }
 
