@@ -1055,7 +1055,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       Map<String, int> savedSkins = GameStateManager().getCurrentSkins(girlIndex);
       Map<int, int> girlSkinIndices = {
         0: savedSkins['bra'] ?? 0,
-        1: savedSkins['pants'] ?? 0,
+        1: savedSkins['hands'] ?? 0,  // Girl02使用hands
         2: savedSkins['head'] ?? 0,
         3: savedSkins['socks'] ?? 0,
       };
@@ -1063,7 +1063,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // Girl02在underwear模式下需要: bra, hands, head, socks
       final skinNames = [
         "bra/bra${girlSkinIndices[0]! + 1}",
-        "hands/hands${girlSkinIndices[1]! + 1}",  // Girl02使用hands而不是pants
+        "hands/hands${girlSkinIndices[1]! + 1}",  // Girl02使用hands
         "head/head${girlSkinIndices[2]! + 1}",
         "socks/socks${girlSkinIndices[3]! + 1}",
       ];
