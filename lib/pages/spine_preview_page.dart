@@ -51,9 +51,6 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   int _pendingUnlockSkinIndex = -1; // 待解锁的皮肤索引
   int _pendingUnlockButtonType = -1; // 待解锁的部位类型
 
-  // 页面切换动画控制器
-  late PageController _pageController;
-
   // 女孩状态管理
   late List<GirlState> _girlStates;
 
@@ -145,9 +142,6 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     // 初始化游戏状态
     _initGameState();
 
-    // 初始化页面控制器
-    _pageController = PageController(initialPage: _currentIndex);
-
     // 初始化女孩状态
     _girlStates = [
       GirlState(girlIndex: 0, maxSkinLevels: GirlState.getMaxSkinLevels(0)),
@@ -197,10 +191,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     // 预加载所有女孩的idle索引到缓存
     await _preloadAllGirlIdleIndices();
     
-    // 恢复上次的状态（仅专注 Girl01）
+    // 恢复上次的状态（仅专注 Girl03）
     setState(() {
       _heartCount = GameStateManager().getHeartCount();
-      _currentIndex = 0; // 只使用 Girl01
+      _currentIndex = 2; // 使用 Girl03
       _currentIdleIndex = _girlIdleIndexCache[_currentIndex] ?? 0; // 从缓存中获取当前女孩的idle索引
       _showTakeoffOverlay = !GameStateManager().hasSeenTakeoffGuide();
       
@@ -209,8 +203,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         Map<String, int> skins = GameStateManager().getCurrentSkins(i);
         if (i == _currentIndex) {
           _currentSkinIndices[0] = skins['bra'] ?? 0;
-          _currentSkinIndices[1] = skins['hands'] ?? 0;  // Girl01使用hands
-          _currentSkinIndices[2] = skins['pants'] ?? 0;   // Girl01使用pants
+          _currentSkinIndices[1] = skins['hands'] ?? 0;  // Girl03使用hands
+          _currentSkinIndices[2] = skins['head'] ?? 0;   // Girl03使用head
           _currentSkinIndices[3] = skins['socks'] ?? 0;
         }
       }
@@ -1490,7 +1484,6 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     
     // 恢复系统UI显示
     // SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    _pageController.dispose();
     
     // 销毁动画控制器
     _skinListAnimationController.dispose();
@@ -1597,24 +1590,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
               height: MediaQuery.of(context).size.height,
             ),
             
-            // Spine动画预览区域 - 全屏显示，禁用左右滑动
-            PageView.builder(
-              controller: _pageController,
-              physics: NeverScrollableScrollPhysics(),
-              // 禁用滚动
-              onPageChanged: (index) {
-                setState(() {
-                  _currentIndex = 0; // 固定为 Girl01
-                });
-                _loadSpineAsset(0);
-
-                // 重新启动动画循环
-                _startIdleAnimationCycle();
-              },
-              itemCount: 1, // 仅构建 Girl01
-              itemBuilder: (context, index) {
-                return _buildSpineWidgetForIndex(0);
-              },
+            // Spine动画预览区域 - 直接显示当前女孩
+            Container(
+              width: double.infinity,
+              height: double.infinity,
+              child: GestureDetector(
+                onTapDown: _handleGirlTap,
+                child: _buildSpineWidgetForIndex(_currentIndex),
+              ),
             ),
 
             // Takeoff 手势覆盖动画
@@ -1974,8 +1957,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       Map<String, int> savedSkins = GameStateManager().getCurrentSkins(index);
       _currentSkinIndices = {
         0: savedSkins['bra'] ?? 0,
-        1: savedSkins['hands'] ?? 0,  // Girl01使用hands，Girl02和Girl03也使用hands
-        2: savedSkins['pants'] ?? 0,   // Girl01使用pants，Girl02和Girl03也使用pants
+        1: savedSkins['hands'] ?? 0,  // Girl03使用hands
+        2: savedSkins['head'] ?? 0,   // Girl03使用head
         3: savedSkins['socks'] ?? 0,
       };
     });
@@ -2118,27 +2101,23 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
   // 切换到指定女孩
   void _switchToGirl(int index) {
-    // 禁用切换，仅允许 Girl01
-    if (index != 0) {
+    // 检查是否解锁
+    if (!GameStateManager().isGirlUnlocked(index)) {
       _showLockedGirlMessage(index);
       return;
     }
-    if (_currentIndex != 0) {
-      _pageController.animateToPage(
-        0,
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
+    
+    // 直接切换到指定女孩
+    _loadSpineAsset(index);
   }
   
   // 显示女生未解锁提示
   void _showLockedGirlMessage(int girlIndex) {
     String message = '';
-    if (girlIndex == 1) {
+    if (girlIndex == 0) {
+      message = 'Girl 01 will be unlocked at Level 50';
+    } else if (girlIndex == 1) {
       message = 'Girl 02 will be unlocked at Level 100';
-    } else if (girlIndex == 2) {
-      message = 'Girl 03 will be unlocked at Level 300';
     }
     
     if (message.isNotEmpty) {
