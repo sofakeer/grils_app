@@ -29,7 +29,7 @@ class GameStateManager {
   
   // 获取心形货币数量
   int getHeartCount() {
-    return _prefs.getInt(_keyHeartCount) ?? 20; // 初始给20个心形
+    return _prefs.getInt(_keyHeartCount) ?? 10000; // 初始给10000个心形
   }
   
   // 设置心形货币数量
