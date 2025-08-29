@@ -476,14 +476,16 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
   // 初始化所有女孩的控制器
   void _initializeAllControllers() {
-    for (int i = 0; i < _spineAssets.length; i++) {
-      _initializeSpineControllerForGirl(i);
-    }
+    // 只初始化当前女孩的控制器
+    _initializeSpineControllerForGirl(_currentIndex);
   }
 
   // 为指定女孩初始化控制器
   void _initializeSpineControllerForGirl(int girlIndex) {
-    // 先销毁旧的控制器，防止内存泄漏
+    // 检查是否已经销毁
+    if (_isDisposing || !mounted) return;
+    
+    // 先安全地销毁旧的控制器
     if (_spineControllers[girlIndex] != null) {
       _spineControllers[girlIndex] = null;
     }
@@ -535,8 +537,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
                 Future.delayed(Duration(milliseconds: 100), () {
                   if (_isDisposing || !mounted) return;
                   try {
-                    controller.animationState.clearTracks();
-                    controller.animationState.setAnimationByName(0, firstAnimName, true);
+                    // 安全地清除轨道，添加额外的检查
+                    if (controller.animationState != null) {
+                      controller.animationState.clearTracks();
+                    }
+                    if (controller.animationState != null) {
+                      controller.animationState.setAnimationByName(0, firstAnimName, true);
+                    }
                   } catch (e) {
                     print("Delayed fallback play failed for girl $girlIndex: $e");
                   }
@@ -1254,8 +1261,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       _v("Clearing existing animation tracks...");
       try {
         if (_spineControllers[girlIndex] != null && (_controllersReady[girlIndex] ?? false)) {
-          _spineControllers[girlIndex]!.animationState.clearTracks();
-          _v("Successfully cleared tracks");
+          // 添加额外的安全检查
+          if (_spineControllers[girlIndex]!.animationState != null) {
+            _spineControllers[girlIndex]!.animationState.clearTracks();
+            _v("Successfully cleared tracks");
+          } else {
+            _v("Animation state is null, skipping clearTracks");
+          }
         } else {
           _v("Controller became unavailable before clearTracks - ABORTING");
           return;
@@ -1269,8 +1281,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       _v("Setting animation: $animationName (loop: $loop)");
       try {
         if (_spineControllers[girlIndex] != null && (_controllersReady[girlIndex] ?? false)) {
-          _spineControllers[girlIndex]!.animationState.setAnimationByName(0, animationName, loop);
-          _v("Successfully set animation");
+          // 添加额外的安全检查
+          if (_spineControllers[girlIndex]!.animationState != null) {
+            _spineControllers[girlIndex]!.animationState.setAnimationByName(0, animationName, loop);
+            _v("Successfully set animation");
+          } else {
+            _v("Animation state is null, skipping setAnimation");
+            return;
+          }
         } else {
           _v("Controller became unavailable before setAnimation - ABORTING");
           return;
@@ -1755,17 +1773,11 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: List.generate(4, (index) {
-                            bool isUnlocked = index < 3 ? GameStateManager().isGirlUnlocked(index) : false;
                             return GestureDetector(
                               onTap: () {
                                 if (index < 3) {
-                                  if (isUnlocked) {
-                                    // 切换到该女生
-                                    _switchToGirl(index);
-                                  } else {
-                                    // 提示未解锁
-                                    _showLockedGirlMessage(index);
-                                  }
+                                  // 直接切换到该女生
+                                  _switchToGirl(index);
                                 }
                               },
                               child: Stack(
@@ -1774,40 +1786,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
                                     width: 80,
                                     height: 80,
                                     child: Image.asset(
-                                      _getGirlIconPath(index, isUnlocked),
+                                      _getGirlIconPath(index, true), // 总是显示解锁状态
                                       fit: BoxFit.cover,
                                     ),
                                   ),
-                                  // 锁定图标
-                                  // if (index < 3 && !isUnlocked)
-                                    // Positioned(
-                                    //   bottom: 0,
-                                    //   right: 0,
-                                    //   child: Container(
-                                    //     width: 25,
-                                    //     height: 25,
-                                    //     decoration: BoxDecoration(
-                                    //       color: Colors.black54,
-                                    //       shape: BoxShape.circle,
-                                    //     ),
-                                    //     child: Icon(
-                                    //       Icons.lock,
-                                    //       color: Colors.white,
-                                    //       size: 15,
-                                    //     ),
-                                    //   ),
-                                    // ),
-                                  // 当前选中指示器
-                                  // if (index == _currentIndex && index < 3)
-                                  //   Positioned(
-                                  //     bottom: -5,
-                                  //     left: 0,
-                                  //     right: 0,
-                                  //     child: Container(
-                                  //       height: 3,
-                                  //       color: Colors.yellow,
-                                  //     ),
-                                  //   ),
                                 ],
                               ),
                             );
@@ -1919,32 +1901,32 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   void _loadSpineAsset(int index) async {
     if (_isDisposing || !mounted) return;
     
-    // 检查是否解锁
-    if (!GameStateManager().isGirlUnlocked(index)) {
-      _showLockedGirlMessage(index);
-      return;
+    // 先安全地销毁所有Spine控制器，避免调用clearTracks导致崩溃
+    for (int i = 0; i < _spineControllers.length; i++) {
+      if (_spineControllers[i] != null) {
+        // 不调用clearTracks，直接设置为null让垃圾回收器处理
+        _spineControllers[i] = null;
+      }
     }
+    
+    // 重置所有控制器的准备状态
+    _controllersReady.clear();
+    _girlAnimations.clear();
     
     // 保存当前女孩的状态
     if (_currentIndex >= 0 && _currentIndex < 3) {
       await _saveCurrentGirlState();
     }
     
-    // 停止当前女孩的所有动画，防止并发访问
-    if (_currentIndex >= 0 && _currentIndex < 3 && _spineControllers[_currentIndex] != null) {
-      try {
-        _spineControllers[_currentIndex]!.animationState.clearTracks();
-      } catch (e) {
-        print("Error clearing tracks for previous girl $_currentIndex: $e");
-      }
-    }
+    // 检查是否已经销毁
+    if (_isDisposing || !mounted) return;
     
     setState(() {
       _currentIndex = index;
       _showSecondImage = false;
       _atlasInfo = null;
       _isAnimating = false;
-      _isLoading = !(_controllersReady[index] ?? false); // 如果控制器已准备好就不需要loading
+      _isLoading = true; // 强制显示loading状态
       
       // 恢复新女孩的状态 - 立即恢复该女孩的idle进度
       _currentIdleIndex = _loadGirlIdleIndexSync(index); // 立即恢复该女孩的脱衣进度
@@ -1963,31 +1945,17 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       };
     });
     
+    // 检查是否已经销毁
+    if (_isDisposing || !mounted) return;
+    
     // 保存当前女孩索引
     GameStateManager().setCurrentGirlIndex(index);
 
-    // 停止之前的动画循环
+    // 停止之前的动画计时器
     _animationTimer?.cancel();
 
-    // 如果该女孩的控制器还没准备好，初始化它
-    if (!(_controllersReady[index] ?? false)) {
-      _initializeSpineControllerForGirl(index);
-    } else {
-      // 控制器已准备好，延迟应用皮肤和播放动画，确保状态稳定
-      Future.delayed(Duration(milliseconds: 100), () {
-        if (_isDisposing || !mounted || _currentIndex != index) return;
-        try {
-          _setDefaultSkinForGirl(_spineControllers[index]!, index);
-          // 再延迟一点播放动画，确保皮肤设置完成
-          Future.delayed(Duration(milliseconds: 50), () {
-            if (_isDisposing || !mounted || _currentIndex != index) return;
-            _playCurrentIdleAnimationForGirl(index);
-          });
-        } catch (e) {
-          print("Error applying skin/animation for girl $index: $e");
-        }
-      });
-    }
+    // 重新初始化目标女孩的控制器
+    _initializeSpineControllerForGirl(index);
     
     _loadSpineInfo();
     
@@ -2101,14 +2069,15 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
   // 切换到指定女孩
   void _switchToGirl(int index) {
-    // 检查是否解锁
-    if (!GameStateManager().isGirlUnlocked(index)) {
-      _showLockedGirlMessage(index);
-      return;
-    }
+    // 如果正在切换中，忽略新的切换请求
+    if (_isLoading) return;
     
-    // 直接切换到指定女孩
-    _loadSpineAsset(index);
+    // 延迟切换，确保旧的SpineWidget完全清理
+    Future.delayed(Duration(milliseconds: 200), () {
+      if (!_isDisposing && mounted) {
+        _loadSpineAsset(index);
+      }
+    });
   }
   
   // 显示女生未解锁提示
@@ -2392,6 +2361,11 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     
   // 为指定索引构建Spine Widget
   Widget _buildSpineWidgetForIndex(int index) {
+    // 检查是否已经销毁
+    if (_isDisposing || !mounted) {
+      return Container(); // 返回空容器
+    }
+    
     if (_spineControllers[index] == null) {
       return const Center(
         child: Column(
@@ -2416,10 +2390,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
             _spineAssets[index].skeletonFile,
             _spineControllers[index]!,
             boundsProvider: SetupPoseBounds(),
+            key: ValueKey('spine_$index'), // 添加key确保每次切换都创建新的widget
           ),
         ),
       );
     } catch (e) {
+      print("Error building spine widget for girl $index: $e");
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -2443,12 +2419,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                setState(() {
-                  _controllersReady[index] = false;
-                  _currentAnimationIndex = 0;
-                });
-                _initializeSpineControllerForGirl(index);
-                _loadSpineInfo();
+                if (!_isDisposing && mounted) {
+                  setState(() {
+                    _controllersReady[index] = false;
+                    _currentAnimationIndex = 0;
+                  });
+                  _initializeSpineControllerForGirl(index);
+                  _loadSpineInfo();
+                }
               },
               child: const Text('重试'),
             ),
