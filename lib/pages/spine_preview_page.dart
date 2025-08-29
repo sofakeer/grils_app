@@ -2367,14 +2367,37 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     }
     
     if (_spineControllers[index] == null) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('正在加载Spine动画...'),
-          ],
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Colors.transparent, // 使用透明背景
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 显示女孩头像作为占位符
+              Container(
+                width: 200,
+                height: 200,
+                child: Image.asset(
+                  _spineAssets[index].imagePath,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              SizedBox(height: 20),
+              CircularProgressIndicator(
+                color: Colors.white,
+              ),
+              SizedBox(height: 16),
+              Text(
+                '正在加载${_spineAssets[index].name}...',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -2396,41 +2419,59 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       );
     } catch (e) {
       print("Error building spine widget for girl $index: $e");
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Failed to load Spine animation',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Error: $e',
-              style: const TextStyle(color: Colors.red),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                if (!_isDisposing && mounted) {
-                  setState(() {
-                    _controllersReady[index] = false;
-                    _currentAnimationIndex = 0;
-                  });
-                  _initializeSpineControllerForGirl(index);
-                  _loadSpineInfo();
-                }
-              },
-              child: const Text('重试'),
-            ),
-          ],
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Colors.transparent, // 使用透明背景
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 显示女孩头像作为占位符
+              Container(
+                width: 200,
+                height: 200,
+                child: Image.asset(
+                  _spineAssets[index].imagePath,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              SizedBox(height: 20),
+              const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '加载失败',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Error: $e',
+                style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  if (!_isDisposing && mounted) {
+                    setState(() {
+                      _controllersReady[index] = false;
+                      _currentAnimationIndex = 0;
+                    });
+                    _initializeSpineControllerForGirl(index);
+                    _loadSpineInfo();
+                  }
+                },
+                child: const Text('重试'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -2440,20 +2481,22 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   Widget _buildUnderwearButtons() {
     return Stack(
       children: [
-        // 左侧按钮 - 内衣
+        // 左侧上方按钮
         Positioned(
           left: 20,
           top: MediaQuery.of(context).size.height * 0.25,
           child: GestureDetector(
             onTap: () => _onUnderwearButtonTap(0),
             child: Image.asset(
-              _isUnderwearButtonSelected(0) ? 'assets/images/Btn_bra_selected.png' : 'assets/images/Btn_bra_normal.png',
+              _isUnderwearButtonSelected(0) 
+                  ? (_currentIndex == 0 ? 'assets/images/Btn_bra_selected.png' : 'assets/images/Btn_head_selected.png')
+                  : (_currentIndex == 0 ? 'assets/images/Btn_bra_normal.png' : 'assets/images/Btn_head_normal.png'),
               height: 80,
             ),
           ),
         ),
 
-        // 左侧按钮 - 根据女孩类型显示不同按钮（Girl01显示hands，Girl02和Girl03显示hands）
+        // 左侧下方按钮
         Positioned(
           left: 20,
           top: MediaQuery.of(context).size.height * 0.62,
@@ -2461,14 +2504,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
             onTap: () => _onUnderwearButtonTap(1),
             child: Image.asset(
               _isUnderwearButtonSelected(1)
-                  ? 'assets/images/Btn_hand_selected.png'
-                  : 'assets/images/Btn_hand_normal.png',
+                  ? (_currentIndex == 0 ? 'assets/images/Btn_pants_selected.png' : 'assets/images/Btn_bra_selected.png')
+                  : (_currentIndex == 0 ? 'assets/images/Btn_pants_normal.png' : 'assets/images/Btn_bra_normal.png'),
               height: 80,
             ),
           ),
         ),
 
-        // 右侧按钮 - 根据女孩类型显示不同按钮
+        // 右侧上方按钮
         Positioned(
           right: 20,
           top: MediaQuery.of(context).size.height * 0.3,
@@ -2476,14 +2519,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
             onTap: () => _onUnderwearButtonTap(2),
             child: Image.asset(
               _isUnderwearButtonSelected(2)
-                  ? (_currentIndex == 0 ? 'assets/images/Btn_pants_selected.png' : 'assets/images/Btn_head_selected.png')
-                  : (_currentIndex == 0 ? 'assets/images/Btn_pants_normal.png' : 'assets/images/Btn_head_normal.png'),
+                  ? (_currentIndex == 2 ? 'assets/images/Btn_pants_selected.png' : 'assets/images/Btn_hand_selected.png')
+                  : (_currentIndex == 2 ? 'assets/images/Btn_pants_normal.png' : 'assets/images/Btn_hand_normal.png'),
               height: 80,
             ),
           ),
         ),
 
-        // 右侧按钮 - 腿
+        // 右侧下方按钮
         Positioned(
           right: 20,
           top: MediaQuery.of(context).size.height * 0.65,
@@ -2685,31 +2728,31 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   // 获取部位名称
   String _getPartName(int buttonType) {
     if (_currentIndex == 0) {
-      // Girl01: bra, hands, pants, socks
+      // Girl01: 左侧 bra(0) 和 pants(1)，右侧 hands(2) 和 socks(3)
       switch (buttonType) {
         case 0: return "bra";
-        case 1: return "hands";
-        case 2: return "pants";
+        case 1: return "pants";
+        case 2: return "hands";
         case 3: return "socks";
         default: return "bra";
       }
     } else if (_currentIndex == 1) {
-      // Girl02: bra, hands, head, socks
+      // Girl02: 左侧 head(0) 和 bra(1)，右侧 hands(2) 和 socks(3)
       switch (buttonType) {
-        case 0: return "bra";
-        case 1: return "hands";  // Girl02的第二个按钮是hands
-        case 2: return "head";
+        case 0: return "head";
+        case 1: return "bra";
+        case 2: return "hands";
         case 3: return "socks";
-        default: return "bra";
+        default: return "head";
       }
     } else if (_currentIndex == 2) {
-      // Girl03: bra, hands, head, socks (Girl03也可能没有pants，使用hands)
+      // Girl03: 左侧 head(0) 和 bra(1)，右侧 pants(2) 和 socks(3)
       switch (buttonType) {
-        case 0: return "bra";
-        case 1: return "hands";  // Girl03也使用hands而不是pants
-        case 2: return "head";
+        case 0: return "head";
+        case 1: return "bra";
+        case 2: return "pants";
         case 3: return "socks";
-        default: return "bra";
+        default: return "head";
       }
     }
     return "bra";
