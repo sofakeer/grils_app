@@ -84,10 +84,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
   // 每个部位的当前皮肤索引 (0-3, 对应1-4号皮肤)
   Map<int, int> _currentSkinIndices = {
-    0: 0, // bra: 默认1号皮肤
-    1: 0, // pants: 默认1号皮肤
-    2: 0, // hands: 默认1号皮肤
-    3: 0, // socks: 默认1号皮肤
+    0: 0, // bra: 默认1号皮肤 (索引0)
+    1: 0, // pants: 默认1号皮肤 (索引0)
+    2: 0, // hands: 默认1号皮肤 (索引0)
+    3: 0, // socks: 默认1号皮肤 (索引0)
   };
 
   // 女孩idle索引的内存缓存
@@ -622,7 +622,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           _setGirl01UnderwearSkinForGirl(controller, girlIndex);
         } else {
           // 普通模式：当已到最终非内衣阶段(idle_04, 索引3)时，使用阶段1上身皮肤；否则使用 none 皮肤
-          if (girlIdleIndex >= 3) {
+          if (girlIdleIndex == 3) {
             _log("Girl01 idle_04: applying stage1 skin");
             _applyGirl01Stage1Skin(controller);
           } else {
@@ -752,21 +752,20 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // 创建自定义内衣皮肤
       final customSkin = Skin("girl01-underwear-skin");
 
-      // 获取该女孩的皮肤选择
-      Map<String, int> savedSkins = GameStateManager().getCurrentSkins(girlIndex);
+      // 使用用户当前选择的皮肤，如果没有选择则使用1号皮肤
       Map<int, int> girlSkinIndices = {
-        0: savedSkins['bra'] ?? 0,
-        1: savedSkins['hands'] ?? 0,  // Girl01内衣模式使用hands
-        2: savedSkins['pants'] ?? 0,  // Girl01内衣模式使用pants
-        3: savedSkins['socks'] ?? 0,
+        0: (_currentSkinIndices[0] ?? 0) + 1,  // bra - 索引转皮肤编号
+        1: (_currentSkinIndices[1] ?? 0) + 1,  // pants (Girl01) - 索引转皮肤编号
+        2: (_currentSkinIndices[2] ?? 0) + 1,  // hands (Girl01) - 索引转皮肤编号
+        3: (_currentSkinIndices[3] ?? 0) + 1,  // socks - 索引转皮肤编号
       };
 
       // 根据该女孩的皮肤索引应用皮肤
       final skinNames = [
-        girlSkinIndices[0]! == 0 ? "bra/bra_none" : "bra/bra${girlSkinIndices[0]}",
-        girlSkinIndices[1]! == 0 ? "hands/hands_none" : "hands/hands${girlSkinIndices[1]}",
-        girlSkinIndices[2]! == 0 ? "pants/pants_none" : "pants/pants${girlSkinIndices[2]}",
-        girlSkinIndices[3]! == 0 ? "socks/socks_none" : "socks/socks${girlSkinIndices[3]}",
+        "bra/bra${girlSkinIndices[0]}",
+        "pants/pants${girlSkinIndices[1]}",
+        "hands/hands${girlSkinIndices[2]}",
+        "socks/socks${girlSkinIndices[3]}",
       ];
 
       print("=== Applying Girl01 underwear skins for girl $girlIndex ===");
@@ -936,37 +935,36 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         return;
       }
 
-      // Girl02在默认状态下应该显示完整的衣服
+      // Girl02在默认状态下应该使用none皮肤
       try {
-        // 方法1：尝试使用默认皮肤
-        final defaultSkin = data.findSkin("default");
-        if (defaultSkin != null) {
-          skeleton.setSkin(defaultSkin);
+        // 创建自定义none皮肤
+        final customSkin = Skin("girl02-default-none-skin");
+        
+        // 添加none皮肤状态
+        final braSkin = data.findSkin("bra/bra_none");
+        final handsSkin = data.findSkin("hands/hands_none");
+        final headSkin = data.findSkin("head/head_none");
+        final socksSkin = data.findSkin("socks/socks_none");
+
+        bool hasAnySkin = false;
+        if (braSkin != null) { customSkin.addSkin(braSkin); hasAnySkin = true; print("Added bra/bra_none skin"); } else { print("bra/bra_none skin not found"); }
+        if (handsSkin != null) { customSkin.addSkin(handsSkin); hasAnySkin = true; print("Added hands/hands_none skin"); } else { print("hands/hands_none skin not found"); }
+        if (headSkin != null) { customSkin.addSkin(headSkin); hasAnySkin = true; print("Added head/head_none skin"); } else { print("head/head_none skin not found"); }
+        if (socksSkin != null) { customSkin.addSkin(socksSkin); hasAnySkin = true; print("Added socks/socks_none skin"); } else { print("socks/socks_none skin not found"); }
+
+        if (hasAnySkin) {
+          skeleton.setSkin(customSkin);
           skeleton.setSlotsToSetupPose();
-          print("Girl02 applied default skin successfully");
-          return;
-        }
-        
-        // 方法2：尝试查找完整衣服的皮肤组合
-        final clothingSkins = [
-          "clothes/clothes1", "dress/dress1", "outfit/outfit1", 
-          "top/top1", "bottom/bottom1", "full/full1"
-        ];
-        
-        for (String clothingSkin in clothingSkins) {
-          final skin = data.findSkin(clothingSkin);
-          if (skin != null) {
-            skeleton.setSkin(skin);
+          print("Girl02 default none-skin applied successfully");
+        } else {
+          print("No none-skins found for Girl02, fallback to setup pose");
+          try {
+            skeleton.setToSetupPose();
             skeleton.setSlotsToSetupPose();
-            print("Girl02 applied clothing skin: $clothingSkin");
-            return;
+          } catch (e) {
+            print("Failed to apply setup pose fallback for Girl02: $e");
           }
         }
-        
-        // 方法3：如果没有找到合适的皮肤，只重置到setup pose
-        skeleton.setToSetupPose();
-        skeleton.setSlotsToSetupPose();
-        print("Girl02 using original setup pose (no custom skin)");
         
       } catch (e) {
         print("Error applying Girl02 default skin: $e");
@@ -990,37 +988,36 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         return;
       }
 
-      // Girl03在默认状态下应该显示完整的衣服
+      // Girl03在默认状态下应该使用none皮肤
       try {
-        // 方法1：尝试使用默认皮肤
-        final defaultSkin = data.findSkin("default");
-        if (defaultSkin != null) {
-          skeleton.setSkin(defaultSkin);
+        // 创建自定义none皮肤
+        final customSkin = Skin("girl03-default-none-skin");
+        
+        // 添加none皮肤状态
+        final braSkin = data.findSkin("bra/bra_none");
+        final headSkin = data.findSkin("head/head_none");
+        final pantsSkin = data.findSkin("pants/pants_none");
+        final socksSkin = data.findSkin("socks/socks_none");
+
+        bool hasAnySkin = false;
+        if (braSkin != null) { customSkin.addSkin(braSkin); hasAnySkin = true; print("Added bra/bra_none skin"); } else { print("bra/bra_none skin not found"); }
+        if (headSkin != null) { customSkin.addSkin(headSkin); hasAnySkin = true; print("Added head/head_none skin"); } else { print("head/head_none skin not found"); }
+        if (pantsSkin != null) { customSkin.addSkin(pantsSkin); hasAnySkin = true; print("Added pants/pants_none skin"); } else { print("pants/pants_none skin not found"); }
+        if (socksSkin != null) { customSkin.addSkin(socksSkin); hasAnySkin = true; print("Added socks/socks_none skin"); } else { print("socks/socks_none skin not found"); }
+
+        if (hasAnySkin) {
+          skeleton.setSkin(customSkin);
           skeleton.setSlotsToSetupPose();
-          print("Girl03 applied default skin successfully");
-          return;
-        }
-        
-        // 方法2：尝试查找完整衣服的皮肤组合
-        final clothingSkins = [
-          "clothes/clothes1", "dress/dress1", "outfit/outfit1", 
-          "top/top1", "bottom/bottom1", "full/full1"
-        ];
-        
-        for (String clothingSkin in clothingSkins) {
-          final skin = data.findSkin(clothingSkin);
-          if (skin != null) {
-            skeleton.setSkin(skin);
+          print("Girl03 default none-skin applied successfully");
+        } else {
+          print("No none-skins found for Girl03, fallback to setup pose");
+          try {
+            skeleton.setToSetupPose();
             skeleton.setSlotsToSetupPose();
-            print("Girl03 applied clothing skin: $clothingSkin");
-            return;
+          } catch (e) {
+            print("Failed to apply setup pose fallback for Girl03: $e");
           }
         }
-        
-        // 方法3：如果没有找到合适的皮肤，只重置到setup pose
-        skeleton.setToSetupPose();
-        skeleton.setSlotsToSetupPose();
-        print("Girl03 using original setup pose (no custom skin)");
         
       } catch (e) {
         print("Error applying Girl03 default skin: $e");
@@ -1052,21 +1049,20 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // 创建自定义内衣皮肤
       final customSkin = Skin("girl02-underwear-skin");
 
-      // 获取该女孩的皮肤选择
-      Map<String, int> savedSkins = GameStateManager().getCurrentSkins(girlIndex);
+      // 使用用户当前选择的皮肤，如果没有选择则使用1号皮肤
       Map<int, int> girlSkinIndices = {
-        0: savedSkins['bra'] ?? 0,
-        1: savedSkins['hands'] ?? 0,  // Girl02使用hands
-        2: savedSkins['head'] ?? 0,
-        3: savedSkins['socks'] ?? 0,
+        0: (_currentSkinIndices[1] ?? 0) + 1,  // bra (按钮1) - 索引转皮肤编号
+        1: (_currentSkinIndices[2] ?? 0) + 1,  // hands (按钮2) - 索引转皮肤编号
+        2: (_currentSkinIndices[0] ?? 0) + 1,  // head (按钮0) - 索引转皮肤编号
+        3: (_currentSkinIndices[3] ?? 0) + 1,  // socks (按钮3) - 索引转皮肤编号
       };
 
       // Girl02在underwear模式下需要: bra, hands, head, socks
       final skinNames = [
-        "bra/bra${girlSkinIndices[0]! + 1}",
-        "hands/hands${girlSkinIndices[1]! + 1}",  // Girl02使用hands
-        "head/head${girlSkinIndices[2]! + 1}",
-        "socks/socks${girlSkinIndices[3]! + 1}",
+        "bra/bra${girlSkinIndices[0]}",
+        "hands/hands${girlSkinIndices[1]}",  // Girl02使用hands
+        "head/head${girlSkinIndices[2]}",
+        "socks/socks${girlSkinIndices[3]}",
       ];
 
       print("=== Applying Girl02 underwear skins for girl $girlIndex ===");
@@ -1127,21 +1123,20 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // 创建自定义内衣皮肤
       final customSkin = Skin("girl03-underwear-skin");
 
-      // 获取该女孩的皮肤选择
-      Map<String, int> savedSkins = GameStateManager().getCurrentSkins(girlIndex);
+      // 使用用户当前选择的皮肤，如果没有选择则使用1号皮肤
       Map<int, int> girlSkinIndices = {
-        0: savedSkins['bra'] ?? 0,
-        1: savedSkins['pants'] ?? 0,
-        2: savedSkins['head'] ?? 0,
-        3: savedSkins['socks'] ?? 0,
+        0: (_currentSkinIndices[1] ?? 0) + 1,  // bra (按钮1) - 索引转皮肤编号
+        1: (_currentSkinIndices[2] ?? 0) + 1,  // pants (按钮2) - 索引转皮肤编号
+        2: (_currentSkinIndices[0] ?? 0) + 1,  // head (按钮0) - 索引转皮肤编号
+        3: (_currentSkinIndices[3] ?? 0) + 1,  // socks (按钮3) - 索引转皮肤编号
       };
 
-      // Girl03在underwear模式下需要: bra, hands, head, socks
+      // Girl03在underwear模式下需要: bra, head, pants, socks
       final skinNames = [
-        "bra/bra${girlSkinIndices[0]! + 1}",
-        "hands/hands${girlSkinIndices[1]! + 1}",  // Girl03也使用hands而不是pants
-        "head/head${girlSkinIndices[2]! + 1}",
-        "socks/socks${girlSkinIndices[3]! + 1}",
+        "bra/bra${girlSkinIndices[0]}",
+        "head/head${girlSkinIndices[2]}",  // Girl03使用head
+        "pants/pants${girlSkinIndices[1]}",  // Girl03使用pants
+        "socks/socks${girlSkinIndices[3]}",
       ];
 
       print("=== Applying Girl03 underwear skins for girl $girlIndex ===");
@@ -1939,8 +1934,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       Map<String, int> savedSkins = GameStateManager().getCurrentSkins(index);
       _currentSkinIndices = {
         0: savedSkins['bra'] ?? 0,
-        1: savedSkins['hands'] ?? 0,  // Girl03使用hands
-        2: savedSkins['head'] ?? 0,   // Girl03使用head
+        1: savedSkins[index == 0 ? 'pants' : (index == 1 ? 'hands' : 'head')] ?? 0,
+        2: savedSkins[index == 0 ? 'hands' : (index == 1 ? 'head' : 'pants')] ?? 0,
         3: savedSkins['socks'] ?? 0,
       };
     });
@@ -2267,11 +2262,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         // 进入内衣模式时，读取并恢复上次保存的皮肤索引
         Map<String, int> savedSkins = GameStateManager().getCurrentSkins(_currentIndex);
         setState(() {
+          // 进入underwear模式时，默认使用1号皮肤
           _currentSkinIndices = {
-            0: savedSkins['bra'] ?? 0,
-            1: savedSkins[_currentIndex == 0 ? 'pants' : 'hands'] ?? 0,
-            2: savedSkins[_currentIndex == 0 ? 'hands' : 'head'] ?? 0,
-            3: savedSkins['socks'] ?? 0,
+            0: 0, // bra_1 (索引0)
+            1: 0, // 根据女孩类型确定部位 (索引0)
+            2: 0, // 根据女孩类型确定部位 (索引0)
+            3: 0, // socks_1 (索引0)
           };
           // 不强制清空已选按钮，保留上次交互感；如需清空，可设置为 -1
           // _selectedUnderwearButton = -1;
@@ -2300,7 +2296,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           _applyCurrentSkins();
         } else {
           // 非内衣模式：Girl01 在 idle_04 时需要应用阶段1皮肤
-          if (_currentIndex == 0 && _currentIdleIndex >= 3) {
+          if (_currentIndex == 0 && _currentIdleIndex == 3) {
             _log("Girl01 idle_04: applying stage1 skin after takeoff");
             _applyGirl01Stage1Skin(_spineControllers[_currentIndex]!);
           } else {
@@ -2918,7 +2914,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         3: 0, // socks
       };
     });
-    // 保存进度与皮肤索引（全部回到 none/索引0）
+    // 保存进度与皮肤索引（全部回到 1号皮肤）
     try { await _saveGirlIdleIndex(_currentIndex, 0); } catch (_) {}
     try {
       await GameStateManager().setCurrentSkin(_currentIndex, _getPartName(0), 0);
