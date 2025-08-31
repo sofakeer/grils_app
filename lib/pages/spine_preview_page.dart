@@ -935,20 +935,20 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         return;
       }
 
-      // Girl02在默认状态下应该使用none皮肤，但手部应该可见
+      // Girl02在默认状态下应该使用none皮肤
       try {
         // 创建自定义none皮肤
         final customSkin = Skin("girl02-default-none-skin");
         
         // 添加none皮肤状态
         final braSkin = data.findSkin("bra/bra_none");
-        final handsSkin = data.findSkin("hands/hands_1"); // 确保手部可见
+        final handsSkin = data.findSkin("hands/hands_none");
         final headSkin = data.findSkin("head/head_none");
         final socksSkin = data.findSkin("socks/socks_none");
 
         bool hasAnySkin = false;
         if (braSkin != null) { customSkin.addSkin(braSkin); hasAnySkin = true; print("Added bra/bra_none skin"); } else { print("bra/bra_none skin not found"); }
-        if (handsSkin != null) { customSkin.addSkin(handsSkin); hasAnySkin = true; print("Added hands/hands_1 skin"); } else { print("hands/hands_1 skin not found"); }
+        if (handsSkin != null) { customSkin.addSkin(handsSkin); hasAnySkin = true; print("Added hands/hands_none skin"); } else { print("hands/hands_none skin not found"); }
         if (headSkin != null) { customSkin.addSkin(headSkin); hasAnySkin = true; print("Added head/head_none skin"); } else { print("head/head_none skin not found"); }
         if (socksSkin != null) { customSkin.addSkin(socksSkin); hasAnySkin = true; print("Added socks/socks_none skin"); } else { print("socks/socks_none skin not found"); }
 
@@ -988,7 +988,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         return;
       }
 
-      // Girl03在默认状态下应该使用none皮肤，但手部应该可见
+      // Girl03在默认状态下应该使用none皮肤
       try {
         // 创建自定义none皮肤
         final customSkin = Skin("girl03-default-none-skin");
@@ -998,14 +998,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         final headSkin = data.findSkin("head/head_none");
         final pantsSkin = data.findSkin("pants/pants_none");
         final socksSkin = data.findSkin("socks/socks_none");
-        final handsSkin = data.findSkin("hands/hands_1"); // 确保手部可见
 
         bool hasAnySkin = false;
         if (braSkin != null) { customSkin.addSkin(braSkin); hasAnySkin = true; print("Added bra/bra_none skin"); } else { print("bra/bra_none skin not found"); }
         if (headSkin != null) { customSkin.addSkin(headSkin); hasAnySkin = true; print("Added head/head_none skin"); } else { print("head/head_none skin not found"); }
         if (pantsSkin != null) { customSkin.addSkin(pantsSkin); hasAnySkin = true; print("Added pants/pants_none skin"); } else { print("pants/pants_none skin not found"); }
         if (socksSkin != null) { customSkin.addSkin(socksSkin); hasAnySkin = true; print("Added socks/socks_none skin"); } else { print("socks/socks_none skin not found"); }
-        if (handsSkin != null) { customSkin.addSkin(handsSkin); hasAnySkin = true; print("Added hands/hands_1 skin"); } else { print("hands/hands_1 skin not found"); }
 
         if (hasAnySkin) {
           skeleton.setSkin(customSkin);
@@ -1144,35 +1142,35 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       print("=== Applying Girl03 underwear skins for girl $girlIndex ===");
       bool hasAnySkin = false;
       
-      // for (String skinName in skinNames) {
-      //   try {
-      //     final skin = data.findSkin(skinName);
-      //     if (skin != null) {
-      //       customSkin.addSkin(skin);
-      //       hasAnySkin = true;
-      //       print("✓ Added skin: $skinName");
-      //     } else {
-      //       print("✗ Skin not found: $skinName");
-      //     }
-      //   } catch (e) {
-      //     print("Error adding skin $skinName: $e");
-      //   }
-      // }
+      for (String skinName in skinNames) {
+        try {
+          final skin = data.findSkin(skinName);
+          if (skin != null) {
+            customSkin.addSkin(skin);
+            hasAnySkin = true;
+            print("✓ Added skin: $skinName");
+          } else {
+            print("✗ Skin not found: $skinName");
+          }
+        } catch (e) {
+          print("Error adding skin $skinName: $e");
+        }
+      }
 
-      // // 应用自定义皮肤
-      // if (hasAnySkin) {
-      //   try {
-      //     skeleton.setSkin(customSkin);
-      //     skeleton.setSlotsToSetupPose();
-      //     print("Girl03 underwear skin applied successfully for girl $girlIndex");
-      //   } catch (e) {
-      //     print("Error applying Girl03 underwear skin: $e");
-      //     _applyFallbackSkin(controller, girlIndex);
-      //   }
-      // } else {
-      //   print("No underwear skins found for Girl03, using fallback");
-      //   _applyFallbackSkin(controller, girlIndex);
-      // }
+      // 应用自定义皮肤
+      if (hasAnySkin) {
+        try {
+          skeleton.setSkin(customSkin);
+          skeleton.setSlotsToSetupPose();
+          print("Girl03 underwear skin applied successfully for girl $girlIndex");
+        } catch (e) {
+          print("Error applying Girl03 underwear skin: $e");
+          _applyFallbackSkin(controller, girlIndex);
+        }
+      } else {
+        print("No underwear skins found for Girl03, using fallback");
+        _applyFallbackSkin(controller, girlIndex);
+      }
     } catch (e) {
       print("Failed to set Girl03 underwear skin for girl $girlIndex: $e");
       _applyFallbackSkin(controller, girlIndex);
