@@ -752,20 +752,15 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // 创建自定义内衣皮肤
       final customSkin = Skin("girl01-underwear-skin");
 
-      // 使用用户当前选择的皮肤，如果没有选择则使用1号皮肤
-      Map<int, int> girlSkinIndices = {
-        0: (_currentSkinIndices[0] ?? 0) + 1,  // bra - 索引转皮肤编号
-        1: (_currentSkinIndices[1] ?? 0) + 1,  // pants (Girl01) - 索引转皮肤编号
-        2: (_currentSkinIndices[2] ?? 0) + 1,  // hands (Girl01) - 索引转皮肤编号
-        3: (_currentSkinIndices[3] ?? 0) + 1,  // socks - 索引转皮肤编号
-      };
-
+      // 从持久化存储读取该女孩的皮肤选择
+      Map<String, int> savedSkins = GameStateManager().getCurrentSkins(girlIndex);
+      
       // 根据该女孩的皮肤索引应用皮肤
       final skinNames = [
-        "bra/bra${girlSkinIndices[0]}",
-        "pants/pants${girlSkinIndices[1]}",
-        "hands/hands${girlSkinIndices[2]}",
-        "socks/socks${girlSkinIndices[3]}",
+        "bra/bra${(savedSkins['bra'] ?? 0) + 1}",
+        "pants/pants${(savedSkins['pants'] ?? 0) + 1}",
+        "hands/hands${(savedSkins['hands'] ?? 0) + 1}",
+        "socks/socks${(savedSkins['socks'] ?? 0) + 1}",
       ];
 
       print("=== Applying Girl01 underwear skins for girl $girlIndex ===");
@@ -1049,20 +1044,15 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // 创建自定义内衣皮肤
       final customSkin = Skin("girl02-underwear-skin");
 
-      // 使用用户当前选择的皮肤，如果没有选择则使用1号皮肤
-      Map<int, int> girlSkinIndices = {
-        0: (_currentSkinIndices[1] ?? 0) + 1,  // bra (按钮1) - 索引转皮肤编号
-        1: (_currentSkinIndices[2] ?? 0) + 1,  // hands (按钮2) - 索引转皮肤编号
-        2: (_currentSkinIndices[0] ?? 0) + 1,  // head (按钮0) - 索引转皮肤编号
-        3: (_currentSkinIndices[3] ?? 0) + 1,  // socks (按钮3) - 索引转皮肤编号
-      };
-
+      // 从持久化存储读取该女孩的皮肤选择
+      Map<String, int> savedSkins = GameStateManager().getCurrentSkins(girlIndex);
+      
       // Girl02在underwear模式下需要: bra, hands, head, socks
       final skinNames = [
-        "bra/bra${girlSkinIndices[0]}",
-        "hands/hands${girlSkinIndices[1]}",  // Girl02使用hands
-        "head/head${girlSkinIndices[2]}",
-        "socks/socks${girlSkinIndices[3]}",
+        "bra/bra${(savedSkins['bra'] ?? 0) + 1}",
+        "hands/hands${(savedSkins['hands'] ?? 0) + 1}",
+        "head/head${(savedSkins['head'] ?? 0) + 1}",
+        "socks/socks${(savedSkins['socks'] ?? 0) + 1}",
       ];
 
       print("=== Applying Girl02 underwear skins for girl $girlIndex ===");
@@ -1123,20 +1113,20 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // 创建自定义内衣皮肤
       final customSkin = Skin("girl03-underwear-skin");
 
-      // 使用用户当前选择的皮肤，如果没有选择则使用1号皮肤
-      Map<int, int> girlSkinIndices = {
-        0: (_currentSkinIndices[1] ?? 0) + 1,  // bra (按钮1) - 索引转皮肤编号
-        1: (_currentSkinIndices[2] ?? 0) + 1,  // pants (按钮2) - 索引转皮肤编号
-        2: (_currentSkinIndices[0] ?? 0) + 1,  // head (按钮0) - 索引转皮肤编号
-        3: (_currentSkinIndices[3] ?? 0) + 1,  // socks (按钮3) - 索引转皮肤编号
-      };
-
+      // 从持久化存储读取该女孩的皮肤选择
+      Map<String, int> savedSkins = GameStateManager().getCurrentSkins(girlIndex);
+      print("=== Girl03 saved skins for girl $girlIndex ===");
+      print("bra: ${savedSkins['bra'] ?? 0}");
+      print("head: ${savedSkins['head'] ?? 0}");
+      print("pants: ${savedSkins['pants'] ?? 0}");
+      print("socks: ${savedSkins['socks'] ?? 0}");
+      
       // Girl03在underwear模式下需要: bra, head, pants, socks
       final skinNames = [
-        "bra/bra${girlSkinIndices[0]}",
-        "head/head${girlSkinIndices[2]}",  // Girl03使用head
-        "pants/pants${girlSkinIndices[1]}",  // Girl03使用pants
-        "socks/socks${girlSkinIndices[3]}",
+        "bra/bra${(savedSkins['bra'] ?? 0) + 1}",
+        "head/head${(savedSkins['head'] ?? 0) + 1}",
+        "pants/pants${(savedSkins['pants'] ?? 0) + 1}",
+        "socks/socks${(savedSkins['socks'] ?? 0) + 1}",
       ];
 
       print("=== Applying Girl03 underwear skins for girl $girlIndex ===");
@@ -2277,13 +2267,32 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         // 进入内衣模式时，读取并恢复上次保存的皮肤索引
         Map<String, int> savedSkins = GameStateManager().getCurrentSkins(_currentIndex);
         setState(() {
-          // 进入underwear模式时，默认使用1号皮肤
-          _currentSkinIndices = {
-            0: 0, // bra_1 (索引0)
-            1: 0, // 根据女孩类型确定部位 (索引0)
-            2: 0, // 根据女孩类型确定部位 (索引0)
-            3: 0, // socks_1 (索引0)
-          };
+          // 进入underwear模式时，恢复用户之前选择的皮肤
+          if (_currentIndex == 0) {
+            // Girl01: bra(0), pants(1), hands(2), socks(3)
+            _currentSkinIndices = {
+              0: savedSkins['bra'] ?? 0, // bra
+              1: savedSkins['pants'] ?? 0, // pants
+              2: savedSkins['hands'] ?? 0, // hands
+              3: savedSkins['socks'] ?? 0, // socks
+            };
+          } else if (_currentIndex == 1) {
+            // Girl02: head(0), bra(1), hands(2), socks(3)
+            _currentSkinIndices = {
+              0: savedSkins['head'] ?? 0, // head
+              1: savedSkins['bra'] ?? 0, // bra
+              2: savedSkins['hands'] ?? 0, // hands
+              3: savedSkins['socks'] ?? 0, // socks
+            };
+          } else if (_currentIndex == 2) {
+            // Girl03: head(0), bra(1), pants(2), socks(3)
+            _currentSkinIndices = {
+              0: savedSkins['head'] ?? 0, // head
+              1: savedSkins['bra'] ?? 0, // bra
+              2: savedSkins['pants'] ?? 0, // pants
+              3: savedSkins['socks'] ?? 0, // socks
+            };
+          }
           // 不强制清空已选按钮，保留上次交互感；如需清空，可设置为 -1
           // _selectedUnderwearButton = -1;
           _previousUnderwearButton = _selectedUnderwearButton;
