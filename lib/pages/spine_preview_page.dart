@@ -2183,7 +2183,22 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       _log("Takeoff animation '$takeoffName' exists: $takeoffExists");
       
       if (takeoffExists) {
-        // 4. 获取动画时长
+        // 4. 在takeoff动画之前重新应用none皮肤
+        _log("Applying none skin before takeoff animation");
+        if (_currentIndex == 0) {
+          // Girl01在idle_04之前保持none皮肤
+          if (_currentIdleIndex < 3) {
+            _setGirl01DefaultSkin(_spineControllers[_currentIndex]!);
+          }
+        } else if (_currentIndex == 1) {
+          // Girl02在脱衣过程中保持none皮肤
+          _setGirl02DefaultSkin(_spineControllers[_currentIndex]!);
+        } else if (_currentIndex == 2) {
+          // Girl03在脱衣过程中保持none皮肤
+          _setGirl03DefaultSkin(_spineControllers[_currentIndex]!);
+        }
+        
+        // 5. 获取动画时长
         final data = _spineControllers[_currentIndex]!.skeleton.getData();
         final animation = data?.findAnimation(takeoffName);
         double duration = 1.5; // 默认1.5秒
@@ -2194,7 +2209,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           _log("Could not get animation duration, using default: ${duration}s");
         }
         
-        // 5. 清除当前动画轨道
+        // 6. 清除当前动画轨道
         _log("Clearing current animation tracks");
         try { 
           _spineControllers[_currentIndex]!.animationState.clearTracks(); 
@@ -2300,7 +2315,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
             _log("Girl01 idle_04: applying stage1 skin after takeoff");
             _applyGirl01Stage1Skin(_spineControllers[_currentIndex]!);
           } else {
-            _log("Skipping skin application for normal mode (preserving takeoff result)");
+            _log("Skipping skin application for normal mode (skin already applied before takeoff)");
           }
         }
       }
