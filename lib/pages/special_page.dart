@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
-import 'package:grils_app/widgets/common_header.dart';
 import 'package:grils_app/pages/special_game_page.dart';
 import 'package:grils_app/pages/win_heart_page.dart';
 import 'package:spine_flutter/spine_flutter.dart' hide Animation;
-import 'package:audioplayers/audioplayers.dart';
 import 'dart:ui' as ui;
 import '../widgets/outlined_text_widget.dart';
 import '../managers/audio_manager.dart';
-import '../managers/game_state_manager.dart';
 
 class SpecialPage extends StatefulWidget {
   const SpecialPage({super.key});
@@ -19,16 +16,11 @@ class SpecialPage extends StatefulWidget {
 
 class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin {
   late AnimationController _scaleController;
-  late AnimationController _fadeController;
-  late AnimationController _heartController;
+
   late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _heartAnimation;
 
   // Spine动画控制器
   SpineWidgetController? _spineController;
-  bool _isSpineReady = false;
-  bool _isPlayingBornAnimation = true;
 
   // 视频广告状态
   bool _isShowingAd = false;
@@ -39,7 +31,7 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
     super.initState();
     _initializeAnimations();
     _initializeSpine();
-    
+
     // 播放特殊关卡音效
     AudioManager().playSpecialEffect();
   }
@@ -47,16 +39,6 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
   void _initializeAnimations() {
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    );
-
-    _heartController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
 
@@ -68,32 +50,10 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
       curve: Curves.elasticOut,
     ));
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
-
-    _heartAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _heartController,
-      curve: Curves.easeInOut,
-    ));
-
     // 启动动画序列
-    _fadeController.forward();
     Future.delayed(const Duration(milliseconds: 400), () {
       if (mounted) {
         _scaleController.forward();
-      }
-    });
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) {
-        _heartController.forward();
       }
     });
   }
@@ -102,75 +62,99 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
     try {
       _spineController = SpineWidgetController(onInitialized: (controller) {
         try {
-          final animations = controller.skeleton.getData()?.getAnimations();
-          if (animations != null && animations.isNotEmpty) {
-            if (mounted) {
-              setState(() {
-                _isSpineReady = true;
-              });
-            }
+          controller.animationState.getData().setDefaultMix(0.2);
+          final animations = controller.skeleton.getData()?.getAnimations() ?? [];
+          print("Special_Eff animations: ${animations.map((a) => a.getName()).toList()}");
 
-            // 先播放 Special_Eff_born 动画
-            final bornAnim = animations.firstWhere(
-              (anim) => anim.getName().toLowerCase().contains('born'),
-              orElse: () => animations.first,
-            );
-            
-            if (bornAnim != null) {
-              final duration = bornAnim.getDuration();
-              controller.animationState.setAnimationByName(0, bornAnim.getName(), false);
-              
-              // born 动画播完后循环播放 idle 动画
-              Future.delayed(Duration(milliseconds: (duration * 1000).toInt()), () {
-                if (mounted && _spineController != null) {
-                  setState(() {
-                    _isPlayingBornAnimation = false;
-                  });
-                  
-                  final idleAnim = animations.firstWhere(
-                    (anim) => anim.getName().toLowerCase().contains('idle'),
-                    orElse: () => animations.last,
-                  );
-                  
-                  if (idleAnim != null) {
-                    controller.animationState.setAnimationByName(0, idleAnim.getName(), true);
-                  }
+          // 延迟播放动画，确保控件已渲染
+          Future.delayed(const Duration(milliseconds: 200), () async {
+            if (!mounted) return;
+
+            final data = controller.skeleton.getData();
+            String? bornName = animations
+                    .map((a) => a.getName())
+                    .firstWhere((n) => n == 'Special_Eff_born', orElse: () => '')
+                    .isNotEmpty
+                ? 'Special_Eff_born'
+                : null;
+            bornName ??= animations
+                .map((a) => a.getName())
+                .firstWhere((n) => n.toLowerCase().contains('born'), orElse: () => '');
+            if (bornName.isEmpty) bornName = null;
+
+            String? idleName = animations
+                    .map((a) => a.getName())
+                    .firstWhere((n) => n == 'Special_Eff_idle', orElse: () => '')
+                    .isNotEmpty
+                ? 'Special_Eff_idle'
+                : null;
+            idleName ??= animations
+                .map((a) => a.getName())
+                .firstWhere((n) => n.toLowerCase().contains('idle'), orElse: () => '');
+            if (idleName.isEmpty) idleName = null;
+
+            try {
+              controller.animationState.clearTracks();
+              if (bornName != null && data?.findAnimation(bornName) != null) {
+                controller.animationState.setAnimationByName(0, bornName, false);
+                final duration = (data?.findAnimation(bornName)?.getDuration() ?? 1.0);
+                print('✓ Special_Eff born once: $bornName, duration: $duration s');
+                await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+                if (!mounted) return;
+                final next = idleName ?? animations.first.getName();
+                if (next.isNotEmpty && data?.findAnimation(next) != null) {
+                  controller.animationState.setAnimationByName(0, next, true);
+                  print('→ Special_Eff idle loop: $next');
+                } else {
+                  print('✗ Special_Eff idle not found');
                 }
-              });
+              } else {
+                final next = idleName ?? animations.first.getName();
+                if (next.isNotEmpty && data?.findAnimation(next) != null) {
+                  controller.animationState.setAnimationByName(0, next, true);
+                  print('✓ Special_Eff idle directly: $next');
+                } else {
+                  print('✗ Special_Eff no playable animation');
+                }
+              }
+            } catch (e) {
+              print('Special_Eff animations play failed: $e');
             }
-          }
+          });
         } catch (e) {
-          print('Special effect spine animation initialization failed: $e');
+          print('Special_Eff spine animation initialization failed: $e');
         }
       });
     } catch (e) {
-      print('Special effect spine controller creation failed: $e');
+      print('Special_Eff spine controller creation failed: $e');
     }
   }
 
   void _playSpecial() async {
     if (_isShowingAd) return; // 防止重复点击
-    
+
     setState(() {
       _isShowingAd = true;
     });
-    
+
     // 播放按钮音效
     await AudioManager().playPopupOpen();
-    
+
     // 模拟视频广告播放
     await _showVideoAd();
-    
+
     if (_isAdCompleted) {
       // 广告播放完成，进入特殊关卡
       Navigator.of(context).pop(); // 关闭特殊关卡弹窗
-      
+
       // 跳转到特殊关卡游戏页面（这里使用新照片页面作为示例）
-      Navigator.of(context).push(
+      Navigator.of(context)
+          .push(
         MaterialPageRoute(
           builder: (context) => const SpecialGamePage(),
         ),
-      ).then((_) {
+      )
+          .then((_) {
         // 特殊关卡完成后，显示翻倍领取爱心货币界面
         _showHeartRewardDialog();
       });
@@ -200,13 +184,13 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
         ),
       ),
     );
-    
+
     // 模拟广告加载时间
     await Future.delayed(const Duration(seconds: 2));
-    
+
     if (mounted) {
       Navigator.of(context).pop(); // 关闭加载提示
-      
+
       // 模拟广告播放
       showDialog(
         context: context,
@@ -287,8 +271,6 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
   @override
   void dispose() {
     _scaleController.dispose();
-    _fadeController.dispose();
-    _heartController.dispose();
     _spineController = null;
     super.dispose();
   }
@@ -317,12 +299,27 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // SPECIAL 标题
+                        // SPECIAL 标题 - 使用Spine动画
                         Container(
-                          margin: const EdgeInsets.only(bottom: 20),
-                          child: Image.asset(
-                            Assets.specialSpecialTitle,
-                            height: 140,
+                          margin: const EdgeInsets.only(bottom: 20,right: 90),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Special_Eff Spine动画 - 仅判断控制器存在即可渲染
+                              if (_spineController != null)
+                                SizedBox(
+                                  width: 300,
+                                  height: 140,
+                                  child: Center(
+                                    child: SpineWidget.fromAsset(
+                                      "assets/spine/Special_Eff.atlas",
+                                      "assets/spine/Special_Eff.skel",
+                                      _spineController!,
+                                      boundsProvider: const SetupPoseBounds(),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
 
@@ -339,28 +336,27 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                             // 说明文字
                             Positioned(
                               left: 0,
-                              right:0,
-                              child: SizedBox(
-                                width: 300,
-                                child: Container(
-                                  margin: const EdgeInsets.only(top: 10),
-                                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  child: const OutlinedTextWidget(
-                                    text: 'Play special levels to win extra hearts!',
-                                    fontSize: 20,
-                                    textColor: Colors.white,
-                                    strokeColor: ui.Color(0xffF306FF),
-                                    strokeWidth: 2.0,
-                                    fontWeight: FontWeight.bold,
-                                    textAlign: TextAlign.center,
-                                    shadows: [
-                                      Shadow(
-                                        offset: Offset(2, 2),
-                                        blurRadius: 2,
-                                        color: ui.Color(0xffF306FF),
-                                      ),
-                                    ],
-                                  ),
+                              right: 0,
+                              child: Container(
+                                margin: const EdgeInsets.only(top: 10),
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: const OutlinedTextWidget(
+                                  text: 'Play special levels to win extra hearts!',
+                                  fontSize: 20,
+                                  textColor: Colors.white,
+                                  strokeColor: ui.Color(0xffF306FF),
+                                  strokeWidth: 2.0,
+                                  fontWeight: FontWeight.bold,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.visible,
+                                  shadows: [
+                                    Shadow(
+                                      offset: Offset(2, 2),
+                                      blurRadius: 2,
+                                      color: ui.Color(0xffF306FF),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -386,7 +382,10 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   // 相机图标
-                                  Image.asset(Assets.newPhotoNewPhotoIconAd,height: 30,),
+                                  Image.asset(
+                                    Assets.newPhotoNewPhotoIconAd,
+                                    height: 30,
+                                  ),
                                   const SizedBox(width: 10),
                                   const OutlinedTextWidget(
                                     text: 'Play',
@@ -424,25 +423,7 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
               ),
             ),
 
-            // Spine特效动画
-            if (_isSpineReady)
-              Positioned(
-                top: 100,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: SizedBox(
-                    width: 300,
-                    height: 200,
-                    child: SpineWidget.fromAsset(
-                      "assets/spine/Special_Eff.atlas",
-                      "assets/spine/Special_Eff.skel",
-                      _spineController!,
-                      boundsProvider: const SetupPoseBounds(),
-                    ),
-                  ),
-                ),
-              ),
+            // Spine特效动画已移至顶部标题位置
           ],
         ),
       ),

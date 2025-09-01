@@ -88,8 +88,8 @@ class _CoinEffectAnimationState extends State<CoinEffectAnimation> {
     }
 
     return SizedBox(
-      width: 150,
-      height: 150,
+      width: double.infinity,
+      height: double.infinity,
       child: SpineWidget.fromAsset(
         "assets/spine/Coin_Eff01.atlas",
         "assets/spine/Coin_Eff01.skel",
@@ -187,8 +187,8 @@ class _HeartEffectAnimationState extends State<HeartEffectAnimation> {
     }
 
     return SizedBox(
-      width: 150,
-      height: 150,
+      width: double.infinity,
+      height: double.infinity,
       child: SpineWidget.fromAsset(
         "assets/spine/Heart_Eff01.atlas",
         "assets/spine/Heart_Eff01.skel",
