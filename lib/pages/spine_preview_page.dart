@@ -166,10 +166,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       curve: Curves.easeOutCubic,
     ));
 
-    // 初始化所有女孩的控制器
-    _initializeAllControllers();
+    // 注意：Spine相关初始化移到 _initGameState 完成后
     
-    _loadSpineInfo();
     _initializeTakeoffController();
     _initializeTapEffectController();
     _initializeUnlockEffectController();
@@ -178,7 +176,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     _startIdleAnimationCycle();
     
     // 切换到预览模式BGM
-    AudioManager().switchToPreviewMode();
+    AudioManager().switchToMainMode();
     
     // 检查是否有足够的心币进行操作
     _checkForAvailableActions();
@@ -191,10 +189,16 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     // 预加载所有女孩的idle索引到缓存
     await _preloadAllGirlIdleIndices();
     
-    // 恢复上次的状态（仅专注 Girl03）
+    // 获取最后选择的女孩索引，如果没有则默认使用Girl03
+    int lastSelectedGirl = GameStateManager().getCurrentGirlIndex() ?? 2;
+    print("=== INIT DEBUG ===");
+    print("Last selected girl from GameStateManager: $lastSelectedGirl");
+    print("Default fallback girl: 2 (Girl03)");
+    
+    // 恢复上次的状态（使用最后选择的女孩）
     setState(() {
       _heartCount = GameStateManager().getHeartCount();
-      _currentIndex = 2; // 使用 Girl03
+      _currentIndex = lastSelectedGirl; // 使用最后选择的女孩，而不是硬编码Girl03
       _currentIdleIndex = _girlIdleIndexCache[_currentIndex] ?? 0; // 从缓存中获取当前女孩的idle索引
       _showTakeoffOverlay = !GameStateManager().hasSeenTakeoffGuide();
       
@@ -210,7 +214,22 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       }
     });
     
-    print("Initialized with girl $_currentIndex at idle index $_currentIdleIndex");
+    print("Final current index: $_currentIndex");
+    print("Final current idle index: $_currentIdleIndex");
+    print("Final heart count: $_heartCount");
+    print("=== END INIT DEBUG ===");
+    
+    // 在游戏状态初始化完成后，初始化Spine控制器
+    if (mounted && !_isDisposing) {
+      // 加载spine信息
+      _loadSpineInfo();
+      
+      // 初始化Spine控制器
+      _initializeAllControllers();
+      
+      // 切换到预览模式BGM
+      AudioManager().switchToPreviewMode();
+    }
   }
 
   // 预加载所有女孩的idle索引
