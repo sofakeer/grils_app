@@ -296,7 +296,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     try {
       _takeoffController = SpineWidgetController(onInitialized: (controller) {
         try {
-          controller.animationState.getData().setDefaultMix(0.2);
+          controller.animationState.getData().setDefaultMix(0.5);
           final animations = controller.skeleton.getData()?.getAnimations();
           if (animations != null && animations.isNotEmpty) {
             if (mounted) {
@@ -330,7 +330,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     try {
       _tapEffectController = SpineWidgetController(onInitialized: (controller) {
         try {
-          controller.animationState.getData().setDefaultMix(0.2);
+          controller.animationState.getData().setDefaultMix(0.5);
           final animations = controller.skeleton.getData()?.getAnimations();
           if (animations != null && animations.isNotEmpty) {
             print("Tap effect controller initialized with animations: ${animations.map((a) => a.getName()).toList()}");
@@ -353,7 +353,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     try {
       _unlockEffectController = SpineWidgetController(onInitialized: (controller) {
         try {
-          controller.animationState.getData().setDefaultMix(0.2);
+          controller.animationState.getData().setDefaultMix(0.5);
           final animations = controller.skeleton.getData()?.getAnimations();
           if (animations != null && animations.isNotEmpty) {
             print("Unlock effect controller initialized with animations: ${animations.map((a) => a.getName()).toList()}");
@@ -516,7 +516,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         
         try {
           // 设置默认过渡时间
-          controller.animationState.getData().setDefaultMix(0.2);
+          controller.animationState.getData().setDefaultMix(0.5);
 
           // 获取可用动画
           final animations = controller.skeleton.getData()?.getAnimations();
@@ -575,14 +575,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
             // 如果是当前女孩，按规则播放idle动画（覆盖兜底动画）
             if (girlIndex == _currentIndex && _girlAnimations[girlIndex]!.isNotEmpty) {
               // 延迟播放当前idle动画
-              Future.delayed(Duration(milliseconds: 200), () {
+              Future.delayed(Duration(milliseconds: 10), () {
                 if (_isDisposing || !mounted) return;
                 _playCurrentIdleAnimationForGirl(girlIndex);
               });
               _startIdleAnimationCycle();
               
               // 自动应用第一个部位的皮肤，解决Girl01和Girl03加载后缺少胳膊的问题
-              Future.delayed(Duration(milliseconds: 200), () {
+              Future.delayed(Duration(milliseconds: 100), () {
                 if (_isDisposing || !mounted) return;
                 _autoApplyFirstPartSkin(girlIndex);
               });
