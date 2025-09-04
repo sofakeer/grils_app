@@ -580,6 +580,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
                 _playCurrentIdleAnimationForGirl(girlIndex);
               });
               _startIdleAnimationCycle();
+              
+              // 自动应用第一个部位的皮肤，解决Girl01和Girl03加载后缺少胳膊的问题
+              Future.delayed(Duration(milliseconds: 200), () {
+                if (_isDisposing || !mounted) return;
+                _autoApplyFirstPartSkin(girlIndex);
+              });
             }
           } else {
             print("No animations found in spine file for girl $girlIndex");
@@ -838,19 +844,27 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         isUnderwearMode = _currentIdleIndex == 4;
       }
       
-      if (!isUnderwearMode) {
-        // 非 underwear 模式不强制重设皮肤，保留动画过渡后的显示，避免覆盖 takeoff 效果
-        return;
-      }
-      
       final controller = _spineControllers[_currentIndex]!;
-      // underwear 模式：应用对应女孩的内衣皮肤
-      if (_currentIndex == 0) {
-        _setGirl01UnderwearSkinForGirl(controller, _currentIndex);
-      } else if (_currentIndex == 1) {
-        _setGirl02UnderwearSkinForGirl(controller, _currentIndex);
-      } else if (_currentIndex == 2) {
-        _setGirl03UnderwearSkinForGirl(controller, _currentIndex);
+      
+      if (isUnderwearMode) {
+        // underwear 模式：应用对应女孩的内衣皮肤
+        if (_currentIndex == 0) {
+          _setGirl01UnderwearSkinForGirl(controller, _currentIndex);
+        } else if (_currentIndex == 1) {
+          _setGirl02UnderwearSkinForGirl(controller, _currentIndex);
+        } else if (_currentIndex == 2) {
+          _setGirl03UnderwearSkinForGirl(controller, _currentIndex);
+        }
+      } else {
+        // 非 underwear 模式：应用默认皮肤，确保所有身体部位都显示
+        // 这解决了Girl01和Girl03加载后缺少胳膊的问题
+        if (_currentIndex == 0) {
+          _setGirl01DefaultSkin(controller);
+        } else if (_currentIndex == 1) {
+          _setGirl02DefaultSkin(controller);
+        } else if (_currentIndex == 2) {
+          _setGirl03DefaultSkin(controller);
+        }
       }
     }
   }
@@ -2993,6 +3007,21 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       }
     } catch (e) {
       _log("Failed to apply Girl01 stage1 skin: $e");
+    }
+  }
+
+  // 自动应用第一个部位的皮肤
+  void _autoApplyFirstPartSkin(int girlIndex) {
+    if (_isDisposing || !mounted) return;
+    
+    print("Auto applying first part skin for girl $girlIndex");
+    
+    // 直接调用现有的换肤逻辑，相当于自动点击了第一个部位按钮
+    // 这会触发完整的皮肤应用流程，包括所有必要的身体部位
+    if (_spineControllers[girlIndex] != null && (_controllersReady[girlIndex] ?? false)) {
+      // 应用当前选择的皮肤
+      _applyCurrentSkins();
+      print("Auto applied current skins for girl $girlIndex");
     }
   }
 
