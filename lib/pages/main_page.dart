@@ -433,11 +433,12 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     return Scaffold(
       resizeToAvoidBottomInset: false,
       extendBodyBehindAppBar: true,
+      backgroundColor: Colors.black,
       extendBody: true,
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color: Colors.transparent,
+        color: Colors.black,
         child: Stack(
           children: [
             // 背景显示当前选择的女孩 currentGirlAsset spine 动画默认的

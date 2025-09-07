@@ -59,6 +59,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
   // 动画计时器
   Timer? _animationTimer;
+  // underwear模式下的延迟换肤计时器
+  Timer? _pendingUnderwearSkinTimer;
 
   // 当前idle动画索引
   int _currentIdleIndex = 0;
@@ -800,6 +802,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         "pants/pants${girlSkinIndices[1]}",
         "hands/hands${girlSkinIndices[2]}",
         "socks/socks${girlSkinIndices[3]}",
+        // 可选腿部皮肤：若资源存在则会添加
+        "legs/legs${girlSkinIndices[1]}",
       ];
 
       _log("ApplyUnderwearSkins Girl01 -> girl=$girlIndex skins=$skinNames");
@@ -1376,16 +1380,23 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       _spineControllers[girlIndex]!.animationState.setAnimationByName(1, animationName, false);
       _log("Idlesp[track1]: $animationName girl=$girlIndex");
 
-      // 可选：根据动画时长安排结束后的清理（通常Spine会在完成后移除条目，这里无需强制clear）
-      // final anim = _spineControllers[girlIndex]!.skeleton.getData()?.findAnimation(animationName);
-      // if (anim != null) {
-      //   final ms = (anim.getDuration() * 1000).toInt();
-      //   Future.delayed(Duration(milliseconds: ms + 50), () {
-      //     if (!_isDisposing && mounted && _spineControllers[girlIndex] != null) {
-      //       // 若需要，可在此处只清理轨道1（如果API支持 clearTrack(1)）。
-      //     }
-      //   });
-      // }
+      // 根据动画时长安排结束后的清理，确保不会“停住”覆盖轨道
+      final anim = _spineControllers[girlIndex]!.skeleton.getData()?.findAnimation(animationName);
+      if (anim != null) {
+        final ms = (anim.getDuration() * 1000).toInt();
+        Future.delayed(Duration(milliseconds: ms + 80), () {
+          if (_isDisposing || !mounted) return;
+          if (_spineControllers[girlIndex] == null || !(_controllersReady[girlIndex] ?? false)) return;
+          try {
+            // 淡出轨道1，避免覆盖轨道0持续存在
+            _spineControllers[girlIndex]!.animationState.setEmptyAnimation(1, 0.15);
+            _v("Cleared track1 via setEmptyAnimation after idlesp");
+          } catch (e) {
+            // 如不支持 setEmptyAnimation，可忽略；轨道结束时通常会被移除
+            _v("setEmptyAnimation not available or failed: $e");
+          }
+        });
+      }
 
     } catch (e) {
       _log("Failed to play idlesp overlay: $e");
@@ -1551,6 +1562,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
     // 停止动画计时器
     _animationTimer?.cancel();
+    _pendingUnderwearSkinTimer?.cancel();
 
     // 销毁音频播放器
     _audioPlayer.dispose();
@@ -2945,10 +2957,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     }
     
     if (isUnderwearMode && _spineControllers[_currentIndex] != null && (_controllersReady[_currentIndex] ?? false)) {
-      _log("SkinTap: underwear mode -> overlay idlesp_underwear on track1");
-
-      // 先应用新的皮肤设置
-      _applyCurrentSkins();
+      _log("SkinTap: underwear mode -> overlay idlesp_underwear on track1 and delay-apply skin by 1.5s");
 
       // 确保轨道0是 idle_underwear 循环
       if (_isAnimationAvailable('idle_underwear')) {
@@ -2961,6 +2970,18 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       if (_isAnimationAvailable('idlesp_underwear')) {
         _playIdlespOverlayForGirl('idlesp_underwear', _currentIndex);
       }
+
+      // 延迟1.5秒再应用皮肤，避免等整段动画结束
+      _pendingUnderwearSkinTimer?.cancel();
+      _pendingUnderwearSkinTimer = Timer(const Duration(milliseconds: 500), () {
+        if (_isDisposing || !mounted) return;
+        if (!(_controllersReady[_currentIndex] ?? false)) return;
+        // 仍然在underwear模式下再应用
+        bool stillUnderwear = _currentIndex == 2 ? _currentIdleIndex == 5 : _currentIdleIndex == 4;
+        if (!stillUnderwear) return;
+        _log("SkinTap: delayed apply skins now indices=$_currentSkinIndices");
+        _applyCurrentSkins();
+      });
     } else {
       // 非underwear阶段，直接应用皮肤
       _applyCurrentSkins();
@@ -3015,11 +3036,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       final handsSkin = data.findSkin("hands/hands1");
       final pantsSkin = data.findSkin("pants/pants1");
       final socksSkin = data.findSkin("socks/socks1");
+      // 额外尝试腿部皮肤（如存在）
+      final legsSkin = data.findSkin("legs/legs1");
 
       if (braSkin != null) { customSkin.addSkin(braSkin); hasAnySkin = true; _log("Added bra/bra1"); }
       if (handsSkin != null) { customSkin.addSkin(handsSkin); hasAnySkin = true; _log("Added hands/hands1"); }
       if (pantsSkin != null) { customSkin.addSkin(pantsSkin); hasAnySkin = true; _log("Added pants/pants1"); }
       if (socksSkin != null) { customSkin.addSkin(socksSkin); hasAnySkin = true; _log("Added socks/socks1"); }
+      if (legsSkin != null) { customSkin.addSkin(legsSkin); hasAnySkin = true; _log("Added legs/legs1"); }
 
       if (hasAnySkin) {
         skeleton.setSkin(customSkin);
