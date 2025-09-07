@@ -133,10 +133,10 @@ class _PrivacyDialogState extends State<PrivacyDialog> with SingleTickerProvider
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                const SizedBox(height: 30),
+                                const SizedBox(height: 15),
                                 OutlinedTextWidget(
                                   text: 'By clicking Yes, you acknowledge and agree to our',
-                                  fontSize: 20,
+                                  fontSize: 15,
                                   textColor: HexColor("#8C5D00"),
                                   strokeColor: Colors.transparent,
                                   strokeWidth: 1,
@@ -155,7 +155,7 @@ class _PrivacyDialogState extends State<PrivacyDialog> with SingleTickerProvider
                                       child: OutlinedTextWidget.link(
                                         textColor: HexColor("#8C5D00"),
                                         text: 'Privacy Policy',
-                                        fontSize: 20,
+                                        fontSize: 15,
                                         underlineColor: HexColor("#8C5D00"),
                                         decorationThickness: 10,
                                       ),
@@ -165,7 +165,7 @@ class _PrivacyDialogState extends State<PrivacyDialog> with SingleTickerProvider
                                       child: OutlinedTextWidget.link(
                                         text: ' and ',
                                         textColor: HexColor("#8C5D00"),
-                                        fontSize: 20,
+                                        fontSize: 15,
                                         underlineColor: HexColor("#8C5D00"),
                                       ),
                                     ),
@@ -176,7 +176,7 @@ class _PrivacyDialogState extends State<PrivacyDialog> with SingleTickerProvider
                                         text: 'Terms of Service.',
                                         decorationThickness: 10,
                                         underlineColor: HexColor("#8C5D00"),
-                                        fontSize: 20,
+                                        fontSize: 15,
                                       ),
                                     ),
                                   ],

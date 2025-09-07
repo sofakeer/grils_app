@@ -219,7 +219,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       _heartCount = GameStateManager().getHeartCount();
       _currentIndex = lastSelectedGirl; // 使用最后选择的女孩，而不是硬编码Girl03
       _currentIdleIndex = _girlIdleIndexCache[_currentIndex] ?? 0; // 从缓存中获取当前女孩的idle索引
-      _showTakeoffOverlay = !GameStateManager().hasSeenTakeoffGuide();
+      // 不预先显示引导；在首次脱衣操作时再显示一次引导
+      _showTakeoffOverlay = false;
 
       // 恢复当前女孩的皮肤选择（按女孩的按钮布局映射）
       final skins = GameStateManager().getCurrentSkins(_currentIndex);
@@ -2182,6 +2183,42 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
   // 切换到下一个idle动画
   void _nextIdleAnimation() async {
+    // 首次脱衣引导：仅播放一次
+    try {
+      if (!GameStateManager().hasSeenTakeoffGuide()) {
+        _log("TakeoffGuide: first time -> show guide overlay");
+        if (_takeoffController != null) {
+          setState(() { _showTakeoffOverlay = true; });
+          // 播放引导动画一次
+          final anims = _takeoffController!.skeleton.getData()?.getAnimations();
+          String? guideName = anims != null && anims.isNotEmpty ? anims.first.getName() : null;
+          if (guideName != null && guideName.isNotEmpty) {
+            try { _takeoffController!.animationState.setAnimationByName(0, guideName, false); } catch (_) {}
+            // 计算时长
+            final a = _takeoffController!.skeleton.getData()?.findAnimation(guideName);
+            final ms = a != null ? (a.getDuration() * 1000).toInt() : 1200;
+            await Future.delayed(Duration(milliseconds: ms));
+          } else {
+            await Future.delayed(const Duration(milliseconds: 1200));
+          }
+          if (mounted) {
+            setState(() { _showTakeoffOverlay = false; });
+          }
+          await GameStateManager().setHasSeenTakeoffGuide(true);
+          _log("TakeoffGuide: completed and marked as seen");
+        } else {
+          _log("TakeoffGuide: controller not ready, skipping guide");
+          await GameStateManager().setHasSeenTakeoffGuide(true);
+        }
+        // 引导后再真正执行一次脱衣
+        if (mounted) {
+          _nextIdleAnimation();
+        }
+        return;
+      }
+    } catch (e) {
+      _log("TakeoffGuide: failed $e");
+    }
     _log("=== _nextIdleAnimation START ===");
     _log("Current state - Girl: $_currentIndex, IdleIndex: $_currentIdleIndex, Hearts: $_heartCount");
     
