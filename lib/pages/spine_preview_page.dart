@@ -38,6 +38,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   Map<int, bool> _controllersReady = {};
   Map<int, List<String>> _girlAnimations = {};
   int _currentAnimationIndex = 0;
+  // 记录每个女孩上一次播放的基础 idle（轨道0），避免重复设置导致跳帧
+  Map<int, String> _lastBaseIdlePlayed = {};
 
   // Takeoff 覆盖动画控制器
   SpineWidgetController? _takeoffController;
@@ -745,11 +747,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       final handsSkin = data.findSkin("hands/hands_none");
       final pantsSkin = data.findSkin("pants/pants_none");
       final socksSkin = data.findSkin("socks/socks_none");
+      final legsNone = data.findSkin("legs/legs_none");
 
       if (braSkin != null) { customSkin.addSkin(braSkin); hasAnySkin = true; print("Added bra/bra_none skin"); } else { print("bra/bra_none skin not found"); }
       if (handsSkin != null) { customSkin.addSkin(handsSkin); hasAnySkin = true; print("Added hands/hands_none skin"); } else { print("hands/hands_none skin not found"); }
       if (pantsSkin != null) { customSkin.addSkin(pantsSkin); hasAnySkin = true; print("Added pants/pants_none skin"); } else { print("pants/pants_none skin not found"); }
       if (socksSkin != null) { customSkin.addSkin(socksSkin); hasAnySkin = true; print("Added socks/socks_none skin"); } else { print("socks/socks_none skin not found"); }
+      if (legsNone != null) { customSkin.addSkin(legsNone); hasAnySkin = true; print("Added legs/legs_none skin"); } else { print("legs/legs_none skin not found"); }
 
       if (hasAnySkin) {
         skeleton.setSkin(customSkin);
@@ -860,7 +864,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       _log("ApplyCurrentSkins: girl=$_currentIndex underwear=$isUnderwearMode indices=$_currentSkinIndices");
       
       final controller = _spineControllers[_currentIndex]!;
-      
+
       if (isUnderwearMode) {
         // underwear 模式：应用对应女孩的内衣皮肤
         if (_currentIndex == 0) {
@@ -871,9 +875,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           _setGirl03UnderwearSkinForGirl(controller, _currentIndex);
         }
       } else {
-        // 非 underwear 模式：应用默认皮肤，确保所有身体部位都显示
-        // 这解决了Girl01和Girl03加载后缺少胳膊的问题
-        if (_currentIndex == 0) {
+        // 非 underwear 模式
+        if (_currentIndex == 0 && _currentIdleIndex == 3) {
+          // Girl01 在 idle_04（索引3）应使用阶段1皮肤，避免缺少腿部/部件
+          _log("ApplyCurrentSkins: Girl01 idle_04 -> apply stage1 skin");
+          _applyGirl01Stage1Skin(controller);
+        } else if (_currentIndex == 0) {
           _setGirl01DefaultSkin(controller);
         } else if (_currentIndex == 1) {
           _setGirl02DefaultSkin(controller);
@@ -1406,6 +1413,19 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     _v("=== _playIdlespOverlayForGirl END ===");
   }
 
+  // 在轨道0设置动画，不清空全部轨道，避免打断轨道1叠加
+  void _setTrack0AnimationNoClear(String animationName, bool loop, int girlIndex) {
+    try {
+      if (_isDisposing || !mounted) return;
+      if (_spineControllers[girlIndex] == null || !(_controllersReady[girlIndex] ?? false)) return;
+      if (!_isAnimationAvailableForGirl(animationName, girlIndex)) return;
+      _spineControllers[girlIndex]!.animationState.setAnimationByName(0, animationName, loop);
+      _v("Set track0 without clearing: $animationName loop=$loop girl=$girlIndex");
+    } catch (e) {
+      _log("Failed to set track0 (no clear) animation: $e");
+    }
+  }
+
   // 为当前女孩播放动画
   void _playAnimation(String animationName, bool loop) {
     _playAnimationForGirl(animationName, loop, _currentIndex);
@@ -1497,10 +1517,16 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     bool isSpecial = _girlStates[girlIndex].isPlayingSpecial;
     _v("Special animation mode for girl $girlIndex: $isSpecial");
 
-    // 轨道0始终播放基础idle动画
+    // 轨道0始终播放基础idle动画（避免清空所有轨道，减少跳帧；仅当变化时才设置）
     if (_isAnimationAvailableForGirl(baseIdleName, girlIndex)) {
-      _log("Idle[track0]: $baseIdleName girl=$girlIndex (underwear=$isUnderwearMode)");
-      _playAnimationForGirl(baseIdleName, true, girlIndex);
+      final last = _lastBaseIdlePlayed[girlIndex];
+      if (last != baseIdleName) {
+        _log("Idle[track0]: $baseIdleName girl=$girlIndex (underwear=$isUnderwearMode)");
+        _setTrack0AnimationNoClear(baseIdleName, true, girlIndex);
+        _lastBaseIdlePlayed[girlIndex] = baseIdleName;
+      } else {
+        _v("Base idle unchanged, skip resetting track0: $baseIdleName");
+      }
     } else {
       _log("Base idle animation not found for girl $girlIndex: $baseIdleName");
       return;
