@@ -658,13 +658,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           _log("Girl01 underwear mode: applying saved underwear skin");
           _setGirl01UnderwearSkinForGirl(controller, girlIndex);
         } else {
-          // 普通模式：当已到最终非内衣阶段(idle_04, 索引3)时，使用阶段1上身皮肤；否则使用 none 皮肤
-          if (girlIdleIndex == 3) {
-            _log("Girl01 idle_04: applying stage1 skin");
-            _applyGirl01Stage1Skin(controller);
-          } else {
-            _setGirl01DefaultSkin(controller);
-          }
+          // 普通模式（包括 idle_04）：保持 none 皮肤
+          _log("Girl01 normal mode: apply default none skins (idle index=$girlIdleIndex)");
+          _setGirl01DefaultSkin(controller);
         }
       } else if (girlIndex == 1 && _spineAssets[girlIndex].name == "Girl 02") {
         // Girl02的underwear模式是index 4
@@ -747,13 +743,11 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       final handsSkin = data.findSkin("hands/hands_none");
       final pantsSkin = data.findSkin("pants/pants_none");
       final socksSkin = data.findSkin("socks/socks_none");
-      final legsNone = data.findSkin("legs/legs_none");
 
       if (braSkin != null) { customSkin.addSkin(braSkin); hasAnySkin = true; print("Added bra/bra_none skin"); } else { print("bra/bra_none skin not found"); }
       if (handsSkin != null) { customSkin.addSkin(handsSkin); hasAnySkin = true; print("Added hands/hands_none skin"); } else { print("hands/hands_none skin not found"); }
       if (pantsSkin != null) { customSkin.addSkin(pantsSkin); hasAnySkin = true; print("Added pants/pants_none skin"); } else { print("pants/pants_none skin not found"); }
       if (socksSkin != null) { customSkin.addSkin(socksSkin); hasAnySkin = true; print("Added socks/socks_none skin"); } else { print("socks/socks_none skin not found"); }
-      if (legsNone != null) { customSkin.addSkin(legsNone); hasAnySkin = true; print("Added legs/legs_none skin"); } else { print("legs/legs_none skin not found"); }
 
       if (hasAnySkin) {
         skeleton.setSkin(customSkin);
@@ -807,8 +801,6 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         "pants/pants${girlSkinIndices[1]}",
         "hands/hands${girlSkinIndices[2]}",
         "socks/socks${girlSkinIndices[3]}",
-        // 可选腿部皮肤：若资源存在则会添加
-        "legs/legs${girlSkinIndices[1]}",
       ];
 
       _log("ApplyUnderwearSkins Girl01 -> girl=$girlIndex skins=$skinNames");
@@ -875,12 +867,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           _setGirl03UnderwearSkinForGirl(controller, _currentIndex);
         }
       } else {
-        // 非 underwear 模式
-        if (_currentIndex == 0 && _currentIdleIndex == 3) {
-          // Girl01 在 idle_04（索引3）应使用阶段1皮肤，避免缺少腿部/部件
-          _log("ApplyCurrentSkins: Girl01 idle_04 -> apply stage1 skin");
-          _applyGirl01Stage1Skin(controller);
-        } else if (_currentIndex == 0) {
+        // 非 underwear 模式（包括 Girl01 的 idle_04），一律应用默认 none 皮肤
+        if (_currentIndex == 0) {
           _setGirl01DefaultSkin(controller);
         } else if (_currentIndex == 1) {
           _setGirl02DefaultSkin(controller);
@@ -2446,12 +2434,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           _log("Failed to reset skin list controller: $e");
         }
       } else {
-        _log("Normal mode - checking for Girl01 stage1 skin application");
-        // 非 underwear 模式且为 Girl01：应用阶段1皮肤（bra_1/hands_1/pants_1/socks_1）
-        if (_currentIndex == 0 && _spineControllers[_currentIndex] != null && (_controllersReady[_currentIndex] ?? false)) {
-          _log("Applying Girl01 stage1 skin");
-          // _applyGirl01Stage1Skin(_spineControllers[_currentIndex]!);
-        }
+        _log("Normal mode - keep default none skin for Girl01 as needed");
       }
       
       // 10. 重新设置皮肤状态
@@ -2460,13 +2443,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           _log("Applying current skins for underwear mode");
           _applyCurrentSkins();
         } else {
-          // 非内衣模式：Girl01 在 idle_04 时需要应用阶段1皮肤
-          if (_currentIndex == 0 && _currentIdleIndex == 3) {
-            _log("Girl01 idle_04: applying stage1 skin after takeoff");
-            _applyGirl01Stage1Skin(_spineControllers[_currentIndex]!);
-          } else {
-            _log("Skipping skin application for normal mode (skin already applied before takeoff)");
-          }
+          _log("Skipping special skin application for normal mode (use defaults)");
         }
       }
       
@@ -3099,14 +3076,11 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       final handsSkin = data.findSkin("hands/hands1");
       final pantsSkin = data.findSkin("pants/pants1");
       final socksSkin = data.findSkin("socks/socks1");
-      // 额外尝试腿部皮肤（如存在）
-      final legsSkin = data.findSkin("legs/legs1");
 
       if (braSkin != null) { customSkin.addSkin(braSkin); hasAnySkin = true; _log("Added bra/bra1"); }
       if (handsSkin != null) { customSkin.addSkin(handsSkin); hasAnySkin = true; _log("Added hands/hands1"); }
       if (pantsSkin != null) { customSkin.addSkin(pantsSkin); hasAnySkin = true; _log("Added pants/pants1"); }
       if (socksSkin != null) { customSkin.addSkin(socksSkin); hasAnySkin = true; _log("Added socks/socks1"); }
-      if (legsSkin != null) { customSkin.addSkin(legsSkin); hasAnySkin = true; _log("Added legs/legs1"); }
 
       if (hasAnySkin) {
         skeleton.setSkin(customSkin);
