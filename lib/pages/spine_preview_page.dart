@@ -2305,10 +2305,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         // 4. 在takeoff动画之前重新应用none皮肤
         _log("Applying none skin before takeoff animation");
         if (_currentIndex == 0) {
-          // Girl01在idle_04之前保持none皮肤
-          if (_currentIdleIndex < 3) {
-            _setGirl01DefaultSkin(_spineControllers[_currentIndex]!);
-          }
+          // Girl01在脱衣过程中保持none皮肤（包括idle_04）
+          _setGirl01DefaultSkin(_spineControllers[_currentIndex]!);
         } else if (_currentIndex == 1) {
           // Girl02在脱衣过程中保持none皮肤
           _setGirl02DefaultSkin(_spineControllers[_currentIndex]!);
@@ -2443,7 +2441,15 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           _log("Applying current skins for underwear mode");
           _applyCurrentSkins();
         } else {
-          _log("Skipping special skin application for normal mode (use defaults)");
+          _log("Applying default skins for normal mode");
+          // 确保在非underwear模式下也应用正确的默认皮肤
+          if (_currentIndex == 0) {
+            _setGirl01DefaultSkin(_spineControllers[_currentIndex]!);
+          } else if (_currentIndex == 1) {
+            _setGirl02DefaultSkin(_spineControllers[_currentIndex]!);
+          } else if (_currentIndex == 2) {
+            _setGirl03DefaultSkin(_spineControllers[_currentIndex]!);
+          }
         }
       }
       
