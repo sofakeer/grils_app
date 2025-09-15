@@ -583,10 +583,19 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
             // 如果是当前女孩，按规则播放idle动画（覆盖兜底动画）
             if (girlIndex == _currentIndex && _girlAnimations[girlIndex]!.isNotEmpty) {
+              // 新控制器创建后，强制清除该女孩的“上一次基础idle”记录，避免误以为已在播，从而跳过首帧设置
+              _lastBaseIdlePlayed.remove(girlIndex);
+
               // 延迟播放当前idle动画
               Future.delayed(Duration(milliseconds: 10), () {
                 if (_isDisposing || !mounted) return;
                 _log("Play current idle for girl=$girlIndex after controller ready");
+                _playCurrentIdleAnimationForGirl(girlIndex);
+              });
+              // 兜底：再加一次稍长延迟的触发，规避极端竞态下首帧未设置的问题
+              Future.delayed(Duration(milliseconds: 200), () {
+                if (_isDisposing || !mounted) return;
+                _log("Fallback trigger for current idle (safety) girl=$girlIndex");
                 _playCurrentIdleAnimationForGirl(girlIndex);
               });
               _startIdleAnimationCycle();
@@ -1583,15 +1592,16 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     _audioPlayer.dispose();
 
     // 正确销毁所有Spine控制器
-    for (int i = 0; i < _spineControllers.length; i++) {
-      if (_spineControllers[i] != null) {
-        // _spineControllers[i]!.dispose();
-        _spineControllers[i] = null;
+    for (final k in _spineControllers.keys.toList()) {
+      if (_spineControllers[k] != null) {
+        // _spineControllers[k]!.dispose();
+        _spineControllers[k] = null;
       }
     }
     _spineControllers.clear();
     _controllersReady.clear();
     _girlAnimations.clear();
+    _lastBaseIdlePlayed.clear();
 
     if (_takeoffController != null) {
       // _takeoffController!.dispose();
