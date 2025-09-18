@@ -45,6 +45,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   SpineWidgetController? _takeoffController;
   bool _isTakeoffReady = false;
   bool _showTakeoffOverlay = true;
+  // 是否处于“首次脱衣引导”流程中（用于避免点击跳过与自动继续的重复触发）
+  bool _isShowingTakeoffGuide = false;
 
   // 心形数量
   int _heartCount = 10000;
@@ -136,6 +138,72 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   void _v(String message) {
     if (_verboseLog) {
       _log(message);
+    }
+  }
+
+  // 播放/停止 Takeoff 引导动画（覆盖层上的 Spine）
+  void _playTakeoffGuideAnimation({bool loop = true}) {
+    try {
+      if (_takeoffController == null) return;
+      final data = _takeoffController!.skeleton.getData();
+      final anims = data?.getAnimations();
+      if (anims == null || anims.isEmpty) return;
+      final first = anims.first.getName();
+      if (first != null && first.isNotEmpty) {
+        try { _takeoffController!.skeleton.setToSetupPose(); } catch (_) {}
+        _takeoffController!.animationState.setAnimationByName(0, first, loop);
+        _log("Takeoff guide play: name=$first loop=$loop");
+      }
+    } catch (e) {
+      _log("Failed to play takeoff guide: $e");
+    }
+  }
+
+  void _stopTakeoffGuideAnimation() {
+    try {
+      if (_takeoffController == null) return;
+      try {
+        _takeoffController!.animationState.setEmptyAnimation(0, 0.1);
+      } catch (_) {
+        try { _takeoffController!.animationState.clearTracks(); } catch (_) {}
+      }
+      _log("Takeoff guide stopped");
+    } catch (e) {
+      _log("Failed to stop takeoff guide: $e");
+    }
+  }
+
+  // 若满足条件则自动显示 Takeoff 引导（按女孩只出现一次；不自动执行脱衣，仅提示点击按钮）
+  void _maybeAutoShowTakeoffGuideForGirl(int girlIndex) async {
+    try {
+      if (_isDisposing || !mounted) return;
+      if (girlIndex != _currentIndex) return; // 仅对当前女孩
+
+      // underwear 模式下不展示引导
+      final idleIndex = _currentIdleIndex;
+      final isUnderwearMode = (girlIndex == 2) ? (idleIndex == 5) : (idleIndex == 4);
+      if (isUnderwearMode) return;
+
+      // 仅首次展示
+      if (GameStateManager().hasSeenTakeoffGuideForGirl(girlIndex)) return;
+
+      // 需要 Takeoff 控制器可用
+      if (_takeoffController == null) return;
+
+      // 显示引导（提示用户点击 Takeoff 按钮），并标记为已看过
+      if (mounted) {
+        setState(() {
+          _showTakeoffOverlay = true;
+          // 不进入“自动继续脱衣”的流程，仅展示提示
+          _isShowingTakeoffGuide = false;
+        });
+      }
+      await GameStateManager().setHasSeenTakeoffGuideForGirl(girlIndex, true);
+      _log("Auto-show takeoff guide for girl=$girlIndex (first display)");
+      // 自动展示时播放 Spine 引导动画（循环）直到用户点击遮罩关闭
+      _playTakeoffGuideAnimation(loop: true);
+    } catch (e) {
+      _log("Auto-show takeoff guide failed: $e");
     }
   }
 
@@ -605,6 +673,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
                 if (_isDisposing || !mounted) return;
                 _log("Auto-apply first part skin for girl=$girlIndex");
                 _autoApplyFirstPartSkin(girlIndex);
+              });
+
+              // 首次展示该女孩时，自动显示 Takeoff 引导（提示去点击按钮）
+              // 仅在非内衣模式且该女孩未看过引导时显示一次
+              Future.delayed(Duration(milliseconds: 250), () {
+                if (_isDisposing || !mounted) return;
+                _maybeAutoShowTakeoffGuideForGirl(girlIndex);
               });
             }
           } else {
@@ -1699,15 +1774,25 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
             ),
 
             // Takeoff 手势覆盖动画
-            // 只在非underwear模式下且未看过引导时显示
-            if (_currentIdleIndex != 4 && _showTakeoffOverlay)
+            // 只在非underwear模式下且需要显示时展示
+            // Girl01/Girl02: underwear = idleIndex == 4
+            // Girl03: underwear = idleIndex == 5
+            if (_showTakeoffOverlay && !((_currentIndex == 2 && _currentIdleIndex == 5) ||
+                (_currentIndex != 2 && _currentIdleIndex == 4)))
               GestureDetector(
                 onTap: () async {
                   // 点击后隐藏引导
                   setState(() {
                     _showTakeoffOverlay = false;
                   });
-                  await GameStateManager().setHasSeenTakeoffGuide(true);
+                  await GameStateManager().setHasSeenTakeoffGuideForGirl(_currentIndex, true);
+                  _stopTakeoffGuideAnimation();
+                  // 若正处于引导流程中，点击视为“跳过并继续”，避免阻滞或重复
+                  if (_isShowingTakeoffGuide) {
+                    _isShowingTakeoffGuide = false; // 标记为已由点击继续
+                    // 继续执行一次脱衣
+                    _nextIdleAnimation();
+                  }
                 },
                 child: Center(
                   child: SizedBox(
@@ -2209,10 +2294,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   void _nextIdleAnimation() async {
     // 首次脱衣引导：仅播放一次
     try {
-      if (!GameStateManager().hasSeenTakeoffGuide()) {
+      if (!GameStateManager().hasSeenTakeoffGuideForGirl(_currentIndex)) {
         _log("TakeoffGuide: first time -> show guide overlay");
         if (_takeoffController != null) {
-          setState(() { _showTakeoffOverlay = true; });
+          setState(() { 
+            _showTakeoffOverlay = true; 
+            _isShowingTakeoffGuide = true;
+          });
           // 播放引导动画一次
           final anims = _takeoffController!.skeleton.getData()?.getAnimations();
           String? guideName = anims != null && anims.isNotEmpty ? anims.first.getName() : null;
@@ -2228,15 +2316,22 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
           if (mounted) {
             setState(() { _showTakeoffOverlay = false; });
           }
-          await GameStateManager().setHasSeenTakeoffGuide(true);
+          await GameStateManager().setHasSeenTakeoffGuideForGirl(_currentIndex, true);
           _log("TakeoffGuide: completed and marked as seen");
+          // 仅在未被点击提前继续的情况下自动继续
+          if (_isShowingTakeoffGuide) {
+            _isShowingTakeoffGuide = false;
+            if (mounted) {
+              _nextIdleAnimation();
+            }
+          }
         } else {
           _log("TakeoffGuide: controller not ready, skipping guide");
-          await GameStateManager().setHasSeenTakeoffGuide(true);
-        }
-        // 引导后再真正执行一次脱衣
-        if (mounted) {
-          _nextIdleAnimation();
+          await GameStateManager().setHasSeenTakeoffGuideForGirl(_currentIndex, true);
+          // 控制器不可用时仍需继续一次脱衣
+          if (mounted) {
+            _nextIdleAnimation();
+          }
         }
         return;
       }

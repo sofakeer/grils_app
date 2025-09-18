@@ -16,6 +16,8 @@ class GameStateManager {
   static const String _keyUnlockedSkins = 'unlocked_skins';
   static const String _keyCurrentSkins = 'current_skins';
   static const String _keyHasSeenTakeoff = 'has_seen_takeoff';
+  // 每个女孩是否看过Takeoff引导的前缀键：has_seen_takeoff_girl_{index}
+  static const String _keyHasSeenTakeoffGirlPrefix = 'has_seen_takeoff_girl_';
   static const String _keyCurrentLevel = 'current_level';
   static const String _keyUnlockedGirls = 'unlocked_girls';
   static const String _keyPendingUnlockGirl = 'pending_unlock_girl';
@@ -61,6 +63,16 @@ class GameStateManager {
   // 设置已看过Takeoff引导
   Future<void> setHasSeenTakeoffGuide(bool seen) async {
     await _prefs.setBool(_keyHasSeenTakeoff, seen);
+  }
+
+  // 获取某个女孩是否已经看过Takeoff引导
+  bool hasSeenTakeoffGuideForGirl(int girlIndex) {
+    return _prefs.getBool('$_keyHasSeenTakeoffGirlPrefix$girlIndex') ?? false;
+  }
+
+  // 设置某个女孩已看过Takeoff引导
+  Future<void> setHasSeenTakeoffGuideForGirl(int girlIndex, bool seen) async {
+    await _prefs.setBool('$_keyHasSeenTakeoffGirlPrefix$girlIndex', seen);
   }
   
   // 获取当前女孩索引
