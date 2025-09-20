@@ -6,6 +6,7 @@ import 'package:spine_flutter/spine_flutter.dart' hide Animation;
 import '../widgets/outlined_text_widget.dart';
 import '../managers/game_state_manager.dart';
 import '../managers/audio_manager.dart';
+import '../managers/ad_manager.dart';
 import 'dart:async';
 
 class WinHeartPage extends StatefulWidget {
@@ -22,7 +23,6 @@ class WinHeartPage extends StatefulWidget {
 
 class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMixin {
   late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
 
   // Spine animation controller
   SpineWidgetController? _spineController;
@@ -297,14 +297,6 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
-
     // 只启动标题的渐入动画
     _fadeController.forward();
     // UI元素将在Spine born动画完成后显示
@@ -350,29 +342,82 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
   }
 
   void _getReward() async {
-    // Add hearts to player's inventory
-    await GameStateManager().addHearts(_baseHeartReward * _currentMultiplier);
+    try {
+      // Add hearts to player's inventory
+      await GameStateManager().addHearts(_baseHeartReward * _currentMultiplier);
 
-    // Play reward sound
-    await AudioManager().playHeartEffect();
+      // Play reward sound
+      await AudioManager().playHeartEffect();
 
-    // Close the page
-    Navigator.of(context).pop();
+      // 延迟1秒后回到主界面，让玩家看到奖励效果
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      });
+    } catch (e) {
+      print('获得奖励失败: $e');
+      // 即使失败也要回到主界面
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   void _doubleReward() async {
     if (_hasDoubled) return;
 
-    // TODO: Show ad here
-    // For now, just double the reward
-
-    setState(() {
-      _hasDoubled = true;
-      _totalHeartReward = _baseHeartReward * 2;
-    });
-
-    // Play double reward sound
-    await AudioManager().playHeartEffect();
+    try {
+      // 显示激励视频广告
+      bool adCompleted = await AdManager.instance.showRewardedAd(
+        context: context,
+        onAdCompleted: () async {
+          print('翻倍奖励广告播放完成');
+          // 广告完成后翻倍奖励
+          if (mounted) {
+            setState(() {
+              _hasDoubled = true;
+              _totalHeartReward = _baseHeartReward * _currentMultiplier * 2;
+            });
+            
+            // 播放翻倍奖励音效
+            await AudioManager().playHeartEffect();
+            
+            // 延迟2秒后自动回到主界面
+            Future.delayed(const Duration(seconds: 2), () {
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+            });
+          }
+        },
+        onAdFailed: () {
+          print('翻倍奖励广告播放失败');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('广告播放失败，请重试'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        },
+      );
+      
+      if (!adCompleted) {
+        print('用户取消翻倍奖励广告');
+      }
+    } catch (e) {
+      print('翻倍奖励广告失败: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('广告播放失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -473,9 +518,11 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
                             ),
                             const SizedBox(width: 10),
                             OutlinedTextWidget(
-                              text: '+${_baseHeartReward * _currentMultiplier}',
+                              text: _hasDoubled 
+                                ? '已翻倍' 
+                                : '+${_baseHeartReward * _currentMultiplier}',
                               fontSize: 20,
-                              textColor: Colors.red,
+                              textColor: _hasDoubled ? Colors.grey : Colors.red,
                               strokeColor: Colors.white,
                               strokeWidth: 6.5,
                               fontWeight: FontWeight.bold,

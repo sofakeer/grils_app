@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
-import 'package:hexcolor/hexcolor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'dart:io';
 import '../managers/ad_manager.dart';
 
@@ -30,14 +26,12 @@ class PhotoDetailPage extends StatefulWidget {
 class _PhotoDetailPageState extends State<PhotoDetailPage>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
-  late AnimationController _unlockAnimationController;
   late Animation<double> _slideAnimation;
-  late Animation<double> _scaleAnimation;
   
   late PageController _pageController;
   int _currentIndex = 0;
   bool _isUnlocked = false;
-  bool _showUnlockDialog = false;
+  bool _hasStoragePermission = false;
 
   static const int totalImages = 75;
 
@@ -48,16 +42,12 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
     _isUnlocked = widget.isUnlocked;
     _initializeAnimations();
     _setupPageController();
+    _checkStoragePermission();
   }
 
   void _initializeAnimations() {
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    
-    _unlockAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
@@ -68,20 +58,42 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
       parent: _animationController,
       curve: Curves.easeOutCubic,
     ));
-    
-    _scaleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _unlockAnimationController,
-      curve: Curves.bounceOut,
-    ));
 
     _animationController.forward();
   }
 
   void _setupPageController() {
     _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  Future<void> _checkStoragePermission() async {
+    try {
+      bool hasPermission = false;
+      
+      if (Platform.isIOS) {
+        var status = await Permission.photosAddOnly.status;
+        hasPermission = status.isGranted;
+        if (!hasPermission) {
+          status = await Permission.photos.status;
+          hasPermission = status.isGranted;
+        }
+      } else if (Platform.isAndroid) {
+        var photosStatus = await Permission.photos.status;
+        hasPermission = photosStatus.isGranted;
+        if (!hasPermission) {
+          var storageStatus = await Permission.storage.status;
+          hasPermission = storageStatus.isGranted;
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _hasStoragePermission = hasPermission;
+        });
+      }
+    } catch (e) {
+      print('检查存储权限失败: $e');
+    }
   }
 
   Future<bool> _checkPhotoUnlocked(int index) async {
@@ -91,28 +103,6 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
     return prefs.getBool('photo_unlocked_$index') ?? false;
   }
 
-  Future<void> _unlockPhoto(int index) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('photo_unlocked_$index', true);
-    
-    setState(() {
-      _isUnlocked = true;
-      _showUnlockDialog = true;
-    });
-    
-    // 播放解锁动画
-    _unlockAnimationController.forward();
-    
-    // 通知父页面更新
-    widget.onPhotoUnlocked(index);
-    
-    // 3秒后自动关闭解锁弹窗
-    Future.delayed(Duration(seconds: 3), () {
-      if (mounted) {
-        _closeUnlockDialog();
-      }
-    });
-  }
 
   Future<void> _downloadPhoto() async {
     try {
@@ -199,16 +189,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
         }
         
         storageStatus = await Permission.storage.request();
-        if (storageStatus.isGranted) {
-          return true;
-        }
-        
-        // 如果都失败了，显示提示
-        if (mounted && (photosStatus.isPermanentlyDenied || storageStatus.isPermanentlyDenied)) {
-          _showPermissionDialog();
-        }
-        
-        return false;
+        return storageStatus.isGranted;
       }
       
       return false;
@@ -218,37 +199,19 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
     }
   }
   
-  void _showPermissionDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('需要存储权限'),
-          content: const Text('保存图片需要访问存储权限。请在设置中开启相册访问权限。'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                openAppSettings();
-              },
-              child: const Text('去设置'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   Future<void> _saveImageToGallery() async {
     try {
       // 先请求权限
       bool hasPermission = await _requestPermission();
+      
+      // 更新权限状态
+      if (mounted) {
+        setState(() {
+          _hasStoragePermission = hasPermission;
+        });
+      }
+      
       if (!hasPermission) {
         print('没有存储权限');
         if (mounted) {
@@ -314,19 +277,17 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
     }
   }
 
-  void _closeUnlockDialog() {
-    _unlockAnimationController.reverse().then((_) {
-      if (mounted) {
-        setState(() {
-          _showUnlockDialog = false;
-        });
-      }
-    });
-  }
 
   void _previousPhoto() {
     if (_currentIndex > 0) {
       _pageController.previousPage(
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      // 如果是第一张图片，跳到最后一张
+      _pageController.animateToPage(
+        totalImages - 1,
         duration: Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
@@ -336,6 +297,13 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
   void _nextPhoto() {
     if (_currentIndex < totalImages - 1) {
       _pageController.nextPage(
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      // 如果是最后一张图片，回到第一张
+      _pageController.animateToPage(
+        0,
         duration: Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
@@ -351,7 +319,6 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
   @override
   void dispose() {
     _animationController.dispose();
-    _unlockAnimationController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -492,8 +459,6 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                     ),
                   ),
 
-                // 解锁成功弹窗
-                if (_showUnlockDialog) _buildUnlockDialog(),
               ],
             ),
           );
@@ -578,33 +543,11 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                                 ),
                               ),
                               SizedBox(height: 10),
-                              GestureDetector(
-                                onTap: () => _unlockPhoto(index),
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.play_arrow,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                      SizedBox(width: 5),
-                                      Text(
-                                        '观看广告解锁',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                              Text(
+                                '通过过关解锁',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 14,
                                 ),
                               ),
                             ],
@@ -614,8 +557,8 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                     ),
               ),
 
-              // 水印 (只有解锁的图片才显示)
-              if (isUnlocked)
+              // 水印 (只有解锁的图片且有存储权限时才显示)
+              if (isUnlocked && _hasStoragePermission)
                 Positioned(
                   top: 190,
                   right: 80,
@@ -640,91 +583,4 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
     );
   }
 
-  Widget _buildUnlockDialog() {
-    return AnimatedBuilder(
-      animation: _scaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value,
-          child: Center(
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.8,
-              height: MediaQuery.of(context).size.height * 0.4,
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage(Assets.popPopAsk),
-                  fit: BoxFit.fill,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // 特效图标
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage(Assets.newPhotoNewPhotoIconNew),
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 20),
-                  
-                  // 解锁文字
-                  Text(
-                    '解锁成功!',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: HexColor("#8B4513"),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 10),
-                  
-                  Text(
-                    '图片 ${_currentIndex + 1} 已解锁',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: HexColor("#666666"),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 30),
-                  
-                  // 确认按钮
-                  GestureDetector(
-                    onTap: _closeUnlockDialog,
-                    child: Container(
-                      width: 120,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: AssetImage(Assets.popPopBtnGreen),
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '确认',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }

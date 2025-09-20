@@ -183,14 +183,14 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
     
     if (allPhotosUnlocked) {
       // 如果所有照片都解锁了，直接跳转到爱心货币界面
-      Navigator.of(context).push(
+      Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => const WinHeartPage(),
         ),
       );
     } else {
       // 跳转到新照片页面
-      Navigator.of(context).push(
+      Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => NewPhotoPage(level: widget.level),
         ),
