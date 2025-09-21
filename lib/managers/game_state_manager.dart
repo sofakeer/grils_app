@@ -7,12 +7,14 @@ class GameStateManager {
   GameStateManager._internal();
 
   late SharedPreferences _prefs;
+  Map<String, dynamic>? _lastGirlStateCache;
   
   // 游戏状态键值
   static const String _keyHeartCount = 'heart_count';
   static const String _keyShowTakeoffGuide = 'show_takeoff_guide';
   static const String _keyCurrentGirlIndex = 'current_girl_index';
   static const String _keyCurrentIdleIndex = 'current_idle_index';
+  static const String _keyGirlIdleIndexPrefix = 'girl_idle_index_';
   static const String _keyUnlockedSkins = 'unlocked_skins';
   static const String _keyCurrentSkins = 'current_skins';
   static const String _keyHasSeenTakeoff = 'has_seen_takeoff';
@@ -23,10 +25,22 @@ class GameStateManager {
   static const String _keyPendingUnlockGirl = 'pending_unlock_girl';
   static const String _keyLastSpecialStageLevel = 'last_special_stage_level';
   static const String _keySpecialStageCompleted = 'special_stage_completed';
+  static const String _keyLastGirlState = 'last_girl_state';
   
   // 初始化
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+    if (_lastGirlStateCache == null) {
+      final stored = getLastGirlState(preferCache: false);
+      if (stored == null) {
+        final currentGirl = getCurrentGirlIndex();
+        cacheLastGirlState(
+          girlIndex: currentGirl,
+          idleIndex: getGirlIdleIndex(currentGirl),
+          skins: getCurrentSkins(currentGirl),
+        );
+      }
+    }
   }
   
   // 获取心形货币数量
@@ -93,6 +107,62 @@ class GameStateManager {
   // 设置当前idle动画索引
   Future<void> setCurrentIdleIndex(int index) async {
     await _prefs.setInt(_keyCurrentIdleIndex, index);
+  }
+
+  void cacheLastGirlState({
+    required int girlIndex,
+    required int idleIndex,
+    required Map<String, int> skins,
+  }) {
+    _lastGirlStateCache = {
+      'girlIndex': girlIndex,
+      'idleIndex': idleIndex,
+      'skins': Map<String, int>.from(skins),
+    };
+  }
+
+  Map<String, dynamic>? _cloneCachedGirlState() {
+    if (_lastGirlStateCache == null) {
+      return null;
+    }
+    return {
+      'girlIndex': _lastGirlStateCache!['girlIndex'] ?? 0,
+      'idleIndex': _lastGirlStateCache!['idleIndex'] ?? 0,
+      'skins': Map<String, int>.from(
+        (_lastGirlStateCache!['skins'] as Map<String, int>? ?? const {}),
+      ),
+    };
+  }
+
+  void _updateCacheFromStored(Map<String, dynamic> source) {
+    final skins = <String, int>{};
+    final rawSkins = source['skins'];
+    if (rawSkins is Map) {
+      rawSkins.forEach((key, value) {
+        if (key is String) {
+          if (value is int) {
+            skins[key] = value;
+          } else if (value is num) {
+            skins[key] = value.toInt();
+          }
+        }
+      });
+    }
+    cacheLastGirlState(
+      girlIndex: (source['girlIndex'] as num?)?.toInt() ?? 0,
+      idleIndex: (source['idleIndex'] as num?)?.toInt() ?? 0,
+      skins: skins,
+    );
+  }
+
+  /// Persist idle index for a specific girl.
+  Future<void> setGirlIdleIndex(int girlIndex, int idleIndex) async {
+    await _prefs.setInt('$_keyGirlIdleIndexPrefix$girlIndex', idleIndex);
+  }
+
+  /// Read the stored idle index for a specific girl.
+  int getGirlIdleIndex(int girlIndex) {
+    return _prefs.getInt('$_keyGirlIdleIndexPrefix$girlIndex') ?? 0;
   }
   
   // 获取已解锁的皮肤
@@ -171,6 +241,42 @@ class GameStateManager {
     Map<String, int> current = getCurrentSkins(girlIndex);
     current[partName] = skinIndex;
     await _prefs.setString('${_keyCurrentSkins}_$girlIndex', json.encode(current));
+  }
+
+  Future<void> setLastGirlState({
+    required int girlIndex,
+    required int idleIndex,
+    required Map<String, int> skins,
+  }) async {
+    cacheLastGirlState(girlIndex: girlIndex, idleIndex: idleIndex, skins: skins);
+
+    final payload = <String, dynamic>{
+      'girlIndex': girlIndex,
+      'idleIndex': idleIndex,
+      'skins': skins,
+    };
+    await _prefs.setString(_keyLastGirlState, json.encode(payload));
+  }
+
+  Map<String, dynamic>? getLastGirlState({bool preferCache = true}) {
+    if (preferCache) {
+      final cached = _cloneCachedGirlState();
+      if (cached != null) {
+        return cached;
+      }
+    }
+
+    final jsonStr = _prefs.getString(_keyLastGirlState);
+    if (jsonStr == null) {
+      return null;
+    }
+    try {
+      final decoded = json.decode(jsonStr) as Map<String, dynamic>;
+      _updateCacheFromStored(decoded);
+      return _cloneCachedGirlState();
+    } catch (_) {
+      return null;
+    }
   }
   
   // 获取皮肤价格

@@ -6,6 +6,7 @@ import 'package:spine_flutter/spine_flutter.dart' hide Animation;
 import 'dart:ui' as ui;
 import '../widgets/outlined_text_widget.dart';
 import '../managers/audio_manager.dart';
+import '../managers/ad_manager.dart';
 
 class SpecialPage extends StatefulWidget {
   const SpecialPage({super.key});
@@ -24,7 +25,6 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
 
   // 视频广告状态
   bool _isShowingAd = false;
-  bool _isAdCompleted = false;
 
   @override
   void initState() {
@@ -140,94 +140,44 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
     // 播放按钮音效
     await AudioManager().playPopupOpen();
 
-    // 模拟视频广告播放
-    await _showVideoAd();
-
-    if (_isAdCompleted) {
-      // 广告播放完成，进入特殊关卡
-      Navigator.of(context).pop(); // 关闭特殊关卡弹窗
-
-      // 跳转到特殊关卡游戏页面（这里使用新照片页面作为示例）
-      Navigator.of(context)
-          .push(
-        MaterialPageRoute(
-          builder: (context) => const SpecialGamePage(),
-        ),
-      )
-          .then((_) {
-        // 特殊关卡完成后，显示翻倍领取爱心货币界面
-        _showHeartRewardDialog();
-      });
-    } else {
-      // 广告未完成，恢复状态
-      setState(() {
-        _isShowingAd = false;
-      });
-    }
-  }
-
-  // 模拟视频广告播放
-  Future<void> _showVideoAd() async {
-    // 显示广告加载提示
-    showDialog(
+    final bool adCompleted = await AdManager.instance.showRewardedAd(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Loading Ad...'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Please wait while the video ad loads...'),
-          ],
-        ),
-      ),
+      onAdFailed: () {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ad failed to play. Please try again.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      },
     );
 
-    // 模拟广告加载时间
-    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
 
-    if (mounted) {
-      Navigator.of(context).pop(); // 关闭加载提示
+    setState(() {
+      _isShowingAd = false;
+    });
 
-      // 模拟广告播放
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Text('Video Ad'),
-          content: const Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.play_circle, size: 64, color: Colors.blue),
-              SizedBox(height: 16),
-              Text('Video ad is playing...\nPlease watch the full ad.'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  _isAdCompleted = false;
-                });
-              },
-              child: const Text('Skip'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  _isAdCompleted = true;
-                });
-              },
-              child: const Text('Complete'),
-            ),
-          ],
-        ),
-      );
+    if (!adCompleted) {
+      return;
     }
+
+    // 广告播放完成，进入特殊关卡
+    Navigator.of(context).pop();
+
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute(
+        builder: (context) => const SpecialGamePage(),
+      ),
+    )
+        .then((_) {
+      if (mounted) {
+        _showHeartRewardDialog();
+      }
+    });
   }
 
   // 显示爱心货币奖励弹窗

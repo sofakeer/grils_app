@@ -36,6 +36,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   // 背景女孩Spine控制器
   spine.SpineWidgetController? _backgroundSpineController;
   bool _isBackgroundSpineReady = false;
+  int _backgroundIdleIndex = 0;
+  Map<String, int> _backgroundSkinSelections = {};
 
   // 使用UserService管理金币和爱心
   late UserService _userService;
@@ -59,13 +61,293 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     await prefs.setBool(_kHasShownGrilWaitingDialogKey, value);
   }
 
+  Future<void> _restoreBackgroundState() async {
+    await GameStateManager().init();
+    final lastState = GameStateManager().getLastGirlState();
+    final int fallbackGirlIndex = GameStateManager().getCurrentGirlIndex();
+    final int targetGirlIndex = (lastState?['girlIndex'] as int?) ?? fallbackGirlIndex;
+    final int? idleOverride = lastState?['idleIndex'] as int?;
+    Map<String, int>? skinsOverride;
+    final dynamic skins = lastState?['skins'];
+    if (skins is Map) {
+      final map = <String, int>{};
+      skins.forEach((key, value) {
+        if (key is String) {
+          if (value is int) {
+            map[key] = value;
+          } else if (value is num) {
+            map[key] = value.toInt();
+          }
+        }
+      });
+      if (map.isNotEmpty) {
+        skinsOverride = map;
+      }
+    }
+
+    await _loadGirlStateForBackground(
+      targetGirlIndex,
+      idleIndexOverride: idleOverride,
+      skinsOverride: skinsOverride,
+      ensureInit: false,
+    );
+  }
+
+  Future<void> _loadGirlStateForBackground(
+    int girlIndex, {
+    int? idleIndexOverride,
+    Map<String, int>? skinsOverride,
+    bool ensureInit = true,
+  }) async {
+    if (ensureInit) {
+      await GameStateManager().init();
+    }
+
+    final assets = ref.read(spineAssetsProvider);
+    if (assets.isEmpty) {
+      return;
+    }
+
+    final int normalizedGirlIndex = girlIndex.clamp(0, assets.length - 1) as int;
+    final int storedIdle = idleIndexOverride ?? GameStateManager().getGirlIdleIndex(normalizedGirlIndex);
+    final Map<String, int> storedSkins = GameStateManager().getCurrentSkins(normalizedGirlIndex);
+    final Map<String, int> mergedSkins = {...storedSkins};
+    if (skinsOverride != null) {
+      mergedSkins.addAll(skinsOverride);
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    ref.read(currentGirlIndexProvider.notifier).state = normalizedGirlIndex;
+
+    setState(() {
+      _backgroundIdleIndex = _normalizeIdleIndex(normalizedGirlIndex, storedIdle);
+      _backgroundSkinSelections = _normalizeSkinSelections(normalizedGirlIndex, mergedSkins);
+      _isBackgroundSpineReady = false;
+    });
+
+    await GameStateManager().setCurrentGirlIndex(normalizedGirlIndex);
+    await GameStateManager().setCurrentIdleIndex(_backgroundIdleIndex);
+
+    if (!mounted) {
+      return;
+    }
+
+    _initializeBackgroundSpine();
+  }
+
+  Map<String, int> _normalizeSkinSelections(int girlIndex, Map<String, int> skins) {
+    if (girlIndex == 0) {
+      return {
+        'bra': skins['bra'] ?? 0,
+        'pants': skins['pants'] ?? 0,
+        'hands': skins['hands'] ?? 0,
+        'socks': skins['socks'] ?? 0,
+      };
+    } else if (girlIndex == 1) {
+      return {
+        'head': skins['head'] ?? 0,
+        'bra': skins['bra'] ?? 0,
+        'hands': skins['hands'] ?? 0,
+        'socks': skins['socks'] ?? 0,
+      };
+    } else {
+      return {
+        'head': skins['head'] ?? 0,
+        'bra': skins['bra'] ?? 0,
+        'pants': skins['pants'] ?? 0,
+        'socks': skins['socks'] ?? 0,
+      };
+    }
+  }
+
+  int _normalizeIdleIndex(int girlIndex, int idleIndex) {
+    final int maxIndex = girlIndex == 2 ? 5 : 4;
+    if (idleIndex < 0) {
+      return 0;
+    }
+    if (idleIndex > maxIndex) {
+      return maxIndex;
+    }
+    return idleIndex;
+  }
+
+  bool _isUnderwearMode(int girlIndex, int idleIndex) {
+    return girlIndex == 2 ? idleIndex == 5 : idleIndex == 4;
+  }
+
+  String _resolveIdleAnimationName(int girlIndex, int idleIndex) {
+    if (_isUnderwearMode(girlIndex, idleIndex)) {
+      return 'idle_underwear';
+    }
+    final int safeIndex = idleIndex < 0 ? 0 : idleIndex;
+    final String formatted = (safeIndex + 1).toString().padLeft(2, '0');
+    return 'idle_$formatted';
+  }
+
+  List<String> _buildDefaultSkinNames(int girlIndex) {
+    if (girlIndex == 0) {
+      return [
+        'bra/bra_none',
+        'pants/pants_none',
+        'hands/hands_none',
+        'socks/socks_none',
+      ];
+    } else if (girlIndex == 1) {
+      return [
+        'bra/bra_none',
+        'hands/hands_none',
+        'head/head_none',
+        'socks/socks_none',
+      ];
+    } else {
+      return [
+        'bra/bra_none',
+        'head/head_none',
+        'pants/pants_none',
+        'socks/socks_none',
+      ];
+    }
+  }
+
+  List<String> _buildUnderwearSkinNames(int girlIndex, Map<String, int> skins) {
+    if (girlIndex == 0) {
+      return [
+        'bra/bra${(skins['bra'] ?? 0) + 1}',
+        'pants/pants${(skins['pants'] ?? 0) + 1}',
+        'hands/hands${(skins['hands'] ?? 0) + 1}',
+        'socks/socks${(skins['socks'] ?? 0) + 1}',
+      ];
+    } else if (girlIndex == 1) {
+      return [
+        'bra/bra${(skins['bra'] ?? 0) + 1}',
+        'hands/hands${(skins['hands'] ?? 0) + 1}',
+        'head/head${(skins['head'] ?? 0) + 1}',
+        'socks/socks${(skins['socks'] ?? 0) + 1}',
+      ];
+    } else {
+      return [
+        'bra/bra${(skins['bra'] ?? 0) + 1}',
+        'head/head${(skins['head'] ?? 0) + 1}',
+        'pants/pants${(skins['pants'] ?? 0) + 1}',
+        'socks/socks${(skins['socks'] ?? 0) + 1}',
+      ];
+    }
+  }
+
+  void _applySkinSet(spine.SpineWidgetController controller, List<String> skinNames) {
+    try {
+      final data = controller.skeletonData;
+      final skeleton = controller.skeleton;
+      if (data == null || skeleton == null) {
+        return;
+      }
+
+      final customSkin = spine.Skin('background-custom-skin');
+      bool hasAnySkin = false;
+      for (final name in skinNames) {
+        final skin = data.findSkin(name);
+        if (skin != null) {
+          customSkin.addSkin(skin);
+          hasAnySkin = true;
+        } else {
+          print('背景女孩皮肤缺失: $name');
+        }
+      }
+
+      if (hasAnySkin) {
+        skeleton.setSkin(customSkin);
+        skeleton.setSlotsToSetupPose();
+      } else {
+        final defaultSkin = data.findSkin('default');
+        if (defaultSkin != null) {
+          skeleton.setSkin(defaultSkin);
+          skeleton.setSlotsToSetupPose();
+        } else {
+          skeleton.setToSetupPose();
+        }
+      }
+    } catch (e) {
+      print('背景女孩皮肤设置失败: $e');
+    }
+  }
+
+  void _applyBackgroundSkin(spine.SpineWidgetController controller, int girlIndex, bool isUnderwear) {
+    final skinNames = isUnderwear
+        ? _buildUnderwearSkinNames(girlIndex, _backgroundSkinSelections)
+        : _buildDefaultSkinNames(girlIndex);
+    _applySkinSet(controller, skinNames);
+  }
+
+  void _applyBackgroundState(spine.SpineWidgetController controller) {
+    final animationState = controller.animationState;
+    final stateData = animationState?.getData();
+    final skeleton = controller.skeleton;
+    final skeletonData = skeleton?.getData();
+
+    if (animationState == null || stateData == null || skeleton == null || skeletonData == null) {
+      // 控制器尚未准备就绪，等待下一帧再试
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && controller == _backgroundSpineController) {
+          _applyBackgroundState(controller);
+        }
+      });
+      return;
+    }
+
+    try {
+      stateData.setDefaultMix(0.2);
+    } catch (e) {
+      print('背景女孩动画过渡设置失败: $e');
+    }
+
+    final girlIndex = ref.read(currentGirlIndexProvider);
+    final idleIndex = _backgroundIdleIndex;
+    final isUnderwear = _isUnderwearMode(girlIndex, idleIndex);
+    final desiredAnimation = _resolveIdleAnimationName(girlIndex, idleIndex);
+
+    String? animationToPlay;
+    try {
+      if (skeletonData.findAnimation(desiredAnimation) != null) {
+        animationToPlay = desiredAnimation;
+      } else if (skeletonData.findAnimation('idle_01') != null) {
+        animationToPlay = 'idle_01';
+      } else {
+        final animations = skeletonData.getAnimations();
+        if (animations != null && animations.isNotEmpty) {
+          animationToPlay = animations.first.getName();
+        }
+      }
+    } catch (e) {
+      print('背景女孩查询动画失败: $e');
+    }
+
+    if (animationToPlay != null && animationToPlay.isNotEmpty) {
+      try {
+        animationState.setAnimationByName(0, animationToPlay, true);
+      } catch (e) {
+        print('背景女孩动画播放失败: $e');
+      }
+    }
+
+    _applyBackgroundSkin(controller, girlIndex, isUnderwear);
+
+    if (mounted) {
+      setState(() {
+        _isBackgroundSpineReady = true;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _userService = UserService.instance;
     _initializeAnimations();
     _loadUserData();
-    _initializeBackgroundSpine();
+    _restoreBackgroundState();
     
     // 初始化音频系统并播放主界面BGM
     _initializeAudio();
@@ -104,79 +386,10 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
 
     try {
       _backgroundSpineController = spine.SpineWidgetController(onInitialized: (controller) {
-        try {
-          // 设置默认过渡时间
-          controller.animationState.getData().setDefaultMix(0.2);
-
-          // 获取可用动画
-          final animations = controller.skeleton.getData()?.getAnimations();
-          print("=== 背景女孩 可用动画 ===");
-          if (animations != null && animations.isNotEmpty) {
-            for (var anim in animations) {
-              print("动画名称: ${anim.getName()}");
-            }
-
-            if (mounted) {
-              setState(() {
-                _isBackgroundSpineReady = true;
-              });
-            }
-
-            // 播放第一个idle动画（循环播放）
-            String defaultAnimation = "idle_01";
-            final foundAnimation = animations.firstWhere(
-              (anim) => anim.getName() == defaultAnimation,
-              orElse: () => animations.first,
-            );
-            
-            final animationName = foundAnimation.getName();
-            print("开始播放背景动画: $animationName");
-            if (animationName.isNotEmpty) {
-              controller.animationState.setAnimationByName(0, animationName, true);
-              print("背景女孩动画播放成功");
-            }
-
-            // 设置默认皮肤
-            _setBackgroundDefaultSkin(controller);
-          } else {
-            print("背景女孩没有找到动画");
-          }
-          print("========================");
-        } catch (e) {
-          print("背景女孩动画初始化失败: $e");
-        }
+        _applyBackgroundState(controller);
       });
     } catch (e) {
       print("背景女孩控制器创建失败: $e");
-    }
-  }
-
-  void _setBackgroundDefaultSkin(spine.SpineWidgetController controller) {
-    try {
-      final data = controller.skeletonData;
-      final skeleton = controller.skeleton;
-
-      // 创建自定义皮肤 - 默认为Girl01的默认皮肤状态
-      final customSkin = spine.Skin("background-default-skin");
-
-      // 添加默认皮肤状态（全部隐藏）
-      final braSkin = data.findSkin("bra/bra_none");
-      final handsSkin = data.findSkin("hands/hands_none");
-      final pantsSkin = data.findSkin("pants/pants_none");
-      final socksSkin = data.findSkin("socks/socks_none");
-
-      if (braSkin != null) customSkin.addSkin(braSkin);
-      if (handsSkin != null) customSkin.addSkin(handsSkin);
-      if (pantsSkin != null) customSkin.addSkin(pantsSkin);
-      if (socksSkin != null) customSkin.addSkin(socksSkin);
-
-      // 应用自定义皮肤
-      skeleton.setSkin(customSkin);
-      skeleton.setSlotsToSetupPose();
-
-      print("背景女孩默认皮肤应用成功");
-    } catch (e) {
-      print("背景女孩皮肤设置失败: $e");
     }
   }
 
@@ -400,10 +613,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     final currentIndex = ref.read(currentGirlIndexProvider);
     final spineAssets = ref.read(spineAssetsProvider);
     final nextIndex = (currentIndex + 1) % spineAssets.length;
-    ref.read(currentGirlIndexProvider.notifier).state = nextIndex;
-    
-    // 重新初始化背景Spine动画
-    _initializeBackgroundSpine();
+    await _loadGirlStateForBackground(nextIndex);
   }
 
   void _startTakeOff() {
@@ -415,7 +625,16 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
       // 从预览页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
       // 不再重置已弹标记，确保跨页面也只弹一次
+      _restoreBackgroundState();
     });
+  }
+
+  // 临时测试方法 - 播放金币和心特效
+  void _playCoinAndHeartEffects() async {
+    await AudioManager().playPopupOpen();
+    
+    // 播放签到奖励特效（金币和爱心）
+    CommonHeader.playSignInEffects(context, 10, 5);
   }
 
   @override
@@ -564,17 +783,27 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
               bottom: 150,
               child: Column(
                 children: [
-                  // // 设置按钮
-                  // GestureDetector(
-                  //   onTap: _navigateToSettings,
-                  //   child: Container(
-                  //     margin: EdgeInsets.only(bottom: 40),
-                  //     child: Image.asset(
-                  //       Assets.mainMainBtnSetting,
-                  //       height: 80,
-                  //     ),
-                  //   ),
-                  // ),
+                  // 临时测试按钮 - 播放金币和心特效
+                  GestureDetector(
+                    onTap: _playCoinAndHeartEffects,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: const OutlinedTextWidget(
+                        text: '测试特效',
+                        fontSize: 14,
+                        textColor: Colors.white,
+                        strokeColor: Colors.black,
+                        strokeWidth: 2.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
 
                   // 换按钮 (动画)
                   GestureDetector(

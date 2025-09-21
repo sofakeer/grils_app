@@ -6,7 +6,6 @@ import 'package:spine_flutter/spine_flutter.dart' hide Animation;
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/girl_state.dart';
 import '../managers/audio_manager.dart';
@@ -96,6 +95,31 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     3: 0, // socks: 默认1号皮肤 (索引0)
   };
 
+  Map<String, int> _buildCurrentSkinSelectionMap() {
+    final map = <String, int>{};
+    for (int i = 0; i < 4; i++) {
+      final partName = _getPartName(i);
+      final skinIndex = _currentSkinIndices[i] ?? 0;
+      map[partName] = skinIndex;
+    }
+    return map;
+  }
+
+  void _cacheCurrentGirlState() {
+    if (_currentIndex < 0 || _currentIndex >= _spineAssets.length) {
+      return;
+    }
+    try {
+      GameStateManager().cacheLastGirlState(
+        girlIndex: _currentIndex,
+        idleIndex: _currentIdleIndex,
+        skins: _buildCurrentSkinSelectionMap(),
+      );
+    } catch (e) {
+      _log('Failed to cache current girl state: $e');
+    }
+  }
+
   // 女孩idle索引的内存缓存
   Map<int, int> _girlIdleIndexCache = {};
 
@@ -144,15 +168,45 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   // 播放/停止 Takeoff 引导动画（覆盖层上的 Spine）
   void _playTakeoffGuideAnimation({bool loop = true}) {
     try {
-      if (_takeoffController == null) return;
+      if (_takeoffController == null) {
+        _log("Takeoff controller is null, cannot play guide animation");
+        return;
+      }
+      
+      // 检查控制器是否已准备好
+      if (!_isTakeoffReady) {
+        _log("Takeoff controller not ready, cannot play guide animation");
+        return;
+      }
+      
       final data = _takeoffController!.skeleton.getData();
-      final anims = data?.getAnimations();
-      if (anims == null || anims.isEmpty) return;
+      if (data == null) {
+        _log("Takeoff skeleton data is null");
+        return;
+      }
+      
+      final anims = data.getAnimations();
+      if (anims == null || anims.isEmpty) {
+        _log("No animations found in takeoff controller");
+        return;
+      }
+      
       final first = anims.first.getName();
       if (first != null && first.isNotEmpty) {
-        try { _takeoffController!.skeleton.setToSetupPose(); } catch (_) {}
-        _takeoffController!.animationState.setAnimationByName(0, first, loop);
-        _log("Takeoff guide play: name=$first loop=$loop");
+        try { 
+          _takeoffController!.skeleton.setToSetupPose(); 
+        } catch (e) {
+          _log("Failed to set setup pose: $e");
+        }
+        
+        try {
+          _takeoffController!.animationState.setAnimationByName(0, first, loop);
+          _log("Takeoff guide play: name=$first loop=$loop");
+        } catch (e) {
+          _log("Failed to set animation: $e");
+        }
+      } else {
+        _log("First animation name is null or empty");
       }
     } catch (e) {
       _log("Failed to play takeoff guide: $e");
@@ -182,26 +236,49 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // underwear 模式下不展示引导
       final idleIndex = _currentIdleIndex;
       final isUnderwearMode = (girlIndex == 2) ? (idleIndex == 5) : (idleIndex == 4);
-      if (isUnderwearMode) return;
+      if (isUnderwearMode) {
+        _log("Underwear mode detected, skipping takeoff guide");
+        return;
+      }
 
       // 仅首次展示
-      if (GameStateManager().hasSeenTakeoffGuideForGirl(girlIndex)) return;
+      if (GameStateManager().hasSeenTakeoffGuideForGirl(girlIndex)) {
+        _log("Takeoff guide already seen for girl $girlIndex, skipping");
+        return;
+      }
 
       // 需要 Takeoff 控制器可用
-      if (_takeoffController == null) return;
+      if (_takeoffController == null) {
+        _log("Takeoff controller is null, cannot show guide");
+        return;
+      }
 
+      // 检查控制器是否已准备好
+      if (!_isTakeoffReady) {
+        _log("Takeoff controller not ready, cannot show guide");
+        return;
+      }
+
+      _log("Showing takeoff guide for girl=$girlIndex");
+      
       // 显示引导（提示用户点击 Takeoff 按钮），并标记为已看过
       if (mounted) {
         setState(() {
           _showTakeoffOverlay = true;
-          // 不进入“自动继续脱衣”的流程，仅展示提示
+          // 不进入"自动继续脱衣"的流程，仅展示提示
           _isShowingTakeoffGuide = false;
         });
       }
+      
+      // 延迟一点确保UI更新完成
+      await Future.delayed(Duration(milliseconds: 100));
+      
+      // 播放 Spine 引导动画（循环）直到用户点击遮罩关闭
+      _playTakeoffGuideAnimation(loop: true);
+      
+      // 标记为已看过（但不立即隐藏，等用户点击）
       await GameStateManager().setHasSeenTakeoffGuideForGirl(girlIndex, true);
       _log("Auto-show takeoff guide for girl=$girlIndex (first display)");
-      // 自动展示时播放 Spine 引导动画（循环）直到用户点击遮罩关闭
-      _playTakeoffGuideAnimation(loop: true);
     } catch (e) {
       _log("Auto-show takeoff guide failed: $e");
     }
@@ -314,6 +391,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         _currentSkinIndices[3] = skins['socks'] ?? 0;
       }
     });
+    _cacheCurrentGirlState();
     
     print("Final current index: $_currentIndex");
     print("Final current idle index: $_currentIdleIndex");
@@ -335,15 +413,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
   // 预加载所有女孩的idle索引
   Future<void> _preloadAllGirlIdleIndices() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      for (int i = 0; i < 3; i++) {
-        final idleIndex = prefs.getInt('girl_${i}_idle_index') ?? 0;
-        _girlIdleIndexCache[i] = idleIndex;
-        print("Preloaded girl $i idle index: $idleIndex");
-      }
-    } catch (e) {
-      print('Failed to preload girl idle indices: $e');
+    for (int i = 0; i < 3; i++) {
+      final idleIndex = GameStateManager().getGirlIdleIndex(i);
+      _girlIdleIndexCache[i] = idleIndex;
+      print("Preloaded girl $i idle index: $idleIndex");
     }
   }
   
@@ -992,6 +1065,30 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     _playCurrentIdleAnimation();
 
     print("Game restarted - all states reset to default");
+  }
+
+  // 测试方法：强制显示 Takeoff 引导动画
+  void _testShowTakeoffGuide() async {
+    _log("=== TEST: Force show takeoff guide ===");
+    
+    // 重置引导状态，让用户可以再次看到引导
+    await GameStateManager().setHasSeenTakeoffGuideForGirl(_currentIndex, false);
+    
+    // 强制显示引导
+    if (mounted) {
+      setState(() {
+        _showTakeoffOverlay = true;
+        _isShowingTakeoffGuide = false;
+      });
+    }
+    
+    // 延迟一点确保UI更新完成
+    await Future.delayed(Duration(milliseconds: 100));
+    
+    // 播放引导动画
+    _playTakeoffGuideAnimation(loop: true);
+    
+    _log("=== TEST: Takeoff guide should be visible now ===");
   }
 
   // 调试方法：列出指定女孩的所有可用皮肤
@@ -1904,6 +2001,28 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
 
                               Row(
                                 children: [
+                                  // 测试 Takeoff 引导按钮
+                                  GestureDetector(
+                                    onTap: _testShowTakeoffGuide,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue,
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          'T',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                   // 重置按钮（测试用）
                                   GestureDetector(
                                     onTap: _resetPreviewState,
@@ -2109,6 +2228,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         3: savedSkins['socks'] ?? 0,
       };
     });
+    _cacheCurrentGirlState();
     _dumpGirlState(index, tag: "after setState");
     
     // 检查是否已经销毁
@@ -2139,20 +2259,30 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     // 更新内存缓存
     _girlIdleIndexCache[girlIndex] = idleIndex;
     // 保存到持久化存储
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('girl_${girlIndex}_idle_index', idleIndex);
+    await GameStateManager().setGirlIdleIndex(girlIndex, idleIndex);
   }
 
   // 保存当前女孩的完整状态（包括idle索引和皮肤选择）
   Future<void> _saveCurrentGirlState() async {
     if (_currentIndex >= 0 && _currentIndex < 3) {
+      _cacheCurrentGirlState();
       // 保存当前女孩的idle索引到独立存储
       await _saveGirlIdleIndex(_currentIndex, _currentIdleIndex);
       // 保存当前女孩的皮肤选择
+      final selectedSkins = <String, int>{};
       for (int i = 0; i < 4; i++) {
-        String partName = _getPartName(i);
-        await GameStateManager().setCurrentSkin(_currentIndex, partName, _currentSkinIndices[i]!);
+        final partName = _getPartName(i);
+        final skinIndex = _currentSkinIndices[i]!;
+        selectedSkins[partName] = skinIndex;
+        await GameStateManager().setCurrentSkin(_currentIndex, partName, skinIndex);
       }
+      await GameStateManager().setCurrentGirlIndex(_currentIndex);
+      await GameStateManager().setCurrentIdleIndex(_currentIdleIndex);
+      await GameStateManager().setLastGirlState(
+        girlIndex: _currentIndex,
+        idleIndex: _currentIdleIndex,
+        skins: selectedSkins,
+      );
       print("Saved current girl state: girl $_currentIndex, idle $_currentIdleIndex, skins $_currentSkinIndices");
     }
   }
@@ -2180,8 +2310,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   // 异步加载指定女孩的 idle 索引
   Future<void> _loadGirlIdleIndexAsync(int girlIndex) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final idleIndex = prefs.getInt('girl_${girlIndex}_idle_index') ?? 0;
+      final idleIndex = GameStateManager().getGirlIdleIndex(girlIndex);
       _log("Async loaded idle index for girl=$girlIndex -> $idleIndex");
       
       // 更新内存缓存
@@ -2195,6 +2324,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
             _currentIdleIndex = idleIndex;
             print("Updated girl $girlIndex idle index from async load: $idleIndex");
           });
+          _cacheCurrentGirlState();
           
           // 延迟应用皮肤和动画，确保控制器准备好
           Future.delayed(Duration(milliseconds: 100), () {
@@ -2605,6 +2735,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       }
     }
     
+    _cacheCurrentGirlState();
     _log("=== _nextIdleAnimation END ===");
   }
     
@@ -3095,6 +3226,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     // 保存皮肤选择
     await GameStateManager().setCurrentSkin(_currentIndex, partName, skinIndex);
     _log("SkinTap: saved selection part=$partName idx=$skinIndex to GameState");
+    _cacheCurrentGirlState();
 
     // underwear阶段切换皮肤时，先播放idlesp_underwear动画
     // 根据当前女孩判断 underwear 模式
@@ -3157,6 +3289,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
         3: 0, // socks
       };
     });
+    _cacheCurrentGirlState();
     // 保存进度与皮肤索引（全部回到 1号皮肤）
     try { await _saveGirlIdleIndex(_currentIndex, 0); } catch (_) {}
     try {

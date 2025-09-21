@@ -557,8 +557,8 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
                     ),
               ),
 
-              // 水印 (只有解锁的图片且有存储权限时才显示)
-              if (isUnlocked && _hasStoragePermission)
+              // 水印 (只有解锁的图片才显示)
+              if (isUnlocked)
                 Positioned(
                   top: 190,
                   right: 80,

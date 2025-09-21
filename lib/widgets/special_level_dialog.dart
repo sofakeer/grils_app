@@ -5,6 +5,7 @@ import '../managers/audio_manager.dart';
 import '../widgets/outlined_text_widget.dart';
 import '../pages/special_game_page.dart';
 import '../pages/win_heart_page.dart';
+import '../managers/ad_manager.dart';
 
 class SpecialLevelDialog extends StatefulWidget {
   final VoidCallback? onSkip;
@@ -175,22 +176,33 @@ class _SpecialLevelDialogState extends State<SpecialLevelDialog> with TickerProv
     // 播放按钮音效
     await AudioManager().playPopupOpen();
     
-    // TODO: 这里应该播放真实的视频广告
-    // 目前使用模拟广告
-    bool adCompleted = await _showMockVideoAd();
-    
+    final bool adCompleted = await AdManager.instance.showRewardedAd(
+      context: context,
+      onAdFailed: () {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ad failed to play. Please try again.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      },
+    );
+
     if (adCompleted && mounted) {
-      // 关闭弹窗
+      setState(() {
+        _isShowingAd = false;
+      });
+
       Navigator.of(context).pop();
-      
-      // 进入特殊关卡
+
       final bool? won = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (context) => const SpecialGamePage(),
         ),
       );
-      
-      // 如果赢了特殊关卡，显示心形奖励页面
+
       if (won == true && mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -200,21 +212,14 @@ class _SpecialLevelDialogState extends State<SpecialLevelDialog> with TickerProv
           ),
         );
       }
+      return;
     }
-    
+
     if (mounted) {
       setState(() {
         _isShowingAd = false;
       });
     }
-  }
-  
-  // 模拟视频广告
-  Future<bool> _showMockVideoAd() async {
-    // 模拟广告播放时间
-    await Future.delayed(const Duration(seconds: 2));
-    // 直接返回 true 表示广告播放完成
-    return true;
   }
 
   void _onSkipPressed() {

@@ -112,6 +112,18 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                   .firstWhere((n) => n.toLowerCase().contains('born'), orElse: () => '');
               if (bornName.isEmpty) bornName = null;
 
+              // 专门查找散花效果动画
+              String? winbornName = animations
+                  .map((a) => a.getName())
+                  .firstWhere((n) => n == 'winborn', orElse: () => '')
+                  .isNotEmpty
+                  ? 'winborn'
+                  : null;
+              winbornName ??= animations
+                  .map((a) => a.getName())
+                  .firstWhere((n) => n.toLowerCase().contains('winborn'), orElse: () => '');
+              if (winbornName.isEmpty) winbornName = null;
+
               String? idleName = animations
                   .map((a) => a.getName())
                   .firstWhere((n) => n == 'CoinWin_Eff_idle', orElse: () => '')
@@ -125,7 +137,24 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
 
               try {
                 controller.animationState.clearTracks();
-                if (bornName != null && data?.findAnimation(bornName) != null) {
+                
+                // 优先播放winborn散花效果
+                if (winbornName != null && data?.findAnimation(winbornName) != null) {
+                  // 播放 winborn 散花效果一次
+                  controller.animationState.setAnimationByName(0, winbornName, false);
+                  final duration = (data?.findAnimation(winbornName)?.getDuration() ?? 1.0);
+                  print('✓ Playing winborn confetti effect: $winbornName, duration: $duration s');
+                  // 等 winborn 结束后切 idle 循环
+                  await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+                  if (!mounted) return;
+                  final next = idleName ?? animations.first.getName();
+                  if (next.isNotEmpty && data?.findAnimation(next) != null) {
+                    controller.animationState.setAnimationByName(0, next, true);
+                    print('→ Switched to idle loop after winborn: $next');
+                  } else {
+                    print('✗ Idle animation not found after winborn');
+                  }
+                } else if (bornName != null && data?.findAnimation(bornName) != null) {
                   // 播放 born 一次
                   controller.animationState.setAnimationByName(0, bornName, false);
                   final duration = (data?.findAnimation(bornName)?.getDuration() ?? 1.0);
@@ -141,7 +170,7 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                     print('✗ Idle animation not found, staying after born');
                   }
                 } else {
-                  // 没有 born，直接 idle 循环；再没有就用第一条循环
+                  // 没有 winborn 或 born，直接 idle 循环；再没有就用第一条循环
                   final next = idleName ?? animations.first.getName();
                   if (next.isNotEmpty && data?.findAnimation(next) != null) {
                     controller.animationState.setAnimationByName(0, next, true);
@@ -266,8 +295,9 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                               // ),
                               // CoinWin_Eff Spine Animation
                               if (_spineController != null)
-                                SizedBox(
-                                  height: 300,
+                                Container(
+                                  width: 400,
+                                  height: 500,
                                   child: SpineWidget.fromAsset(
                                     "assets/spine/CoinWin_Eff.atlas",
                                     "assets/spine/CoinWin_Eff.skel",
