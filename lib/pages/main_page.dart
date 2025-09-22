@@ -21,6 +21,7 @@ import '../services/user_service.dart';
 import '../widgets/unlock_new_gril_dialog.dart';
 import '../widgets/gril_waiting_dialog.dart';
 import 'spine_preview_page.dart';
+import '../tilt_test_page.dart';
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -637,6 +638,15 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     CommonHeader.playSignInEffects(context, 10, 5);
   }
 
+  // 导航到倾斜测试页面
+  void _navigateToTiltTest() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TiltTestPage(),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _takeoffController.dispose();
@@ -796,6 +806,28 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                       ),
                       child: const OutlinedTextWidget(
                         text: '测试特效',
+                        fontSize: 14,
+                        textColor: Colors.white,
+                        strokeColor: Colors.black,
+                        strokeWidth: 2.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+
+                  // 倾斜测试按钮
+                  GestureDetector(
+                    onTap: _navigateToTiltTest,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: const OutlinedTextWidget(
+                        text: '倾斜测试',
                         fontSize: 14,
                         textColor: Colors.white,
                         strokeColor: Colors.black,

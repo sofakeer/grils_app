@@ -361,6 +361,8 @@ class Assets {
   static const String grilsListBg73 = 'assets/images/grils_list/Bg_73.png';
   static const String grilsListBg74 = 'assets/images/grils_list/Bg_74.png';
   static const String grilsListBg75 = 'assets/images/grils_list/Bg_75.png';
+  static const String imagesBoll = 'assets/images/boll.png';
+  static const String imagesBollInner = 'assets/images/boll_inner.png';
   static const String imagesBtnBraNormal = 'assets/images/Btn_bra_normal.png';
   static const String imagesBtnBraSelected = 'assets/images/Btn_bra_selected.png';
   static const String imagesBtnClose = 'assets/images/Btn_close.png';

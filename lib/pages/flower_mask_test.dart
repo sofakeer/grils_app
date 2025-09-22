@@ -12,6 +12,8 @@ class _FlowerMaskTestState extends State<FlowerMaskTest> {
   bool useInvertedMask = false;
   int currentImageIndex = 0;
   int currentShapeIndex = 0; // 添加形状选择
+  double tiltAngle = 0.3; // 倾斜角度控制 (0.0-1.0)
+  double tiltPosition = 0.5; // 倾斜位置控制 (0.0-1.0)
   
   // 定义不同的形状选项
   final List<String> shapeNames = [
@@ -21,6 +23,8 @@ class _FlowerMaskTestState extends State<FlowerMaskTest> {
     '云朵',
     '不规则多边形',
     '波浪形',
+    '倾斜切割',
+    '瓶子倾斜',
   ];
   
   // 定义不同的图片选项
@@ -28,6 +32,14 @@ class _FlowerMaskTestState extends State<FlowerMaskTest> {
     {
       'name': '内衣图片',
       'path': 'assets/images/Girl01_chage_Btn_All/Btn_gril01_bra_1_unlock.png',
+    },
+    {
+      'name': '瓶子外部',
+      'path': 'assets/images/boll.png',
+    },
+    {
+      'name': '瓶子内部',
+      'path': 'assets/images/boll_inner.png',
     },
     {
       'name': '码头风景',
@@ -216,6 +228,60 @@ class _FlowerMaskTestState extends State<FlowerMaskTest> {
               ],
             ),
           
+          // 只在倾斜模式下显示倾斜控制
+          if (currentShapeIndex == 6 || currentShapeIndex == 7) ...[
+            Row(
+              children: [
+                Icon(Icons.trending_down, color: Colors.red[300]),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('倾斜角度: ${(tiltAngle * 100).toInt()}%'),
+                      Slider(
+                        value: tiltAngle,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 20,
+                        onChanged: (value) {
+                          setState(() {
+                            tiltAngle = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Icon(Icons.swap_vert, color: Colors.orange[300]),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('倾斜位置: ${(tiltPosition * 100).toInt()}%'),
+                      Slider(
+                        value: tiltPosition,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 20,
+                        onChanged: (value) {
+                          setState(() {
+                            tiltPosition = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          
           Row(
             children: [
               Icon(Icons.zoom_in, color: Colors.blue[300]),
@@ -282,7 +348,7 @@ class _FlowerMaskTestState extends State<FlowerMaskTest> {
         borderRadius: BorderRadius.circular(10),
         child: Container(
           // 背景色，用来显示蒙版外的区域
-          color: Colors.grey[200],
+          color: Colors.grey[300],
           child: Center(
             child: ClipPath(
               clipper: IrregularShapeClipper(
@@ -290,6 +356,8 @@ class _FlowerMaskTestState extends State<FlowerMaskTest> {
                 petalCount: petalCount,
                 petalSize: petalSize,
                 inverted: useInvertedMask,
+                tiltAngle: tiltAngle,
+                tiltPosition: tiltPosition,
               ),
               child: Container(
                 width: 300,
@@ -304,9 +372,14 @@ class _FlowerMaskTestState extends State<FlowerMaskTest> {
                           ),
                         ),
                       )
-                    : Image.asset(
-                        images[currentImageIndex]['path'],
-                        fit: BoxFit.cover,
+                    : Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.red, width: 2),
+                        ),
+                        child: Image.asset(
+                          images[currentImageIndex]['path'],
+                          fit: BoxFit.contain,
+                        ),
                       ),
               ),
             ),
@@ -347,7 +420,7 @@ class _FlowerMaskTestState extends State<FlowerMaskTest> {
                 images[currentImageIndex]['path'],
                 width: 300,
                 height: 300,
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
               ),
       ),
     );
@@ -371,13 +444,15 @@ class _FlowerMaskTestState extends State<FlowerMaskTest> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          color: Colors.grey[200],
+          color: Colors.white,
           child: CustomPaint(
             size: Size(300, 300),
             painter: PureShapePainter(
               shapeType: currentShapeIndex,
               petalCount: petalCount,
               petalSize: petalSize,
+              tiltAngle: tiltAngle,
+              tiltPosition: tiltPosition,
             ),
           ),
         ),
@@ -392,12 +467,16 @@ class IrregularShapeClipper extends CustomClipper<Path> {
   final int petalCount;
   final double petalSize;
   final bool inverted;
+  final double tiltAngle;
+  final double tiltPosition;
 
   IrregularShapeClipper({
     required this.shapeType,
     required this.petalCount,
     required this.petalSize,
     required this.inverted,
+    this.tiltAngle = 0.3,
+    this.tiltPosition = 0.5,
   });
 
   @override
@@ -422,6 +501,12 @@ class IrregularShapeClipper extends CustomClipper<Path> {
         break;
       case 5: // 波浪形
         shapePath = _createWavePath(size);
+        break;
+      case 6: // 倾斜切割
+        shapePath = _createTiltCutPath(size);
+        break;
+      case 7: // 瓶子倾斜
+        shapePath = _createBottleTiltPath(size);
         break;
       default:
         shapePath = _createFlowerPath(size);
@@ -635,6 +720,87 @@ class IrregularShapeClipper extends CustomClipper<Path> {
     return path;
   }
 
+  Path _createTiltCutPath(Size size) {
+    final path = Path();
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+    
+    // 计算倾斜线的位置和角度
+    final tiltY = centerY + (size.height * 0.3 * (tiltPosition - 0.5));
+    final tiltSlope = (tiltAngle - 0.5) * 3; // 增大斜率范围，让效果更明显
+    
+    // 创建倾斜切割路径 - 只保留切割线上方的部分
+    final leftY = tiltY - tiltSlope * centerX;
+    final rightY = tiltY + tiltSlope * centerX;
+    
+    // 确保切割线在画布范围内
+    final startY = math.max(0.0, math.min(size.height, leftY)).toDouble();
+    final endY = math.max(0.0, math.min(size.height, rightY)).toDouble();
+    
+    // 创建切割线上方的区域
+    path.moveTo(0, 0);
+    path.lineTo(size.width, 0);
+    path.lineTo(size.width, endY);
+    path.lineTo(0, startY);
+    path.close();
+    
+    return path;
+  }
+
+  Path _createBottleTiltPath(Size size) {
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+    final width = size.width * petalSize * 2;
+    final height = size.height * petalSize * 2;
+    
+    // 创建瓶子形状的倾斜切割
+    final tiltY = centerY + (height * (tiltPosition - 0.5));
+    final tiltSlope = (tiltAngle - 0.5) * 1.5; // 稍微减小斜率范围
+    
+    // 创建瓶子轮廓
+    final bottlePath = Path();
+    
+    // 瓶子底部
+    bottlePath.moveTo(centerX - width * 0.3, centerY + height * 0.4);
+    bottlePath.lineTo(centerX + width * 0.3, centerY + height * 0.4);
+    
+    // 瓶子右侧
+    bottlePath.lineTo(centerX + width * 0.25, centerY - height * 0.3);
+    
+    // 瓶子颈部
+    bottlePath.lineTo(centerX + width * 0.15, centerY - height * 0.4);
+    bottlePath.lineTo(centerX + width * 0.15, centerY - height * 0.35);
+    
+    // 瓶子顶部
+    bottlePath.lineTo(centerX + width * 0.2, centerY - height * 0.35);
+    bottlePath.lineTo(centerX + width * 0.2, centerY - height * 0.3);
+    bottlePath.lineTo(centerX - width * 0.2, centerY - height * 0.3);
+    bottlePath.lineTo(centerX - width * 0.2, centerY - height * 0.35);
+    bottlePath.lineTo(centerX - width * 0.15, centerY - height * 0.35);
+    
+    // 瓶子左侧
+    bottlePath.lineTo(centerX - width * 0.15, centerY - height * 0.4);
+    bottlePath.lineTo(centerX - width * 0.25, centerY - height * 0.3);
+    bottlePath.close();
+    
+    // 创建倾斜切割线
+    final cutPath = Path();
+    final leftY = tiltY - tiltSlope * centerX;
+    final rightY = tiltY + tiltSlope * centerX;
+    
+    final startY = math.max(0.0, math.min(size.height, leftY)).toDouble();
+    final endY = math.max(0.0, math.min(size.height, rightY)).toDouble();
+    
+    cutPath.moveTo(0, startY);
+    cutPath.lineTo(size.width, endY);
+    cutPath.lineTo(size.width, size.height);
+    cutPath.lineTo(0, size.height);
+    cutPath.close();
+    
+    // 结合瓶子形状和倾斜切割
+    return Path.combine(PathOperation.intersect, bottlePath, cutPath);
+  }
+
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => true;
 }
@@ -644,11 +810,15 @@ class PureShapePainter extends CustomPainter {
   final int shapeType;
   final int petalCount;
   final double petalSize;
+  final double tiltAngle;
+  final double tiltPosition;
 
   PureShapePainter({
     required this.shapeType,
     required this.petalCount,
     required this.petalSize,
+    this.tiltAngle = 0.3,
+    this.tiltPosition = 0.5,
   });
 
   @override
@@ -667,6 +837,8 @@ class PureShapePainter extends CustomPainter {
       petalCount: petalCount,
       petalSize: petalSize,
       inverted: false,
+      tiltAngle: tiltAngle,
+      tiltPosition: tiltPosition,
     );
     
     final shapePath = clipper.getClip(size);
@@ -683,6 +855,8 @@ class PureShapePainter extends CustomPainter {
       case 3: return Colors.blue[200]!; // 云朵
       case 4: return Colors.purple[300]!; // 不规则多边形
       case 5: return Colors.teal[300]!; // 波浪
+      case 6: return Colors.orange[300]!; // 倾斜切割
+      case 7: return Colors.cyan[300]!; // 瓶子倾斜
       default: return Colors.pink[300]!;
     }
   }
@@ -695,6 +869,8 @@ class PureShapePainter extends CustomPainter {
       case 3: return Colors.blue[400]!; // 云朵
       case 4: return Colors.purple[600]!; // 不规则多边形
       case 5: return Colors.teal[600]!; // 波浪
+      case 6: return Colors.orange[600]!; // 倾斜切割
+      case 7: return Colors.cyan[600]!; // 瓶子倾斜
       default: return Colors.pink[600]!;
     }
   }
