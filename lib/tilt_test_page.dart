@@ -10,6 +10,7 @@ class _TiltTestPageState extends State<TiltTestPage> {
   double tiltAngle = 0.3;
   double tiltPosition = 0.5;
   int currentImageIndex = 0;
+  int currentTiltMode = 0; // 0: 简单倾斜, 1: 瓶子倾斜
   
   final List<Map<String, dynamic>> images = [
     {
@@ -38,7 +39,7 @@ class _TiltTestPageState extends State<TiltTestPage> {
             SizedBox(height: 24),
             
             Text(
-              '倾斜切割效果',
+              '瓶子倾倒效果',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 16),
@@ -69,7 +70,7 @@ class _TiltTestPageState extends State<TiltTestPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '倾斜切割控制面板',
+            '瓶子倾倒效果控制面板',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 12),
@@ -98,7 +99,31 @@ class _TiltTestPageState extends State<TiltTestPage> {
           ),
           SizedBox(height: 8),
           
-          // 倾斜角度控制
+          // 倾倒模式选择
+          Row(
+            children: [
+              Icon(Icons.category, color: Colors.indigo[300]),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '倾倒模式: ${currentTiltMode == 0 ? "液体表面" : "瓶子形状"}',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.swap_horiz),
+                onPressed: () {
+                  setState(() {
+                    currentTiltMode = (currentTiltMode + 1) % 2;
+                  });
+                },
+                tooltip: '切换模式',
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          
+          // 倾倒角度控制
           Row(
             children: [
               Icon(Icons.trending_down, color: Colors.red[300]),
@@ -107,7 +132,7 @@ class _TiltTestPageState extends State<TiltTestPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('倾斜角度: ${(tiltAngle * 100).toInt()}%'),
+                    Text('倾倒角度: ${(tiltAngle * 100).toInt()}%'),
                     Slider(
                       value: tiltAngle,
                       min: 0.0,
@@ -125,7 +150,7 @@ class _TiltTestPageState extends State<TiltTestPage> {
             ],
           ),
           
-          // 倾斜位置控制
+          // 液体位置控制
           Row(
             children: [
               Icon(Icons.swap_vert, color: Colors.orange[300]),
@@ -134,7 +159,7 @@ class _TiltTestPageState extends State<TiltTestPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('倾斜位置: ${(tiltPosition * 100).toInt()}%'),
+                    Text('液体位置: ${(tiltPosition * 100).toInt()}%'),
                     Slider(
                       value: tiltPosition,
                       min: 0.0,
@@ -174,24 +199,40 @@ class _TiltTestPageState extends State<TiltTestPage> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          color: Colors.grey[300],
+          color: Colors.grey[200],
           child: Center(
-            child: ClipPath(
-              clipper: TiltClipper(
-                tiltAngle: tiltAngle,
-                tiltPosition: tiltPosition,
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.red, width: 2),
-                ),
-                child: Image.asset(
-                  images[currentImageIndex]['path'],
+            child: Stack(
+              children: [
+                // 瓶子外部图片 - 完整显示
+                Image.asset(
+                  'assets/images/boll.png', // 外部瓶子
                   width: 300,
                   height: 300,
                   fit: BoxFit.contain,
                 ),
-              ),
+                // 瓶子内部图片 - 只显示切割后的部分
+                ClipPath(
+                  clipper: TiltClipper(
+                    tiltAngle: tiltAngle,
+                    tiltPosition: tiltPosition,
+                    tiltMode: currentTiltMode,
+                  ),
+                  child: Image.asset(
+                    'assets/images/boll_inner.png', // 内部瓶子
+                    width: 300,
+                    height: 300,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                // 添加切割线指示器
+                CustomPaint(
+                  size: Size(300, 300),
+                  painter: TiltLinePainter(
+                    tiltAngle: tiltAngle,
+                    tiltPosition: tiltPosition,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -231,23 +272,33 @@ class _TiltTestPageState extends State<TiltTestPage> {
 class TiltClipper extends CustomClipper<Path> {
   final double tiltAngle;
   final double tiltPosition;
+  final int tiltMode;
 
   TiltClipper({
     required this.tiltAngle,
     required this.tiltPosition,
+    this.tiltMode = 0,
   });
 
   @override
   Path getClip(Size size) {
+    if (tiltMode == 0) {
+      return _createSimpleTiltPath(size);
+    } else {
+      return _createBottleTiltPath(size);
+    }
+  }
+
+  Path _createSimpleTiltPath(Size size) {
     final path = Path();
     final centerX = size.width / 2;
     final centerY = size.height / 2;
     
-    // 计算倾斜线的位置和角度
+    // 计算倾倒效果 - 模拟液体表面
     final tiltY = centerY + (size.height * 0.3 * (tiltPosition - 0.5));
-    final tiltSlope = (tiltAngle - 0.5) * 3; // 增大斜率范围，让效果更明显
+    final tiltSlope = (tiltAngle - 0.5) * 2.0; // 调整斜率范围
     
-    // 创建倾斜切割路径 - 只保留切割线上方的部分
+    // 创建液体表面切割线
     final leftY = tiltY - tiltSlope * centerX;
     final rightY = tiltY + tiltSlope * centerX;
     
@@ -255,14 +306,91 @@ class TiltClipper extends CustomClipper<Path> {
     final startY = math.max(0.0, math.min(size.height, leftY)).toDouble();
     final endY = math.max(0.0, math.min(size.height, rightY)).toDouble();
     
-    // 创建切割线上方的区域
+    // 创建液体表面以上的区域（瓶子倾倒时液体流出的部分）
     path.moveTo(0, 0);
     path.lineTo(size.width, 0);
-    path.lineTo(size.width, endY);
-    path.lineTo(0, startY);
+    
+    // 使用更自然的液体表面曲线
+    final controlPoint1 = Offset(size.width * 0.3, startY + (endY - startY) * 0.2);
+    final controlPoint2 = Offset(size.width * 0.7, startY + (endY - startY) * 0.8);
+    
+    path.quadraticBezierTo(controlPoint1.dx, controlPoint1.dy, size.width * 0.5, (startY + endY) / 2);
+    path.quadraticBezierTo(controlPoint2.dx, controlPoint2.dy, size.width, endY);
+    
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
     path.close();
     
     return path;
+  }
+
+  Path _createBottleTiltPath(Size size) {
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+    final width = size.width * 0.9;
+    final height = size.height * 0.9;
+    
+    // 创建瓶子形状的液体表面切割
+    final tiltY = centerY + (height * 0.2 * (tiltPosition - 0.5));
+    final tiltSlope = (tiltAngle - 0.5) * 1.8; // 调整斜率范围
+    
+    // 创建瓶子轮廓 - 更符合实际瓶子形状
+    final bottlePath = Path();
+    
+    // 瓶子底部（更宽）
+    bottlePath.moveTo(centerX - width * 0.35, centerY + height * 0.45);
+    bottlePath.lineTo(centerX + width * 0.35, centerY + height * 0.45);
+    
+    // 瓶子右侧（更自然的曲线）
+    bottlePath.quadraticBezierTo(
+      centerX + width * 0.3, centerY + height * 0.2,
+      centerX + width * 0.25, centerY - height * 0.1,
+    );
+    
+    // 瓶子颈部
+    bottlePath.lineTo(centerX + width * 0.18, centerY - height * 0.3);
+    bottlePath.lineTo(centerX + width * 0.18, centerY - height * 0.25);
+    
+    // 瓶子顶部
+    bottlePath.lineTo(centerX + width * 0.22, centerY - height * 0.25);
+    bottlePath.lineTo(centerX + width * 0.22, centerY - height * 0.2);
+    bottlePath.lineTo(centerX - width * 0.22, centerY - height * 0.2);
+    bottlePath.lineTo(centerX - width * 0.22, centerY - height * 0.25);
+    bottlePath.lineTo(centerX - width * 0.18, centerY - height * 0.25);
+    
+    // 瓶子左侧
+    bottlePath.lineTo(centerX - width * 0.18, centerY - height * 0.3);
+    bottlePath.quadraticBezierTo(
+      centerX - width * 0.25, centerY - height * 0.1,
+      centerX - width * 0.3, centerY + height * 0.2,
+    );
+    bottlePath.close();
+    
+    // 创建液体表面切割线
+    final cutPath = Path();
+    final leftY = tiltY - tiltSlope * centerX;
+    final rightY = tiltY + tiltSlope * centerX;
+    
+    final startY = math.max(0.0, math.min(size.height, leftY)).toDouble();
+    final endY = math.max(0.0, math.min(size.height, rightY)).toDouble();
+    
+    // 创建液体表面以上的区域
+    cutPath.moveTo(0, 0);
+    cutPath.lineTo(size.width, 0);
+    
+    // 使用更自然的液体表面曲线
+    final controlPoint1 = Offset(size.width * 0.25, startY + (endY - startY) * 0.1);
+    final controlPoint2 = Offset(size.width * 0.75, startY + (endY - startY) * 0.9);
+    
+    cutPath.quadraticBezierTo(controlPoint1.dx, controlPoint1.dy, size.width * 0.5, (startY + endY) / 2);
+    cutPath.quadraticBezierTo(controlPoint2.dx, controlPoint2.dy, size.width, endY);
+    
+    cutPath.lineTo(size.width, size.height);
+    cutPath.lineTo(0, size.height);
+    cutPath.close();
+    
+    // 结合瓶子形状和液体表面切割
+    return Path.combine(PathOperation.intersect, bottlePath, cutPath);
   }
 
   @override
@@ -282,16 +410,16 @@ class TiltLinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.blue
+      ..color = Colors.red
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..strokeWidth = 2;
 
     final centerX = size.width / 2;
     final centerY = size.height / 2;
     
-    // 计算倾斜线的位置和角度
+    // 计算液体表面线的位置和角度 - 与TiltClipper保持一致
     final tiltY = centerY + (size.height * 0.3 * (tiltPosition - 0.5));
-    final tiltSlope = (tiltAngle - 0.5) * 3;
+    final tiltSlope = (tiltAngle - 0.5) * 2.0;
     
     final leftY = tiltY - tiltSlope * centerX;
     final rightY = tiltY + tiltSlope * centerX;
@@ -300,12 +428,18 @@ class TiltLinePainter extends CustomPainter {
     final startY = math.max(0.0, math.min(size.height, leftY)).toDouble();
     final endY = math.max(0.0, math.min(size.height, rightY)).toDouble();
     
-    // 绘制切割线
-    canvas.drawLine(
-      Offset(0, startY),
-      Offset(size.width, endY),
-      paint,
-    );
+    // 绘制液体表面线 - 使用贝塞尔曲线
+    final path = Path();
+    path.moveTo(0, startY);
+    
+    // 使用贝塞尔曲线创建自然的液体表面
+    final controlPoint1 = Offset(size.width * 0.3, startY + (endY - startY) * 0.2);
+    final controlPoint2 = Offset(size.width * 0.7, startY + (endY - startY) * 0.8);
+    
+    path.quadraticBezierTo(controlPoint1.dx, controlPoint1.dy, size.width * 0.5, (startY + endY) / 2);
+    path.quadraticBezierTo(controlPoint2.dx, controlPoint2.dy, size.width, endY);
+    
+    canvas.drawPath(path, paint);
   }
 
   @override
