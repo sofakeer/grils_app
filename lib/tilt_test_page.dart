@@ -11,6 +11,8 @@ class _TiltTestPageState extends State<TiltTestPage> {
   double tiltPosition = 0.5;
   int currentImageIndex = 0;
   int currentTiltMode = 0; // 0: 简单倾斜, 1: 瓶子倾斜
+  double bottleAngle = 0.0; // 瓶子旋转角度（弧度比例 0..1 -> 0..90°）
+  double fillLevel = 0.6; // 液位高度（0 顶部，1 底部）
   
   final List<Map<String, dynamic>> images = [
     {
@@ -176,6 +178,60 @@ class _TiltTestPageState extends State<TiltTestPage> {
               ),
             ],
           ),
+
+          // 瓶子旋转角度（弧度：0°~90°）
+          Row(
+            children: [
+              Icon(Icons.rotate_right, color: Colors.blue[300]),
+              SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('瓶子旋转: ${(bottleAngle * 90).toInt()}°'),
+                    Slider(
+                      value: bottleAngle,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 18,
+                      onChanged: (value) {
+                        setState(() {
+                          bottleAngle = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // 液位高度（0 顶部，1 底部）
+          Row(
+            children: [
+              Icon(Icons.water_drop, color: Colors.cyan[300]),
+              SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('液位高度: ${(fillLevel * 100).toInt()}%'),
+                    Slider(
+                      value: fillLevel,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 20,
+                      onChanged: (value) {
+                        setState(() {
+                          fillLevel = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -201,38 +257,34 @@ class _TiltTestPageState extends State<TiltTestPage> {
         child: Container(
           color: Colors.grey[200],
           child: Center(
-            child: Stack(
-              children: [
-                // 瓶子外部图片 - 完整显示
-                Image.asset(
-                  'assets/images/boll.png', // 外部瓶子
-                  width: 300,
-                  height: 300,
-                  fit: BoxFit.contain,
-                ),
-                // 瓶子内部图片 - 只显示切割后的部分
-                ClipPath(
-                  clipper: TiltClipper(
-                    tiltAngle: tiltAngle,
-                    tiltPosition: tiltPosition,
-                    tiltMode: currentTiltMode,
+            child: Transform.rotate(
+              angle: bottleAngle * math.pi / 2,
+              alignment: Alignment.center,
+              child: Stack(
+                children: [
+                  // 内部水：用瓶子形状裁剪 + 液面裁剪（液面根据反向角度绘制，以保持屏幕水平）
+                  ClipPath(
+                    clipper: _BottleClipper(),
+                    child: ClipPath(
+                      clipper: _LiquidClipper(level: fillLevel, angleRad: -(bottleAngle * math.pi / 2)),
+                      child: Image.asset(
+                        'assets/images/boll_inner.png',
+                        width: 300,
+                        height: 300,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
-                  child: Image.asset(
-                    'assets/images/boll_inner.png', // 内部瓶子
+
+                  // 外部瓶子：与内部共同旋转（由父 Transform.rotate 统一驱动）
+                  Image.asset(
+                    'assets/images/boll.png',
                     width: 300,
                     height: 300,
                     fit: BoxFit.contain,
                   ),
-                ),
-                // 添加切割线指示器
-                CustomPaint(
-                  size: Size(300, 300),
-                  painter: TiltLinePainter(
-                    tiltAngle: tiltAngle,
-                    tiltPosition: tiltPosition,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -391,6 +443,85 @@ class TiltClipper extends CustomClipper<Path> {
     
     // 结合瓶子形状和液体表面切割
     return Path.combine(PathOperation.intersect, bottlePath, cutPath);
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => true;
+}
+
+// 基于瓶子形状的剪裁器：生成一个旋转后的瓶子轮廓，用于约束“水平水面”的可见范围
+class _BottleClipper extends CustomClipper<Path> {
+  _BottleClipper();
+
+  @override
+  Path getClip(Size size) {
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+    final width = size.width * 0.9;
+    final height = size.height * 0.9;
+
+    final bottlePath = Path();
+
+    // 底部
+    bottlePath.moveTo(centerX - width * 0.35, centerY + height * 0.45);
+    bottlePath.lineTo(centerX + width * 0.35, centerY + height * 0.45);
+
+    // 右侧曲线 -> 颈部
+    bottlePath.quadraticBezierTo(
+      centerX + width * 0.3, centerY + height * 0.2,
+      centerX + width * 0.25, centerY - height * 0.1,
+    );
+    bottlePath.lineTo(centerX + width * 0.18, centerY - height * 0.3);
+    bottlePath.lineTo(centerX + width * 0.18, centerY - height * 0.25);
+
+    // 顶部口
+    bottlePath.lineTo(centerX + width * 0.22, centerY - height * 0.25);
+    bottlePath.lineTo(centerX + width * 0.22, centerY - height * 0.2);
+    bottlePath.lineTo(centerX - width * 0.22, centerY - height * 0.2);
+    bottlePath.lineTo(centerX - width * 0.22, centerY - height * 0.25);
+    bottlePath.lineTo(centerX - width * 0.18, centerY - height * 0.25);
+
+    // 左侧 颈部 -> 曲线 -> 底部
+    bottlePath.lineTo(centerX - width * 0.18, centerY - height * 0.3);
+    bottlePath.quadraticBezierTo(
+      centerX - width * 0.25, centerY - height * 0.1,
+      centerX - width * 0.3, centerY + height * 0.2,
+    );
+    bottlePath.close();
+
+    // 由父级统一旋转，这里不再旋转
+    return bottlePath;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => true;
+}
+
+// 液位水平剪裁器：保留水平面以下区域，模拟始终水平的水面
+class _LiquidClipper extends CustomClipper<Path> {
+  final double level; // 0 顶部 -> 1 底部
+  final double angleRad; // 液面相对于容器的反向角度（全局保持水平）
+
+  _LiquidClipper({required this.level, required this.angleRad});
+
+  @override
+  Path getClip(Size size) {
+    final levelY = size.height * level.clamp(0.0, 1.0);
+    final cx = size.width / 2;
+    final slope = math.tan(angleRad); // 反向角度的斜率，使全局看起来水平
+
+    // 过中心点 (cx, levelY) 的倾斜直线：y = levelY + slope * (x - cx)
+    // 我们保留直线“下方”的区域（模拟液体）
+    final y0 = levelY + slope * (0 - cx);
+    final y1 = levelY + slope * (size.width - cx);
+
+    final path = Path();
+    path.moveTo(0, y0);
+    path.lineTo(size.width, y1);
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+    return path;
   }
 
   @override
