@@ -7,21 +7,24 @@ class TiltTestPage extends StatefulWidget {
 }
 
 class _TiltTestPageState extends State<TiltTestPage> {
+  static const String _outerBottleAsset = 'assets/images/boll.png';
+  static const String _innerBottleAsset = 'assets/images/boll_inner.png';
+
   double tiltAngle = 0.3;
   double tiltPosition = 0.5;
   int currentImageIndex = 0;
   int currentTiltMode = 0; // 0: 简单倾斜, 1: 瓶子倾斜
   double bottleAngle = 0.0; // 瓶子旋转角度（弧度比例 0..1 -> 0..90°）
   double fillLevel = 0.6; // 液位高度（0 顶部，1 底部）
-  
+
   final List<Map<String, dynamic>> images = [
     {
       'name': '瓶子外部',
-      'path': 'assets/images/boll.png',
+      'path': _outerBottleAsset,
     },
     {
       'name': '瓶子内部',
-      'path': 'assets/images/boll_inner.png',
+      'path': _innerBottleAsset,
     },
   ];
 
@@ -39,7 +42,6 @@ class _TiltTestPageState extends State<TiltTestPage> {
           children: [
             _buildControlPanel(),
             SizedBox(height: 24),
-            
             Text(
               '瓶子倾倒效果',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -47,7 +49,6 @@ class _TiltTestPageState extends State<TiltTestPage> {
             SizedBox(height: 16),
             _buildTiltEffect(),
             SizedBox(height: 32),
-            
             Text(
               '原始图片',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -76,7 +77,7 @@ class _TiltTestPageState extends State<TiltTestPage> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 12),
-          
+
           // 图片选择
           Row(
             children: [
@@ -100,7 +101,7 @@ class _TiltTestPageState extends State<TiltTestPage> {
             ],
           ),
           SizedBox(height: 8),
-          
+
           // 倾倒模式选择
           Row(
             children: [
@@ -124,7 +125,7 @@ class _TiltTestPageState extends State<TiltTestPage> {
             ],
           ),
           SizedBox(height: 8),
-          
+
           // 倾倒角度控制
           Row(
             children: [
@@ -151,7 +152,7 @@ class _TiltTestPageState extends State<TiltTestPage> {
               ),
             ],
           ),
-          
+
           // 液体位置控制
           Row(
             children: [
@@ -238,9 +239,16 @@ class _TiltTestPageState extends State<TiltTestPage> {
   }
 
   Widget _buildTiltEffect() {
+    const canvasSize = 260.0;
+    final bottleAngleRad = bottleAngle * math.pi / 2;
+    final fluidWobble = (tiltAngle - 0.5) * (math.pi / 4);
+    final fluidAngleRad = -(bottleAngleRad + fluidWobble);
+    final sloshOffset = (0.5 - tiltPosition) * 0.25;
+    final dynamicLevel = (fillLevel + sloshOffset).clamp(0.0, 1.0);
+
     return Container(
       width: 300,
-      height: 300,
+      height: 320,
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey[400]!, width: 2),
         borderRadius: BorderRadius.circular(12),
@@ -257,35 +265,18 @@ class _TiltTestPageState extends State<TiltTestPage> {
         child: Container(
           color: Colors.grey[200],
           child: Center(
-            child: Transform.rotate(
-              angle: bottleAngle * math.pi / 2,
-              alignment: Alignment.center,
-              child: Stack(
-                children: [
-                  // 内部水：用瓶子形状裁剪 + 液面裁剪（液面根据反向角度绘制，以保持屏幕水平）
-                  ClipPath(
-                    clipper: _BottleClipper(),
-                    child: ClipPath(
-                      clipper: _LiquidClipper(level: fillLevel, angleRad: -(bottleAngle * math.pi / 2)),
-                      child: Image.asset(
-                        'assets/images/boll_inner.png',
-                        width: 300,
-                        height: 300,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
+            child: currentTiltMode == 0
+                ? _buildSimpleTiltDemo(
+                    size: canvasSize,
+                    level: dynamicLevel,
+                    fluidAngleRad: fluidAngleRad,
+                  )
+                : _buildBottleTiltDemo(
+                    canvasSize: canvasSize,
+                    bottleAngleRad: bottleAngleRad,
+                    fluidAngleRad: fluidAngleRad,
+                    level: dynamicLevel,
                   ),
-
-                  // 外部瓶子：与内部共同旋转（由父 Transform.rotate 统一驱动）
-                  Image.asset(
-                    'assets/images/boll.png',
-                    width: 300,
-                    height: 300,
-                    fit: BoxFit.contain,
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
       ),
@@ -318,135 +309,138 @@ class _TiltTestPageState extends State<TiltTestPage> {
       ),
     );
   }
-}
 
-// 倾斜切割器
-class TiltClipper extends CustomClipper<Path> {
-  final double tiltAngle;
-  final double tiltPosition;
-  final int tiltMode;
-
-  TiltClipper({
-    required this.tiltAngle,
-    required this.tiltPosition,
-    this.tiltMode = 0,
-  });
-
-  @override
-  Path getClip(Size size) {
-    if (tiltMode == 0) {
-      return _createSimpleTiltPath(size);
-    } else {
-      return _createBottleTiltPath(size);
-    }
-  }
-
-  Path _createSimpleTiltPath(Size size) {
-    final path = Path();
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
-    
-    // 计算倾倒效果 - 模拟液体表面
-    final tiltY = centerY + (size.height * 0.3 * (tiltPosition - 0.5));
-    final tiltSlope = (tiltAngle - 0.5) * 2.0; // 调整斜率范围
-    
-    // 创建液体表面切割线
-    final leftY = tiltY - tiltSlope * centerX;
-    final rightY = tiltY + tiltSlope * centerX;
-    
-    // 确保切割线在画布范围内
-    final startY = math.max(0.0, math.min(size.height, leftY)).toDouble();
-    final endY = math.max(0.0, math.min(size.height, rightY)).toDouble();
-    
-    // 创建液体表面以上的区域（瓶子倾倒时液体流出的部分）
-    path.moveTo(0, 0);
-    path.lineTo(size.width, 0);
-    
-    // 使用更自然的液体表面曲线
-    final controlPoint1 = Offset(size.width * 0.3, startY + (endY - startY) * 0.2);
-    final controlPoint2 = Offset(size.width * 0.7, startY + (endY - startY) * 0.8);
-    
-    path.quadraticBezierTo(controlPoint1.dx, controlPoint1.dy, size.width * 0.5, (startY + endY) / 2);
-    path.quadraticBezierTo(controlPoint2.dx, controlPoint2.dy, size.width, endY);
-    
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-    
-    return path;
-  }
-
-  Path _createBottleTiltPath(Size size) {
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
-    final width = size.width * 0.9;
-    final height = size.height * 0.9;
-    
-    // 创建瓶子形状的液体表面切割
-    final tiltY = centerY + (height * 0.2 * (tiltPosition - 0.5));
-    final tiltSlope = (tiltAngle - 0.5) * 1.8; // 调整斜率范围
-    
-    // 创建瓶子轮廓 - 更符合实际瓶子形状
-    final bottlePath = Path();
-    
-    // 瓶子底部（更宽）
-    bottlePath.moveTo(centerX - width * 0.35, centerY + height * 0.45);
-    bottlePath.lineTo(centerX + width * 0.35, centerY + height * 0.45);
-    
-    // 瓶子右侧（更自然的曲线）
-    bottlePath.quadraticBezierTo(
-      centerX + width * 0.3, centerY + height * 0.2,
-      centerX + width * 0.25, centerY - height * 0.1,
+  Widget _buildSimpleTiltDemo({
+    required double size,
+    required double level,
+    required double fluidAngleRad,
+  }) {
+    final backgroundGradient = const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [Color(0xFFE3F2FD), Color(0xFFBBDEFB)],
     );
-    
-    // 瓶子颈部
-    bottlePath.lineTo(centerX + width * 0.18, centerY - height * 0.3);
-    bottlePath.lineTo(centerX + width * 0.18, centerY - height * 0.25);
-    
-    // 瓶子顶部
-    bottlePath.lineTo(centerX + width * 0.22, centerY - height * 0.25);
-    bottlePath.lineTo(centerX + width * 0.22, centerY - height * 0.2);
-    bottlePath.lineTo(centerX - width * 0.22, centerY - height * 0.2);
-    bottlePath.lineTo(centerX - width * 0.22, centerY - height * 0.25);
-    bottlePath.lineTo(centerX - width * 0.18, centerY - height * 0.25);
-    
-    // 瓶子左侧
-    bottlePath.lineTo(centerX - width * 0.18, centerY - height * 0.3);
-    bottlePath.quadraticBezierTo(
-      centerX - width * 0.25, centerY - height * 0.1,
-      centerX - width * 0.3, centerY + height * 0.2,
+
+    final liquidGradient = const LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [Color(0x994DD0E1), Color(0xFF0097A7)],
     );
-    bottlePath.close();
-    
-    // 创建液体表面切割线
-    final cutPath = Path();
-    final leftY = tiltY - tiltSlope * centerX;
-    final rightY = tiltY + tiltSlope * centerX;
-    
-    final startY = math.max(0.0, math.min(size.height, leftY)).toDouble();
-    final endY = math.max(0.0, math.min(size.height, rightY)).toDouble();
-    
-    // 创建液体表面以上的区域
-    cutPath.moveTo(0, 0);
-    cutPath.lineTo(size.width, 0);
-    
-    // 使用更自然的液体表面曲线
-    final controlPoint1 = Offset(size.width * 0.25, startY + (endY - startY) * 0.1);
-    final controlPoint2 = Offset(size.width * 0.75, startY + (endY - startY) * 0.9);
-    
-    cutPath.quadraticBezierTo(controlPoint1.dx, controlPoint1.dy, size.width * 0.5, (startY + endY) / 2);
-    cutPath.quadraticBezierTo(controlPoint2.dx, controlPoint2.dy, size.width, endY);
-    
-    cutPath.lineTo(size.width, size.height);
-    cutPath.lineTo(0, size.height);
-    cutPath.close();
-    
-    // 结合瓶子形状和液体表面切割
-    return Path.combine(PathOperation.intersect, bottlePath, cutPath);
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(gradient: backgroundGradient),
+            ),
+          ),
+          Positioned.fill(
+            child: ClipPath(
+              clipper: _LiquidClipper(
+                level: level,
+                angleRad: fluidAngleRad,
+              ),
+              child: Container(
+                decoration: BoxDecoration(gradient: liquidGradient),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _LiquidSurfacePainter(
+                level: level,
+                angleRad: fluidAngleRad,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => true;
+  Widget _buildBottleTiltDemo({
+    required double canvasSize,
+    required double bottleAngleRad,
+    required double fluidAngleRad,
+    required double level,
+  }) {
+    return SizedBox(
+      width: canvasSize,
+      height: canvasSize + 40,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        clipBehavior: Clip.none,
+        children: [
+          Transform.rotate(
+            angle: bottleAngleRad,
+            alignment: const Alignment(0, -0.85),
+            child: SizedBox(
+              width: canvasSize,
+              height: canvasSize,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: ClipPath(
+                      clipper: _BottleClipper(),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: Image.asset(
+                              _innerBottleAsset,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          Positioned.fill(
+                            child: ClipPath(
+                              clipper: _LiquidClipper(
+                                level: level,
+                                angleRad: fluidAngleRad,
+                              ),
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Color(0xFF4DD0E1),
+                                      Color(0xFF0097A7),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _LiquidSurfacePainter(
+                                level: level,
+                                angleRad: fluidAngleRad,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Image.asset(
+                        _outerBottleAsset,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // 基于瓶子形状的剪裁器：生成一个旋转后的瓶子轮廓，用于约束“水平水面”的可见范围
@@ -468,8 +462,10 @@ class _BottleClipper extends CustomClipper<Path> {
 
     // 右侧曲线 -> 颈部
     bottlePath.quadraticBezierTo(
-      centerX + width * 0.3, centerY + height * 0.2,
-      centerX + width * 0.25, centerY - height * 0.1,
+      centerX + width * 0.3,
+      centerY + height * 0.2,
+      centerX + width * 0.25,
+      centerY - height * 0.1,
     );
     bottlePath.lineTo(centerX + width * 0.18, centerY - height * 0.3);
     bottlePath.lineTo(centerX + width * 0.18, centerY - height * 0.25);
@@ -484,8 +480,10 @@ class _BottleClipper extends CustomClipper<Path> {
     // 左侧 颈部 -> 曲线 -> 底部
     bottlePath.lineTo(centerX - width * 0.18, centerY - height * 0.3);
     bottlePath.quadraticBezierTo(
-      centerX - width * 0.25, centerY - height * 0.1,
-      centerX - width * 0.3, centerY + height * 0.2,
+      centerX - width * 0.25,
+      centerY - height * 0.1,
+      centerX - width * 0.3,
+      centerY + height * 0.2,
     );
     bottlePath.close();
 
@@ -528,51 +526,32 @@ class _LiquidClipper extends CustomClipper<Path> {
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => true;
 }
 
-// 倾斜线绘制器
-class TiltLinePainter extends CustomPainter {
-  final double tiltAngle;
-  final double tiltPosition;
+class _LiquidSurfacePainter extends CustomPainter {
+  final double level;
+  final double angleRad;
 
-  TiltLinePainter({
-    required this.tiltAngle,
-    required this.tiltPosition,
-  });
+  _LiquidSurfacePainter({required this.level, required this.angleRad});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
+    final clampedLevel = level.clamp(0.0, 1.0);
+    final levelY = size.height * clampedLevel;
     final centerX = size.width / 2;
-    final centerY = size.height / 2;
-    
-    // 计算液体表面线的位置和角度 - 与TiltClipper保持一致
-    final tiltY = centerY + (size.height * 0.3 * (tiltPosition - 0.5));
-    final tiltSlope = (tiltAngle - 0.5) * 2.0;
-    
-    final leftY = tiltY - tiltSlope * centerX;
-    final rightY = tiltY + tiltSlope * centerX;
-    
-    // 确保切割线在画布范围内
-    final startY = math.max(0.0, math.min(size.height, leftY)).toDouble();
-    final endY = math.max(0.0, math.min(size.height, rightY)).toDouble();
-    
-    // 绘制液体表面线 - 使用贝塞尔曲线
-    final path = Path();
-    path.moveTo(0, startY);
-    
-    // 使用贝塞尔曲线创建自然的液体表面
-    final controlPoint1 = Offset(size.width * 0.3, startY + (endY - startY) * 0.2);
-    final controlPoint2 = Offset(size.width * 0.7, startY + (endY - startY) * 0.8);
-    
-    path.quadraticBezierTo(controlPoint1.dx, controlPoint1.dy, size.width * 0.5, (startY + endY) / 2);
-    path.quadraticBezierTo(controlPoint2.dx, controlPoint2.dy, size.width, endY);
-    
-    canvas.drawPath(path, paint);
+    final slope = math.tan(angleRad);
+
+    final startY = levelY + slope * (0 - centerX);
+    final endY = levelY + slope * (size.width - centerX);
+
+    final surfacePaint = Paint()
+      ..color = Colors.white.withOpacity(0.8)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawLine(Offset(0, startY), Offset(size.width, endY), surfacePaint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _LiquidSurfacePainter oldDelegate) {
+    return oldDelegate.level != level || oldDelegate.angleRad != angleRad;
+  }
 }
