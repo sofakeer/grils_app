@@ -27,6 +27,8 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
   
   // Spine animation controller
   SpineWidgetController? _spineController;
+  // 全屏特效 Overlay
+  OverlayEntry? _spineOverlayEntry;
   // 保留占位：未来若需要基于初始化完成再做UI切换可恢复使用
   // bool _isSpineReady = false;
   int _coinReward = 0;
@@ -43,6 +45,11 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
     _initializeAnimations();
     _initializeSpine();
     _calculateCoinReward();
+
+    // 在首帧后插入全屏 Overlay，不参与排版
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _insertSpineOverlay();
+    });
   }
 
   void _initializeAnimations() {
@@ -195,6 +202,46 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
     }
   }
 
+  void _insertSpineOverlay() {
+    if (!mounted || _spineOverlayEntry != null) return;
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    _spineOverlayEntry = OverlayEntry(
+      builder: (context) {
+        return IgnorePointer(
+          ignoring: true, // 仅展示特效，点击穿透
+          child: Positioned.fill(
+            child: _spineController == null
+                ? const SizedBox.shrink()
+                : Center(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width,
+                      height: MediaQuery.of(context).size.height,
+                      child: SpineWidget.fromAsset(
+                        "assets/spine/CoinWin_Eff.atlas",
+                        "assets/spine/CoinWin_Eff.skel",
+                        _spineController!,
+                        boundsProvider: const SetupPoseBounds(),
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+          ),
+        );
+      },
+    );
+
+    overlay.insert(_spineOverlayEntry!);
+  }
+
+  void _removeSpineOverlay() {
+    try {
+      _spineOverlayEntry?.remove();
+      _spineOverlayEntry = null;
+    } catch (_) {}
+  }
+
   void _calculateCoinReward() {
     _coinReward = CoinCalculator.calculateCoinsForLevel(widget.level);
     if (mounted) {
@@ -231,6 +278,7 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
   void dispose() {
     _scaleController.dispose();
     _fadeController.dispose();
+    _removeSpineOverlay();
     _spineController = null;
     super.dispose();
   }
@@ -283,32 +331,8 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // WIN 标题 with Spine Animation
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 50),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Image.asset(
-                              //   Assets.wincoinWinCoinTitle,
-                              //   height: 320,
-                              // ),
-                              // CoinWin_Eff Spine Animation
-                              if (_spineController != null)
-                                Container(
-                                  width: 400,
-                                  height: 500,
-                                  child: SpineWidget.fromAsset(
-                                    "assets/spine/CoinWin_Eff.atlas",
-                                    "assets/spine/CoinWin_Eff.skel",
-                                    _spineController!,
-                                    boundsProvider: const SetupPoseBounds(),
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+                        // WIN 标题特效改为 Overlay，全屏渲染且不参与排版
+                        const SizedBox(height: 50),
 
                         // 奖励信息
                         Container(
@@ -341,41 +365,53 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                           ),
                         ),
 
-                        // GET 按钮
-                        GestureDetector(
-                          onTap: _getReward,
-                          child: Container(
-                            width: 200,
-                            height: 70,
-                            decoration: const BoxDecoration(
-                              image: DecorationImage(
-                                image: AssetImage(Assets.wincoinWinCoinBtnGreen),
-                                fit: BoxFit.fill,
-                              ),
-                            ),
-                            child: const Center(
-                              child: OutlinedTextWidget(
-                                text: 'GET',
-                                fontSize: 28,
-                                textColor: Colors.white,
-                                strokeColor: Colors.black,
-                                strokeWidth: 2.0,
-                                fontWeight: FontWeight.bold,
-                                shadows: const [
-                                  Shadow(
-                                    offset: Offset(1, 1),
-                                    blurRadius: 2,
-                                    color: Colors.black54,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                        // 底部按钮已移至 Stack 的 Positioned，不再参与列排版
                       ],
                     ),
                   );
                 },
+              ),
+            ),
+
+            // 底部 GET 按钮（固定在底部居中，考虑安全区）
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 24,
+              child: SafeArea(
+                minimum: const EdgeInsets.only(bottom: 16),
+                child: Center(
+                  child: GestureDetector(
+                    onTap: _getReward,
+                    child: Container(
+                      width: 220,
+                      height: 74,
+                      decoration: const BoxDecoration(
+                        image: DecorationImage(
+                          image: AssetImage(Assets.wincoinWinCoinBtnGreen),
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                      child: const Center(
+                        child: OutlinedTextWidget(
+                          text: 'GET',
+                          fontSize: 28,
+                          textColor: Colors.white,
+                          strokeColor: Colors.black,
+                          strokeWidth: 2.0,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              offset: Offset(1, 1),
+                              blurRadius: 2,
+                              color: Colors.black54,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
 

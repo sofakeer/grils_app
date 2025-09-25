@@ -30,7 +30,8 @@ class MainPage extends ConsumerStatefulWidget {
   ConsumerState<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMixin {
+class _MainPageState extends ConsumerState<MainPage>
+    with TickerProviderStateMixin {
   late AnimationController _takeoffController;
   late Animation<double> _takeoffAnimation;
 
@@ -43,17 +44,19 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   // 使用UserService管理金币和爱心
   late UserService _userService;
   int _currentLevel = 1;
-  
+
   // 最新解锁的图片索引
   int _latestUnlockedImageIndex = 0;
-  
+
   // 标记是否已经弹过 GrilWaitingDialog
   bool _hasShownGrilWaitingDialog = false;
-  static const String _kHasShownGrilWaitingDialogKey = 'has_shown_gril_waiting_dialog';
+  static const String _kHasShownGrilWaitingDialogKey =
+      'has_shown_gril_waiting_dialog';
 
   Future<void> _loadHasShownGrilWaitingDialogFlag() async {
     final prefs = await SharedPreferences.getInstance();
-    _hasShownGrilWaitingDialog = prefs.getBool(_kHasShownGrilWaitingDialogKey) ?? false;
+    _hasShownGrilWaitingDialog =
+        prefs.getBool(_kHasShownGrilWaitingDialogKey) ?? false;
   }
 
   Future<void> _setHasShownGrilWaitingDialogFlag(bool value) async {
@@ -66,7 +69,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     await GameStateManager().init();
     final lastState = GameStateManager().getLastGirlState();
     final int fallbackGirlIndex = GameStateManager().getCurrentGirlIndex();
-    final int targetGirlIndex = (lastState?['girlIndex'] as int?) ?? fallbackGirlIndex;
+    final int targetGirlIndex =
+        (lastState?['girlIndex'] as int?) ?? fallbackGirlIndex;
     final int? idleOverride = lastState?['idleIndex'] as int?;
     Map<String, int>? skinsOverride;
     final dynamic skins = lastState?['skins'];
@@ -109,9 +113,12 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
       return;
     }
 
-    final int normalizedGirlIndex = girlIndex.clamp(0, assets.length - 1) as int;
-    final int storedIdle = idleIndexOverride ?? GameStateManager().getGirlIdleIndex(normalizedGirlIndex);
-    final Map<String, int> storedSkins = GameStateManager().getCurrentSkins(normalizedGirlIndex);
+    final int normalizedGirlIndex =
+        girlIndex.clamp(0, assets.length - 1) as int;
+    final int storedIdle = idleIndexOverride ??
+        GameStateManager().getGirlIdleIndex(normalizedGirlIndex);
+    final Map<String, int> storedSkins =
+        GameStateManager().getCurrentSkins(normalizedGirlIndex);
     final Map<String, int> mergedSkins = {...storedSkins};
     if (skinsOverride != null) {
       mergedSkins.addAll(skinsOverride);
@@ -124,8 +131,10 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     ref.read(currentGirlIndexProvider.notifier).state = normalizedGirlIndex;
 
     setState(() {
-      _backgroundIdleIndex = _normalizeIdleIndex(normalizedGirlIndex, storedIdle);
-      _backgroundSkinSelections = _normalizeSkinSelections(normalizedGirlIndex, mergedSkins);
+      _backgroundIdleIndex =
+          _normalizeIdleIndex(normalizedGirlIndex, storedIdle);
+      _backgroundSkinSelections =
+          _normalizeSkinSelections(normalizedGirlIndex, mergedSkins);
       _isBackgroundSpineReady = false;
     });
 
@@ -139,7 +148,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     _initializeBackgroundSpine();
   }
 
-  Map<String, int> _normalizeSkinSelections(int girlIndex, Map<String, int> skins) {
+  Map<String, int> _normalizeSkinSelections(
+      int girlIndex, Map<String, int> skins) {
     if (girlIndex == 0) {
       return {
         'bra': skins['bra'] ?? 0,
@@ -238,7 +248,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     }
   }
 
-  void _applySkinSet(spine.SpineWidgetController controller, List<String> skinNames) {
+  void _applySkinSet(
+      spine.SpineWidgetController controller, List<String> skinNames) {
     try {
       final data = controller.skeletonData;
       final skeleton = controller.skeleton;
@@ -275,7 +286,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     }
   }
 
-  void _applyBackgroundSkin(spine.SpineWidgetController controller, int girlIndex, bool isUnderwear) {
+  void _applyBackgroundSkin(
+      spine.SpineWidgetController controller, int girlIndex, bool isUnderwear) {
     final skinNames = isUnderwear
         ? _buildUnderwearSkinNames(girlIndex, _backgroundSkinSelections)
         : _buildDefaultSkinNames(girlIndex);
@@ -288,7 +300,10 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     final skeleton = controller.skeleton;
     final skeletonData = skeleton?.getData();
 
-    if (animationState == null || stateData == null || skeleton == null || skeletonData == null) {
+    if (animationState == null ||
+        stateData == null ||
+        skeleton == null ||
+        skeletonData == null) {
       // 控制器尚未准备就绪，等待下一帧再试
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && controller == _backgroundSpineController) {
@@ -349,14 +364,14 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     _initializeAnimations();
     _loadUserData();
     _restoreBackgroundState();
-    
+
     // 初始化音频系统并播放主界面BGM
     _initializeAudio();
-    
+
     // 读取是否已经弹过GrilWaitingDialog的持久化标记
     _loadHasShownGrilWaitingDialogFlag();
   }
-  
+
   void _initializeAudio() async {
     await AudioManager().initialize();
   }
@@ -386,7 +401,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     }
 
     try {
-      _backgroundSpineController = spine.SpineWidgetController(onInitialized: (controller) {
+      _backgroundSpineController =
+          spine.SpineWidgetController(onInitialized: (controller) {
         _applyBackgroundState(controller);
       });
     } catch (e) {
@@ -397,66 +413,66 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   Future<void> _loadUserData() async {
     // 初始化UserService
     await _userService.initialize();
-    
+
     final prefs = await SharedPreferences.getInstance();
     if (mounted) {
       setState(() {
         _currentLevel = prefs.getInt('current_level') ?? 1;
-        
+
         // 加载最新解锁的图片
         _latestUnlockedImageIndex = _getLatestUnlockedImageIndex(prefs);
       });
     }
-    print("MainPage: UserService初始化完成，金币: ${_userService.coinCount}, 爱心: ${_userService.heartCount}");
-    
+    print(
+        "MainPage: UserService初始化完成，金币: ${_userService.coinCount}, 爱心: ${_userService.heartCount}");
+
     // 检查是否应该触发特殊关卡
     await _checkForSpecialStage();
-    
+
     // 检查是否有待解锁的女孩
     await _checkForUnlockGirl();
-    
+
     // 检查是否有可进行的操作
     await _checkForAvailableActions();
   }
-  
+
   // 检查是否应该触发特殊关卡
   Future<void> _checkForSpecialStage() async {
     await GameStateManager().init();
-    
+
     if (GameStateManager().shouldTriggerSpecialStage()) {
       // 延迟一下，等页面完全加载后再显示弹窗
       await Future.delayed(Duration(milliseconds: 500));
-      
+
       if (mounted) {
-        // 标记特殊关卡已触发
-        await GameStateManager().markSpecialStageTriggered();
-        
         // 显示特殊关卡弹窗
         await AudioManager().playPopupOpen();
-        showDialog(
+        await showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => const SpecialPage(),
         );
+
+        await GameStateManager().markSpecialStageTriggered();
       }
     }
   }
-  
+
   // 检查是否有待解锁的女孩
   Future<void> _checkForUnlockGirl() async {
     await GameStateManager().init();
-    
+
     // 获取待解锁的女孩索引
     int? pendingUnlockGirl = GameStateManager().getPendingUnlockGirl();
-    
+
     if (pendingUnlockGirl != null && mounted) {
       // 延迟一下，等页面完全加载后再显示弹窗
       await Future.delayed(Duration(milliseconds: 800));
-      
+
       if (mounted) {
         // 清除待解锁女孩标记
         await GameStateManager().setPendingUnlockGirl(null);
-        
+
         // 显示解锁新女孩弹窗
         await AudioManager().playPopupOpen();
         showDialog(
@@ -479,31 +495,31 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
       }
     }
   }
-  
+
   // 检查是否有可进行的操作
   Future<void> _checkForAvailableActions() async {
     await GameStateManager().init();
-    
+
     // 如果已经弹过这个弹窗，就不再弹了
     if (_hasShownGrilWaitingDialog) {
       return;
     }
-    
+
     // 获取当前女孩索引
     int currentGirlIndex = GameStateManager().getCurrentGirlIndex();
-    
+
     // 检查是否可以脱衣或解锁新皮肤
     bool canTakeoff = GameStateManager().canTakeoff();
     var affordableSkin = GameStateManager().getAffordableSkin(currentGirlIndex);
-    
+
     if (canTakeoff || affordableSkin != null) {
       // 延迟一下，等页面完全加载后再显示弹窗
       await Future.delayed(Duration(milliseconds: 1200));
-      
+
       if (mounted) {
         // 标记已经弹过弹窗（持久化）
         await _setHasShownGrilWaitingDialogFlag(true);
-        
+
         // 显示提醒弹窗
         await AudioManager().playPopupOpen();
         // await GrilWaitingDialog.show(
@@ -521,7 +537,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
       }
     }
   }
-  
+
   // 获取最新解锁的图片索引
   int _getLatestUnlockedImageIndex(SharedPreferences prefs) {
     // 总共75张图片，从后往前查找最新解锁的
@@ -540,7 +556,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     print("没有找到解锁图片，使用默认第一张");
     return 0;
   }
-  
+
   // 获取图片路径
   String _getImagePath(int index) {
     // 图片索引从0开始，但文件名从01开始
@@ -568,7 +584,6 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
     });
   }
 
-
   void _navigateToShop() async {
     await AudioManager().playPopupOpen();
     Navigator.of(context)
@@ -583,14 +598,16 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
       // 不再重置已弹标记
     });
   }
-  
+
   void _navigateToGallery() async {
     await AudioManager().playPopupOpen();
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(
         builder: (context) => const GalleryPage(),
       ),
-    ).then((_) {
+    )
+        .then((_) {
       // 从图鉴页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
       // 不再重置已弹标记
@@ -598,11 +615,13 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   }
 
   void _navigateToGame() {
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(
         builder: (context) => const GamePage(),
       ),
-    ).then((_) {
+    )
+        .then((_) {
       // 从游戏页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
       // 不再重置已弹标记
@@ -618,11 +637,13 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   }
 
   void _startTakeOff() {
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(
         builder: (context) => const SpinePreviewPage(),
       ),
-    ).then((_) {
+    )
+        .then((_) {
       // 从预览页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
       // 不再重置已弹标记，确保跨页面也只弹一次
@@ -633,7 +654,7 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
   // 临时测试方法 - 播放金币和心特效
   void _playCoinAndHeartEffects() async {
     await AudioManager().playPopupOpen();
-    
+
     // 播放签到奖励特效（金币和爱心）
     CommonHeader.playSignInEffects(context, 10, 5);
   }
@@ -798,7 +819,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                     onTap: _playCoinAndHeartEffects,
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 20),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.orange.withOpacity(0.8),
                         borderRadius: BorderRadius.circular(20),
@@ -816,26 +838,26 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                   ),
 
                   // 倾斜测试按钮
-                  GestureDetector(
-                    onTap: _navigateToTiltTest,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 20),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: const OutlinedTextWidget(
-                        text: '倾斜测试',
-                        fontSize: 14,
-                        textColor: Colors.white,
-                        strokeColor: Colors.black,
-                        strokeWidth: 2.0,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                  // GestureDetector(
+                  //   onTap: _navigateToTiltTest,
+                  //   child: Container(
+                  //     margin: const EdgeInsets.only(bottom: 20),
+                  //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  //     decoration: BoxDecoration(
+                  //       color: Colors.blue.withOpacity(0.8),
+                  //       borderRadius: BorderRadius.circular(20),
+                  //       border: Border.all(color: Colors.white, width: 2),
+                  //     ),
+                  //     child: const OutlinedTextWidget(
+                  //       text: '倾斜测试',
+                  //       fontSize: 14,
+                  //       textColor: Colors.white,
+                  //       strokeColor: Colors.black,
+                  //       strokeWidth: 2.0,
+                  //       fontWeight: FontWeight.bold,
+                  //     ),
+                  //   ),
+                  // ),
 
                   // 换按钮 (动画)
                   GestureDetector(
@@ -869,7 +891,8 @@ class _MainPageState extends ConsumerState<MainPage> with TickerProviderStateMix
                       Positioned(
                         bottom: 15,
                         child: OutlinedTextWidget(
-                          text: 'Level ${_currentLevel.toString().padLeft(3, '0')}',
+                          text:
+                              'Level ${_currentLevel.toString().padLeft(3, '0')}',
                           fontSize: 11,
                           textColor: Colors.white,
                           strokeColor: Colors.black,
@@ -921,7 +944,8 @@ class _TakeoffButtonAnimationState extends State<TakeoffButtonAnimation> {
     }
 
     try {
-      _spineController = spine.SpineWidgetController(onInitialized: (controller) {
+      _spineController =
+          spine.SpineWidgetController(onInitialized: (controller) {
         try {
           // 设置默认过渡时间
           controller.animationState.getData().setDefaultMix(0.2);
@@ -945,7 +969,8 @@ class _TakeoffButtonAnimationState extends State<TakeoffButtonAnimation> {
               final firstAnimationName = animations.first.getName();
               print("开始播放动画: $firstAnimationName");
               if (firstAnimationName.isNotEmpty) {
-                controller.animationState.setAnimationByName(0, firstAnimationName, true);
+                controller.animationState
+                    .setAnimationByName(0, firstAnimationName, true);
                 print("btn_takeoff 动画播放成功");
               } else {
                 print("动画名称为空");

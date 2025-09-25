@@ -21,7 +21,8 @@ class WinHeartPage extends StatefulWidget {
   State<WinHeartPage> createState() => _WinHeartPageState();
 }
 
-class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMixin {
+class _WinHeartPageState extends State<WinHeartPage>
+    with TickerProviderStateMixin {
   late AnimationController _fadeController;
 
   // Spine animation controller
@@ -81,8 +82,10 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
           controller.animationState.getData().setDefaultMix(0.2);
 
           // 打印可用动画
-          final animations = controller.skeleton.getData()?.getAnimations() ?? [];
-          print("HeartGetPage_Eff animations: ${animations.map((a) => a.getName()).toList()}");
+          final animations =
+              controller.skeleton.getData()?.getAnimations() ?? [];
+          print(
+              "HeartGetPage_Eff animations: ${animations.map((a) => a.getName()).toList()}");
 
           // 初始化后直接按 born -> idle 逻辑播放
           Future.delayed(const Duration(milliseconds: 200), () async {
@@ -91,33 +94,38 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
             final data = controller.skeleton.getData();
             String? bornName = animations
                     .map((a) => a.getName())
-                    .firstWhere((n) => n == 'HeartGetPage_Eff_born', orElse: () => '')
+                    .firstWhere((n) => n == 'HeartGetPage_Eff_born',
+                        orElse: () => '')
                     .isNotEmpty
                 ? 'HeartGetPage_Eff_born'
                 : null;
-            bornName ??= animations
-                .map((a) => a.getName())
-                .firstWhere((n) => n.toLowerCase().contains('born'), orElse: () => '');
+            bornName ??= animations.map((a) => a.getName()).firstWhere(
+                (n) => n.toLowerCase().contains('born'),
+                orElse: () => '');
             if (bornName.isEmpty) bornName = null;
 
             String? idleName = animations
                     .map((a) => a.getName())
-                    .firstWhere((n) => n == 'HeartGetPage_Eff_idle', orElse: () => '')
+                    .firstWhere((n) => n == 'HeartGetPage_Eff_idle',
+                        orElse: () => '')
                     .isNotEmpty
                 ? 'HeartGetPage_Eff_idle'
                 : null;
-            idleName ??= animations
-                .map((a) => a.getName())
-                .firstWhere((n) => n.toLowerCase().contains('idle'), orElse: () => '');
+            idleName ??= animations.map((a) => a.getName()).firstWhere(
+                (n) => n.toLowerCase().contains('idle'),
+                orElse: () => '');
             if (idleName.isEmpty) idleName = null;
 
             try {
               controller.animationState.clearTracks();
               if (bornName != null && data?.findAnimation(bornName) != null) {
-                controller.animationState.setAnimationByName(0, bornName, false);
-                final duration = (data?.findAnimation(bornName)?.getDuration() ?? 1.0);
+                controller.animationState
+                    .setAnimationByName(0, bornName, false);
+                final duration =
+                    (data?.findAnimation(bornName)?.getDuration() ?? 1.0);
                 print('✓ Heart born once: $bornName, duration: $duration s');
-                await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+                await Future.delayed(
+                    Duration(milliseconds: (duration * 1000).toInt()));
                 if (!mounted) return;
                 final next = idleName ?? animations.first.getName();
                 if (next.isNotEmpty && data?.findAnimation(next) != null) {
@@ -202,10 +210,12 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
       if (bornAnimName != null) {
         // Play born animation (non-looping)
         print("Playing born animation: $bornAnimName");
-        _spineController!.animationState.setAnimationByName(0, bornAnimName, false);
+        _spineController!.animationState
+            .setAnimationByName(0, bornAnimName, false);
 
         // Get animation duration
-        final animation = _spineController!.skeleton.getData()?.findAnimation(bornAnimName);
+        final animation =
+            _spineController!.skeleton.getData()?.findAnimation(bornAnimName);
         double duration = 2.0; // Default 2 seconds
         if (animation != null) {
           duration = animation.getDuration();
@@ -264,7 +274,8 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
         print("Playing idle animation: $animName (looping)");
       } else {
         // Try to find any idle-like animation
-        final animations = _spineController!.skeleton.getData()?.getAnimations();
+        final animations =
+            _spineController!.skeleton.getData()?.getAnimations();
         if (animations != null) {
           for (var anim in animations) {
             String name = anim.getName();
@@ -272,7 +283,8 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
                 (name.toLowerCase().contains('idle') ||
                     name.toLowerCase().contains('loop') ||
                     name.toLowerCase().contains('wait'))) {
-              _spineController!.animationState.setAnimationByName(0, name, true);
+              _spineController!.animationState
+                  .setAnimationByName(0, name, true);
               print("Playing idle animation: $name (looping)");
               return;
             }
@@ -281,13 +293,22 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
           // If no idle animation found, loop the first animation
           if (animations.isNotEmpty) {
             final firstAnim = animations.first.getName();
-            _spineController!.animationState.setAnimationByName(0, firstAnim, true);
-            print("No idle animation found, looping first animation: $firstAnim");
+            _spineController!.animationState
+                .setAnimationByName(0, firstAnim, true);
+            print(
+                "No idle animation found, looping first animation: $firstAnim");
           }
         }
       }
     } catch (e) {
       print("Failed to play idle animation: $e");
+    }
+  }
+
+  Future<void> _markSpecialStageReadyIfPending() async {
+    await GameStateManager().init();
+    if (GameStateManager().getPendingSpecialStageLevel() > 0) {
+      await GameStateManager().setSpecialStageReady(true);
     }
   }
 
@@ -314,7 +335,8 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
     _idleTimer?.cancel();
     _idleTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
       if (!mounted || _idleStartTime == null) return;
-      final elapsed = DateTime.now().difference(_idleStartTime!).inMilliseconds / 1000.0;
+      final elapsed =
+          DateTime.now().difference(_idleStartTime!).inMilliseconds / 1000.0;
       final t = _idleDurationSec > 0 ? (elapsed % _idleDurationSec) : elapsed;
       int nextMultiplier = 2;
       if (t < 0.74) {
@@ -345,6 +367,8 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
     try {
       // Add hearts to player's inventory
       await GameStateManager().addHearts(_baseHeartReward * _currentMultiplier);
+
+      await _markSpecialStageReadyIfPending();
 
       // Play reward sound
       await AudioManager().playHeartEffect();
@@ -379,10 +403,12 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
               _hasDoubled = true;
               _totalHeartReward = _baseHeartReward * _currentMultiplier * 2;
             });
-            
+
+            await _markSpecialStageReadyIfPending();
+
             // 播放翻倍奖励音效
             await AudioManager().playHeartEffect();
-            
+
             // 延迟2秒后自动回到主界面
             Future.delayed(const Duration(seconds: 2), () {
               if (mounted) {
@@ -403,7 +429,7 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
           }
         },
       );
-      
+
       if (!adCompleted) {
         print('用户取消翻倍奖励广告');
       }
@@ -445,7 +471,7 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
             // Spine动画区域 - 占据主要空间
             if (_spineController != null)
               Positioned(
-                top: MediaQuery.of(context).padding.top-100, // 避开头部
+                top: MediaQuery.of(context).padding.top - 100, // 避开头部
                 left: -140,
                 right: 0,
                 child: SizedBox(
@@ -518,9 +544,9 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
                             ),
                             const SizedBox(width: 10),
                             OutlinedTextWidget(
-                              text: _hasDoubled 
-                                ? '已翻倍' 
-                                : '+${_baseHeartReward * _currentMultiplier}',
+                              text: _hasDoubled
+                                  ? '已翻倍'
+                                  : '+${_baseHeartReward * _currentMultiplier}',
                               fontSize: 20,
                               textColor: _hasDoubled ? Colors.grey : Colors.red,
                               strokeColor: Colors.white,
@@ -554,7 +580,6 @@ class _WinHeartPageState extends State<WinHeartPage> with TickerProviderStateMix
             const CommonHeader(
               showBackButton: false,
             ),
-
           ],
         ),
       ),

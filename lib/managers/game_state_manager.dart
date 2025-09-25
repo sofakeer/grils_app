@@ -8,7 +8,7 @@ class GameStateManager {
 
   late SharedPreferences _prefs;
   Map<String, dynamic>? _lastGirlStateCache;
-  
+
   // 游戏状态键值
   static const String _keyHeartCount = 'heart_count';
   static const String _keyShowTakeoffGuide = 'show_takeoff_guide';
@@ -25,8 +25,11 @@ class GameStateManager {
   static const String _keyPendingUnlockGirl = 'pending_unlock_girl';
   static const String _keyLastSpecialStageLevel = 'last_special_stage_level';
   static const String _keySpecialStageCompleted = 'special_stage_completed';
+  static const String _keyPendingSpecialStageLevel =
+      'pending_special_stage_level';
+  static const String _keySpecialStageReady = 'special_stage_ready';
   static const String _keyLastGirlState = 'last_girl_state';
-  
+
   // 初始化
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -42,23 +45,23 @@ class GameStateManager {
       }
     }
   }
-  
+
   // 获取心形货币数量
   int getHeartCount() {
     return _prefs.getInt(_keyHeartCount) ?? 10000; // 初始给10000个心形
   }
-  
+
   // 设置心形货币数量
   Future<void> setHeartCount(int count) async {
     await _prefs.setInt(_keyHeartCount, count);
   }
-  
+
   // 增加心形货币
   Future<void> addHearts(int amount) async {
     int current = getHeartCount();
     await setHeartCount(current + amount);
   }
-  
+
   // 消耗心形货币
   Future<bool> consumeHearts(int amount) async {
     int current = getHeartCount();
@@ -68,12 +71,12 @@ class GameStateManager {
     }
     return false;
   }
-  
+
   // 获取是否已经看过Takeoff引导
   bool hasSeenTakeoffGuide() {
     return _prefs.getBool(_keyHasSeenTakeoff) ?? false;
   }
-  
+
   // 设置已看过Takeoff引导
   Future<void> setHasSeenTakeoffGuide(bool seen) async {
     await _prefs.setBool(_keyHasSeenTakeoff, seen);
@@ -88,22 +91,22 @@ class GameStateManager {
   Future<void> setHasSeenTakeoffGuideForGirl(int girlIndex, bool seen) async {
     await _prefs.setBool('$_keyHasSeenTakeoffGirlPrefix$girlIndex', seen);
   }
-  
+
   // 获取当前女孩索引
   int getCurrentGirlIndex() {
     return _prefs.getInt(_keyCurrentGirlIndex) ?? 0;
   }
-  
+
   // 设置当前女孩索引
   Future<void> setCurrentGirlIndex(int index) async {
     await _prefs.setInt(_keyCurrentGirlIndex, index);
   }
-  
+
   // 获取当前idle动画索引
   int getCurrentIdleIndex() {
     return _prefs.getInt(_keyCurrentIdleIndex) ?? 0;
   }
-  
+
   // 设置当前idle动画索引
   Future<void> setCurrentIdleIndex(int index) async {
     await _prefs.setInt(_keyCurrentIdleIndex, index);
@@ -164,7 +167,7 @@ class GameStateManager {
   int getGirlIdleIndex(int girlIndex) {
     return _prefs.getInt('$_keyGirlIdleIndexPrefix$girlIndex') ?? 0;
   }
-  
+
   // 获取已解锁的皮肤
   Map<String, List<int>> getUnlockedSkins() {
     String? jsonStr = _prefs.getString(_keyUnlockedSkins);
@@ -188,37 +191,37 @@ class GameStateManager {
     Map<String, dynamic> decoded = json.decode(jsonStr);
     return decoded.map((key, value) => MapEntry(key, List<int>.from(value)));
   }
-  
+
   // 解锁皮肤
   Future<void> unlockSkin(int girlIndex, String partName, int skinIndex) async {
     Map<String, List<int>> unlocked = getUnlockedSkins();
     String key = 'girl${girlIndex}_$partName';
-    
+
     if (!unlocked.containsKey(key)) {
       unlocked[key] = [0]; // 确保第一个皮肤总是解锁的
     }
-    
+
     if (!unlocked[key]!.contains(skinIndex)) {
       unlocked[key]!.add(skinIndex);
     }
-    
+
     await _prefs.setString(_keyUnlockedSkins, json.encode(unlocked));
   }
-  
+
   // 检查皮肤是否已解锁
   bool isSkinUnlocked(int girlIndex, String partName, int skinIndex) {
     if (skinIndex == 0) return true; // 第一个皮肤总是解锁的
-    
+
     Map<String, List<int>> unlocked = getUnlockedSkins();
     String key = 'girl${girlIndex}_$partName';
-    
+
     if (!unlocked.containsKey(key)) {
       return false;
     }
-    
+
     return unlocked[key]!.contains(skinIndex);
   }
-  
+
   // 获取当前选择的皮肤
   Map<String, int> getCurrentSkins(int girlIndex) {
     String? jsonStr = _prefs.getString('${_keyCurrentSkins}_$girlIndex');
@@ -235,12 +238,14 @@ class GameStateManager {
     Map<String, dynamic> decoded = json.decode(jsonStr);
     return decoded.map((key, value) => MapEntry(key, value as int));
   }
-  
+
   // 设置当前选择的皮肤
-  Future<void> setCurrentSkin(int girlIndex, String partName, int skinIndex) async {
+  Future<void> setCurrentSkin(
+      int girlIndex, String partName, int skinIndex) async {
     Map<String, int> current = getCurrentSkins(girlIndex);
     current[partName] = skinIndex;
-    await _prefs.setString('${_keyCurrentSkins}_$girlIndex', json.encode(current));
+    await _prefs.setString(
+        '${_keyCurrentSkins}_$girlIndex', json.encode(current));
   }
 
   Future<void> setLastGirlState({
@@ -248,7 +253,8 @@ class GameStateManager {
     required int idleIndex,
     required Map<String, int> skins,
   }) async {
-    cacheLastGirlState(girlIndex: girlIndex, idleIndex: idleIndex, skins: skins);
+    cacheLastGirlState(
+        girlIndex: girlIndex, idleIndex: idleIndex, skins: skins);
 
     final payload = <String, dynamic>{
       'girlIndex': girlIndex,
@@ -278,41 +284,51 @@ class GameStateManager {
       return null;
     }
   }
-  
+
   // 获取皮肤价格
   int getSkinPrice(int skinIndex) {
     // 第一个皮肤免费，其他皮肤根据索引递增价格
     if (skinIndex == 0) return 0;
     return skinIndex * 5; // 第2个皮肤5心币，第3个10心币，第4个15心币
   }
-  
+
   // 重置游戏状态
   Future<void> resetGameState() async {
     await _prefs.clear();
     await init(); // 重新初始化
   }
-  
+
   // 获取当前关卡
   int getCurrentLevel() {
     return _prefs.getInt(_keyCurrentLevel) ?? 1;
   }
-  
+
   // 设置当前关卡
   Future<void> setCurrentLevel(int level) async {
     await _prefs.setInt(_keyCurrentLevel, level);
-    
+
     // 检查是否需要解锁新女生
     await _checkAndUnlockGirls(level);
   }
-  
+
   // 增加关卡
   Future<int> passLevel() async {
     int currentLevel = getCurrentLevel();
+    int completedLevel = currentLevel;
     int newLevel = currentLevel + 1;
     await setCurrentLevel(newLevel);
+
+    if (completedLevel > 0 && completedLevel % 5 == 0) {
+      int lastTriggered = getLastSpecialStageLevel();
+      if (completedLevel > lastTriggered) {
+        await setPendingSpecialStageLevel(completedLevel);
+        await setSpecialStageReady(false);
+      }
+    }
+
     return newLevel;
   }
-  
+
   // 获取已解锁的女生列表
   List<int> getUnlockedGirls() {
     String? jsonStr = _prefs.getString(_keyUnlockedGirls);
@@ -327,7 +343,7 @@ class GameStateManager {
     }
     return unlocked;
   }
-  
+
   // 解锁女生
   Future<void> unlockGirl(int girlIndex) async {
     List<int> unlocked = getUnlockedGirls();
@@ -336,13 +352,13 @@ class GameStateManager {
       await _prefs.setString(_keyUnlockedGirls, json.encode(unlocked));
     }
   }
-  
+
   // 检查女生是否已解锁
   bool isGirlUnlocked(int girlIndex) {
     if (girlIndex == 0) return true; // 第一个女生默认解锁
     return getUnlockedGirls().contains(girlIndex);
   }
-  
+
   // 检查并解锁女生
   Future<int?> _checkAndUnlockGirls(int level) async {
     // 100关解锁第二个女生
@@ -357,26 +373,27 @@ class GameStateManager {
     }
     return null; // 没有新解锁的女生
   }
-  
+
   // 检查是否有足够的心币进行操作
   bool canAffordAction(int requiredHearts) {
     return getHeartCount() >= requiredHearts;
   }
-  
+
   // 检查是否可以脱衣
   bool canTakeoff() {
     // 需要5个心币才能脱衣
     return canAffordAction(5);
   }
-  
+
   // 检查是否有可解锁的皮肤
   Map<String, dynamic>? getAffordableSkin(int girlIndex) {
     int hearts = getHeartCount();
-    
+
     // 检查每个部位的皮肤
-    List<String> parts = girlIndex == 0 ? ['bra', 'pants', 'hands', 'socks'] 
-                        : ['bra', 'pants', 'head', 'socks'];
-    
+    List<String> parts = girlIndex == 0
+        ? ['bra', 'pants', 'hands', 'socks']
+        : ['bra', 'pants', 'head', 'socks'];
+
     for (String part in parts) {
       for (int skinIndex = 1; skinIndex < 4; skinIndex++) {
         if (!isSkinUnlocked(girlIndex, part, skinIndex)) {
@@ -393,12 +410,12 @@ class GameStateManager {
     }
     return null;
   }
-  
+
   // 获取待解锁的女生
   int? getPendingUnlockGirl() {
     return _prefs.getInt(_keyPendingUnlockGirl);
   }
-  
+
   // 设置待解锁的女生
   Future<void> setPendingUnlockGirl(int? girlIndex) async {
     if (girlIndex == null) {
@@ -407,54 +424,95 @@ class GameStateManager {
       await _prefs.setInt(_keyPendingUnlockGirl, girlIndex);
     }
   }
-  
+
+  // 获取待触发的特殊关卡关卡数
+  int getPendingSpecialStageLevel() {
+    return _prefs.getInt(_keyPendingSpecialStageLevel) ?? 0;
+  }
+
+  // 设置待触发的特殊关卡关卡数
+  Future<void> setPendingSpecialStageLevel(int level) async {
+    if (level <= 0) {
+      await _prefs.remove(_keyPendingSpecialStageLevel);
+    } else {
+      await _prefs.setInt(_keyPendingSpecialStageLevel, level);
+    }
+  }
+
+  // 检查特殊关卡是否可以弹出
+  bool isSpecialStageReady() {
+    return _prefs.getBool(_keySpecialStageReady) ?? false;
+  }
+
+  // 标记特殊关卡是否可以弹出
+  Future<void> setSpecialStageReady(bool ready) async {
+    await _prefs.setBool(_keySpecialStageReady, ready);
+  }
+
   // 检查并解锁女生（公开方法）
   Future<int?> checkAndUnlockGirls() async {
     int level = getCurrentLevel();
     return await _checkAndUnlockGirls(level);
   }
-  
+
   // 获取上次触发特殊关卡的关卡
   int getLastSpecialStageLevel() {
     return _prefs.getInt(_keyLastSpecialStageLevel) ?? 0;
   }
-  
+
   // 设置上次触发特殊关卡的关卡
   Future<void> setLastSpecialStageLevel(int level) async {
     await _prefs.setInt(_keyLastSpecialStageLevel, level);
   }
-  
+
   // 检查是否应该触发特殊关卡
   bool shouldTriggerSpecialStage() {
-    int currentLevel = getCurrentLevel();
+    int pendingLevel = getPendingSpecialStageLevel();
+    if (pendingLevel <= 0) {
+      return false;
+    }
+
+    if (!isSpecialStageReady()) {
+      return false;
+    }
+
     int lastSpecialLevel = getLastSpecialStageLevel();
-    
-    // 每5关触发一次特殊关卡，但不超过当前关卡
-    return currentLevel > 0 && currentLevel % 5 == 0 && currentLevel > lastSpecialLevel;
+    return pendingLevel > lastSpecialLevel;
   }
-  
+
   // 标记特殊关卡已触发
-  Future<void> markSpecialStageTriggered() async {
-    await setLastSpecialStageLevel(getCurrentLevel());
+  Future<void> markSpecialStageTriggered({int? level}) async {
+    int targetLevel = level ?? getPendingSpecialStageLevel();
+    if (targetLevel <= 0) {
+      // 若没有待触发关卡，默认使用当前已完成的关卡
+      targetLevel = getCurrentLevel() - 1;
+    }
+
+    if (targetLevel > 0) {
+      await setLastSpecialStageLevel(targetLevel);
+    }
+
+    await setPendingSpecialStageLevel(0);
+    await setSpecialStageReady(false);
   }
-  
+
   // 检查特殊关卡是否已完成
   bool isSpecialStageCompleted() {
     return _prefs.getBool(_keySpecialStageCompleted) ?? false;
   }
-  
+
   // 设置特殊关卡完成状态
   Future<void> setSpecialStageCompleted(bool completed) async {
     await _prefs.setBool(_keySpecialStageCompleted, completed);
   }
-  
+
   // 测试方法：解锁所有女生
   Future<void> unlockAllGirlsForTesting() async {
     List<int> allGirls = [0, 1, 2];
     await _prefs.setString(_keyUnlockedGirls, json.encode(allGirls));
     print("All girls unlocked for testing: $allGirls");
   }
-  
+
   // 测试方法：重置为只解锁第一个女生
   Future<void> resetGirlUnlocksForTesting() async {
     List<int> defaultUnlocked = [0];

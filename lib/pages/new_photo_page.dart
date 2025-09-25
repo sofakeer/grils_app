@@ -1,8 +1,13 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/pages/win_heart_page.dart';
 import 'package:spine_flutter/spine_flutter.dart' as spine;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'dart:typed_data';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
 import '../utils/energy_calculator.dart';
 import '../managers/audio_manager.dart';
 import '../widgets/outlined_text_widget.dart';
@@ -16,7 +21,8 @@ class NewPhotoPage extends StatefulWidget {
   State<NewPhotoPage> createState() => _NewPhotoPageState();
 }
 
-class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMixin {
+class _NewPhotoPageState extends State<NewPhotoPage>
+    with TickerProviderStateMixin {
   late AnimationController _scaleController;
   late AnimationController _fadeController;
   late AnimationController _progressController;
@@ -25,6 +31,8 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
   late Animation<double> _progressAnimation;
 
   double _progress = 0.0;
+  double _startProgress = 0.0;
+  double _targetProgress = 0.0;
   double? _debugProgress;
   double _currentEnergy = 0.0;
   bool _isUnlocked = false;
@@ -44,8 +52,13 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
     super.initState();
     _initializeAnimations();
     _initializeSpineControllers();
-    _loadPhotoProgress();
-    _calculateNewProgress();
+    _initAsync();
+  }
+
+  Future<void> _initAsync() async {
+    await _loadPhotoProgress();
+    if (!mounted) return;
+    await _calculateNewProgress();
   }
 
   String _getCurrentPhotoAsset() {
@@ -56,11 +69,14 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
   void _initializeSpineControllers() {
     // 初始化标题Spine控制器
     try {
-      _titleSpineController = spine.SpineWidgetController(onInitialized: (controller) {
+      _titleSpineController =
+          spine.SpineWidgetController(onInitialized: (controller) {
         try {
           controller.animationState.getData().setDefaultMix(0.2);
-          final animations = controller.skeleton.getData()?.getAnimations() ?? [];
-          print("NewPhoto_Eff animations: ${animations.map((a) => a.getName()).toList()}");
+          final animations =
+              controller.skeleton.getData()?.getAnimations() ?? [];
+          print(
+              "NewPhoto_Eff animations: ${animations.map((a) => a.getName()).toList()}");
 
           if (mounted) {
             setState(() {
@@ -75,33 +91,38 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
             final data = controller.skeleton.getData();
             String? bornName = animations
                     .map((a) => a.getName())
-                    .firstWhere((n) => n == 'NewPhoto_Eff_born', orElse: () => '')
+                    .firstWhere((n) => n == 'NewPhoto_Eff_born',
+                        orElse: () => '')
                     .isNotEmpty
                 ? 'NewPhoto_Eff_born'
                 : null;
-            bornName ??= animations
-                .map((a) => a.getName())
-                .firstWhere((n) => n.toLowerCase().contains('born'), orElse: () => '');
+            bornName ??= animations.map((a) => a.getName()).firstWhere(
+                (n) => n.toLowerCase().contains('born'),
+                orElse: () => '');
             if (bornName.isEmpty) bornName = null;
 
             String? idleName = animations
                     .map((a) => a.getName())
-                    .firstWhere((n) => n == 'NewPhoto_Eff_idle', orElse: () => '')
+                    .firstWhere((n) => n == 'NewPhoto_Eff_idle',
+                        orElse: () => '')
                     .isNotEmpty
                 ? 'NewPhoto_Eff_idle'
                 : null;
-            idleName ??= animations
-                .map((a) => a.getName())
-                .firstWhere((n) => n.toLowerCase().contains('idle'), orElse: () => '');
+            idleName ??= animations.map((a) => a.getName()).firstWhere(
+                (n) => n.toLowerCase().contains('idle'),
+                orElse: () => '');
             if (idleName.isEmpty) idleName = null;
 
             try {
               controller.animationState.clearTracks();
               if (bornName != null && data?.findAnimation(bornName) != null) {
-                controller.animationState.setAnimationByName(0, bornName, false);
-                final duration = (data?.findAnimation(bornName)?.getDuration() ?? 1.0);
+                controller.animationState
+                    .setAnimationByName(0, bornName, false);
+                final duration =
+                    (data?.findAnimation(bornName)?.getDuration() ?? 1.0);
                 print('✓ NewPhoto born once: $bornName, duration: $duration s');
-                await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
+                await Future.delayed(
+                    Duration(milliseconds: (duration * 1000).toInt()));
                 if (!mounted) return;
                 final next = idleName ?? animations.first.getName();
                 if (next.isNotEmpty && data?.findAnimation(next) != null) {
@@ -133,7 +154,8 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
 
     // 初始化解锁特效Spine控制器
     try {
-      _unlockEffectController = spine.SpineWidgetController(onInitialized: (controller) {
+      _unlockEffectController =
+          spine.SpineWidgetController(onInitialized: (controller) {
         try {
           controller.animationState.getData().setDefaultMix(0.2);
           if (mounted) {
@@ -205,12 +227,17 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
 
     // 监听进度动画
     _progressController.addListener(() {
-      final newProgress = EnergyCalculator.calculateProgress(_currentEnergy);
-      setState(() {
-        _progress = _progressAnimation.value * newProgress;
-      });
+      final t = _progressAnimation.value;
+      final interpolated =
+          ui.lerpDouble(_startProgress, _targetProgress, t) ?? _targetProgress;
+      final nextProgress = interpolated.clamp(0.0, 1.0).toDouble();
 
-      // 当达到30%时检查是否解锁
+      if (mounted) {
+        setState(() {
+          _progress = nextProgress;
+        });
+      }
+
       if (_progress >= 1.0 && !_isUnlocked && !_showUnlockEffect) {
         _triggerUnlockEffect();
       }
@@ -222,30 +249,45 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
     final photoKey = 'photo_${_currentPhotoIndex}_energy';
     // final allPhotosUnlocked = prefs.getBool('all_photos_unlocked') ?? false;
 
+    final storedEnergy = prefs.getDouble(photoKey) ?? 0.0;
+    final storedProgress = EnergyCalculator.calculateProgress(storedEnergy);
+    final unlocked = EnergyCalculator.isCompleted(storedEnergy);
+
     if (mounted) {
       setState(() {
-        _currentEnergy = prefs.getDouble(photoKey) ?? 0.0;
-        _progress = EnergyCalculator.calculateProgress(_currentEnergy);
-        _isUnlocked = EnergyCalculator.isCompleted(_currentEnergy);
+        _currentEnergy = storedEnergy;
+        _progress = storedProgress;
+        _startProgress = storedProgress;
+        _targetProgress = storedProgress;
+        _isUnlocked = unlocked;
       });
     }
   }
 
-  void _calculateNewProgress() {
+  Future<void> _calculateNewProgress() async {
     final addedEnergy = EnergyCalculator.calculateEnergyForLevel(widget.level);
     final newEnergy = EnergyCalculator.addEnergy(_currentEnergy, addedEnergy);
-    // final newProgress = EnergyCalculator.calculateProgress(newEnergy);
+    final newProgress = EnergyCalculator.calculateProgress(newEnergy);
+    final startProgress =
+        (_debugProgress ?? _progress).clamp(0.0, 1.0).toDouble();
 
-    // 保存新的能量值
-    _savePhotoProgress(newEnergy);
+    await _savePhotoProgress(newEnergy);
 
-    // 启动进度条动画
-    if (mounted) {
-      setState(() {
-        _currentEnergy = newEnergy;
-      });
-      _progressController.forward();
+    if (!mounted) {
+      return;
     }
+
+    setState(() {
+      _currentEnergy = newEnergy;
+      _startProgress = startProgress;
+      _targetProgress = newProgress;
+      _progress = startProgress;
+    });
+
+    _progressController
+      ..stop()
+      ..reset()
+      ..forward();
   }
 
   Future<void> _savePhotoProgress(double energy) async {
@@ -279,21 +321,27 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
   }
 
   void _triggerUnlockEffect() {
+    // 无论特效是否可用，都应立即解锁按钮
+    if (!mounted) return;
+    setState(() {
+      _isUnlocked = true;
+    });
+
+    // 如果特效就绪，则播放特效；否则直接返回
     if (_unlockEffectController != null && _isUnlockEffectReady) {
       setState(() {
         _showUnlockEffect = true;
-        _isUnlocked = true;
       });
 
-      // 播放解锁特效动画
       try {
-        final animations = _unlockEffectController!.skeleton.getData()?.getAnimations();
+        final animations =
+            _unlockEffectController!.skeleton.getData()?.getAnimations();
         if (animations != null && animations.isNotEmpty) {
           final effectAnim = animations.first;
           final duration = effectAnim.getDuration();
-          _unlockEffectController!.animationState.setAnimationByName(0, effectAnim.getName(), false);
+          _unlockEffectController!.animationState
+              .setAnimationByName(0, effectAnim.getName(), false);
 
-          // 动画播完后隐藏特效
           Future.delayed(Duration(milliseconds: (duration * 1000).toInt()), () {
             if (mounted) {
               setState(() {
@@ -306,20 +354,60 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
         print('Unlock effect play failed: $e');
       }
 
-      // 播放解锁音效
       AudioManager().playSettlementCoin();
     }
   }
 
   void _downloadPhoto() {
     if (!_isUnlocked) return;
+    _saveCurrentPhotoToGallery();
+  }
 
-    // 这里可以添加下载照片的逻辑
-    print('下载新照片');
-    AudioManager().playCoinEffect();
+  Future<void> _saveCurrentPhotoToGallery() async {
+    try {
+      // 权限申请（iOS 照片、Android 存储/媒体库）
+      final status = await Permission.photos.request();
+      if (!status.isGranted) {
+        // Android 13 及以上可能需要更细权限
+        final imagesStatus = await Permission.photos.request();
+        if (!imagesStatus.isGranted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('请授予相册权限以保存图片')),
+          );
+          return;
+        }
+      }
 
-    // 移除水印，下载到相册
-    // TODO: 实现下载逻辑
+      // 读取当前展示的原图资源（无水印）
+      final assetPath = _getCurrentPhotoAsset();
+      final byteData = await rootBundle.load(assetPath);
+      final Uint8List bytes = byteData.buffer.asUint8List();
+
+      // 保存到相册
+      final result = await ImageGallerySaver.saveImage(
+        bytes,
+        quality: 100,
+        name: 'NewPhoto_${_currentPhotoIndex + 1}',
+      );
+
+      final isSuccess = (result is Map && (result['isSuccess'] == true || result['isSuccess'] == 'true'))
+          || (result is bool && result == true);
+
+      if (isSuccess) {
+        AudioManager().playCoinEffect();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已保存到相册')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('保存失败，请重试')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('保存出错: $e')),
+      );
+    }
   }
 
   void _nextPhoto() async {
@@ -378,7 +466,9 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
               child: AnimatedBuilder(
                 animation: _scaleAnimation,
                 builder: (context, child) {
-                  final revealProgress = ((_debugProgress ?? _progress).clamp(0.0, 1.0)).toDouble();
+                  final revealProgress =
+                      ((_debugProgress ?? _progress).clamp(0.0, 1.0))
+                          .toDouble();
                   return Transform.scale(
                     scale: _scaleAnimation.value,
                     child: Column(
@@ -398,7 +488,8 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                                     "assets/spine/NewPhoto_Eff.atlas",
                                     "assets/spine/NewPhoto_Eff.skel",
                                     _titleSpineController!,
-                                    boundsProvider: const spine.SetupPoseBounds(),
+                                    boundsProvider:
+                                        const spine.SetupPoseBounds(),
                                   ),
                                 ),
                             ],
@@ -407,7 +498,8 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
 
                         // 照片框架
                         Container(
-                          margin: const EdgeInsets.only(bottom: 10, right: 30, left: 30),
+                          margin: const EdgeInsets.only(
+                              bottom: 10, right: 30, left: 30),
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
@@ -419,9 +511,11 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                                     fit: StackFit.expand,
                                     children: [
                                       Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 12),
                                         child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(18),
+                                          borderRadius:
+                                              BorderRadius.circular(18),
                                           child: Stack(
                                             fit: StackFit.expand,
                                             children: [
@@ -431,9 +525,11 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                                               ),
                                               if (revealProgress < 1)
                                                 Align(
-                                                  alignment: Alignment.topCenter,
+                                                  alignment:
+                                                      Alignment.topCenter,
                                                   child: FractionallySizedBox(
-                                                    heightFactor: 1 - revealProgress,
+                                                    heightFactor:
+                                                        1 - revealProgress,
                                                     widthFactor: 1,
                                                     child: const ColoredBox(
                                                       color: Color(0xE6000000),
@@ -464,8 +560,11 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                                           bottom: (() {
                                             const double frameHeight = 400;
                                             const double lineH = 20;
-                                            final double raw = frameHeight * revealProgress - (lineH / 2);
-                                            return raw.clamp(0.0, frameHeight - lineH);
+                                            final double raw =
+                                                frameHeight * revealProgress -
+                                                    (lineH / 2);
+                                            return raw.clamp(
+                                                0.0, frameHeight - lineH);
                                           })(),
                                           child: Image.asset(
                                             Assets.newPhotoNewPhotoHighline,
@@ -476,14 +575,17 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                                   ),
                                 ),
                               ),
-                              if (_showUnlockEffect && _unlockEffectController != null && _isUnlockEffectReady)
+                              if (_showUnlockEffect &&
+                                  _unlockEffectController != null &&
+                                  _isUnlockEffectReady)
                                 Positioned.fill(
                                   child: SizedBox(
                                     child: spine.SpineWidget.fromAsset(
                                       "assets/spine/PhotoUnlock_Eff.atlas",
                                       "assets/spine/PhotoUnlock_Eff.skel",
                                       _unlockEffectController!,
-                                      boundsProvider: const spine.SetupPoseBounds(),
+                                      boundsProvider:
+                                          const spine.SetupPoseBounds(),
                                     ),
                                   ),
                                 ),
@@ -503,7 +605,8 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                         Stack(
                           children: [
                             Container(
-                              margin: const EdgeInsets.only(bottom: 30, top: 10),
+                              margin:
+                                  const EdgeInsets.only(bottom: 30, top: 10),
                               child: Column(
                                 children: [
                                   // 进度条背景
@@ -518,22 +621,31 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                                       children: [
                                         // 进度条填充
                                         AnimatedContainer(
-                                          duration: const Duration(milliseconds: 500),
+                                          duration:
+                                              const Duration(milliseconds: 500),
                                           width: 300 * revealProgress,
                                           height: 30,
                                           decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(20),
+                                            borderRadius:
+                                                BorderRadius.circular(20),
                                             gradient: LinearGradient(
                                               colors: _isUnlocked
-                                                  ? [Colors.green, Colors.lightGreen]
-                                                  : [Colors.pink, Colors.pinkAccent],
+                                                  ? [
+                                                      Colors.green,
+                                                      Colors.lightGreen
+                                                    ]
+                                                  : [
+                                                      Colors.pink,
+                                                      Colors.pinkAccent
+                                                    ],
                                             ),
                                           ),
                                         ),
                                         // 进度文字
                                         Center(
                                           child: OutlinedTextWidget(
-                                            text: '${(revealProgress * 100).toInt()}%',
+                                            text:
+                                                '${(revealProgress * 100).toInt()}%',
                                             fontSize: 14,
                                             textColor: Colors.white,
                                             strokeColor: Colors.black,
@@ -573,7 +685,8 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                                 image: AssetImage(
                                   _isUnlocked
                                       ? Assets.newPhotoNewPhotoBtnBlueBig
-                                      : Assets.newPhotoNewPhotoBtnBlueBig, // TODO: 更换为 DownButton_Lock 资源
+                                      : Assets
+                                          .newPhotoNewPhotoBtnBlueBig, // TODO: 更换为 DownButton_Lock 资源
                                 ),
                                 fit: BoxFit.fill,
                               ),
@@ -596,7 +709,9 @@ class _NewPhotoPageState extends State<NewPhotoPage> with TickerProviderStateMix
                                       OutlinedTextWidget(
                                         text: 'DOWNLOAD',
                                         fontSize: 20,
-                                        textColor: _isUnlocked ? Colors.white : Colors.grey,
+                                        textColor: _isUnlocked
+                                            ? Colors.white
+                                            : Colors.grey,
                                         strokeColor: Colors.black,
                                         strokeWidth: 1.5,
                                         fontWeight: FontWeight.bold,
