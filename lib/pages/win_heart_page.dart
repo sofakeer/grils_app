@@ -369,6 +369,7 @@ class _WinHeartPageState extends State<WinHeartPage>
       await GameStateManager().addHearts(_baseHeartReward * _currentMultiplier);
 
       await _markSpecialStageReadyIfPending();
+      await GameStateManager().setTriggerSpecialOnReturn(true);
 
       // Play reward sound
       await AudioManager().playHeartEffect();
@@ -405,6 +406,7 @@ class _WinHeartPageState extends State<WinHeartPage>
             });
 
             await _markSpecialStageReadyIfPending();
+            await GameStateManager().setTriggerSpecialOnReturn(true);
 
             // 播放翻倍奖励音效
             await AudioManager().playHeartEffect();

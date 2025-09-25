@@ -29,6 +29,7 @@ class GameStateManager {
       'pending_special_stage_level';
   static const String _keySpecialStageReady = 'special_stage_ready';
   static const String _keyLastGirlState = 'last_girl_state';
+  static const String _keyTriggerSpecialOnReturn = 'trigger_special_on_return';
 
   // 初始化
   Future<void> init() async {
@@ -494,6 +495,7 @@ class GameStateManager {
 
     await setPendingSpecialStageLevel(0);
     await setSpecialStageReady(false);
+    await setTriggerSpecialOnReturn(false);
   }
 
   // 检查特殊关卡是否已完成
@@ -504,6 +506,15 @@ class GameStateManager {
   // 设置特殊关卡完成状态
   Future<void> setSpecialStageCompleted(bool completed) async {
     await _prefs.setBool(_keySpecialStageCompleted, completed);
+  }
+
+  // 是否仅在从结果流返回主界面时检查特殊关卡
+  bool shouldTriggerSpecialOnReturn() {
+    return _prefs.getBool(_keyTriggerSpecialOnReturn) ?? false;
+  }
+
+  Future<void> setTriggerSpecialOnReturn(bool value) async {
+    await _prefs.setBool(_keyTriggerSpecialOnReturn, value);
   }
 
   // 测试方法：解锁所有女生

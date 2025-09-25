@@ -372,6 +372,21 @@ class _MainPageState extends ConsumerState<MainPage>
     _loadHasShownGrilWaitingDialogFlag();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 当从其它页面返回到主界面时再次检查特殊关卡
+    final route = ModalRoute.of(context);
+    if (route != null && route.isCurrent) {
+      // 延迟到当前帧结束，确保上下文稳定
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _checkForSpecialStage();
+        }
+      });
+    }
+  }
+
   void _initializeAudio() async {
     await AudioManager().initialize();
   }
@@ -439,8 +454,8 @@ class _MainPageState extends ConsumerState<MainPage>
   // 检查是否应该触发特殊关卡
   Future<void> _checkForSpecialStage() async {
     await GameStateManager().init();
-
-    if (GameStateManager().shouldTriggerSpecialStage()) {
+    // 仅当标记要求在返回后触发时，才检查并弹出
+    if (GameStateManager().shouldTriggerSpecialOnReturn() && GameStateManager().shouldTriggerSpecialStage()) {
       // 延迟一下，等页面完全加载后再显示弹窗
       await Future.delayed(Duration(milliseconds: 500));
 

@@ -28,10 +28,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
     _initializeAnimations();
     _loadCurrentLevel();
     
-    // 检查是否需要显示特殊关卡
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkForSpecialLevel();
-    });
+    // 特殊关卡弹出时机统一由 MainPage 控制，这里不再在关内弹出
   }
   
   void _loadCurrentLevel() async {
@@ -42,33 +39,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
     });
   }
   
-  // 检查是否应该显示特殊关卡
-  void _checkForSpecialLevel() {
-    // 每5关触发一次特殊关卡
-    if (_currentLevel > 0 && _currentLevel % 5 == 0 && !_hasShownSpecialLevel) {
-      _showSpecialLevelDialog();
-      _hasShownSpecialLevel = true;
-    }
-  }
-  
-  // 显示特殊关卡弹窗
-  void _showSpecialLevelDialog() async {
-    await AudioManager().playSpecialEffect();
-    
-    if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => SpecialLevelDialog(
-          currentLevel: _currentLevel,
-          onSkip: () {
-            // 跳过特殊关卡的回调
-            print("Special level skipped");
-          },
-        ),
-      );
-    }
-  }
+  // 关卡内不再弹出特殊关卡，由 MainPage 统一弹出
   
   // 测试特殊关卡入口
   void _testSpecialLevel() {
