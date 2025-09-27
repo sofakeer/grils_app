@@ -41,6 +41,9 @@ class _NewPhotoPageState extends State<NewPhotoPage>
   // Spine controllers
   spine.SpineWidgetController? _titleSpineController;
   spine.SpineWidgetController? _unlockEffectController;
+  // 全屏特效 Overlay
+  OverlayEntry? _titleSpineOverlayEntry;
+  OverlayEntry? _unlockEffectOverlayEntry;
   bool _isTitleSpineReady = false;
   bool _isUnlockEffectReady = false;
 
@@ -53,6 +56,11 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     _initializeAnimations();
     _initializeSpineControllers();
     _initAsync();
+
+    // 在首帧后插入全屏 Overlay，不参与排版
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _insertTitleSpineOverlay();
+    });
   }
 
   Future<void> _initAsync() async {
@@ -170,6 +178,85 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     } catch (e) {
       print('Unlock effect spine controller creation failed: $e');
     }
+  }
+
+  void _insertTitleSpineOverlay() {
+    if (!mounted || _titleSpineOverlayEntry != null) return;
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    _titleSpineOverlayEntry = OverlayEntry(
+      builder: (context) {
+        return IgnorePointer(
+          ignoring: true, // 仅展示特效，点击穿透
+          child: Positioned(
+            top: MediaQuery.of(context).padding.top + 20, // 更靠近顶部
+            left: 0,
+            right: 0,
+            child: _titleSpineController == null
+                ? const SizedBox.shrink()
+                : SizedBox(
+                    width: MediaQuery.of(context).size.width,
+                    height: 200, // 限制高度，避免占用过多空间
+                    child: spine.SpineWidget.fromAsset(
+                      "assets/spine/NewPhoto_Eff.atlas",
+                      "assets/spine/NewPhoto_Eff.skel",
+                      _titleSpineController!,
+                      boundsProvider: const spine.SetupPoseBounds(),
+                    ),
+                  ),
+          ),
+        );
+      },
+    );
+
+    overlay.insert(_titleSpineOverlayEntry!);
+  }
+
+  void _removeTitleSpineOverlay() {
+    try {
+      _titleSpineOverlayEntry?.remove();
+      _titleSpineOverlayEntry = null;
+    } catch (_) {}
+  }
+
+  void _insertUnlockEffectOverlay() {
+    if (!mounted || _unlockEffectOverlayEntry != null) return;
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    _unlockEffectOverlayEntry = OverlayEntry(
+      builder: (context) {
+        return IgnorePointer(
+          ignoring: true, // 仅展示特效，点击穿透
+          child: Positioned.fill(
+            child: _unlockEffectController == null
+                ? const SizedBox.shrink()
+                : Center(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width,
+                      height: MediaQuery.of(context).size.height,
+                      child: spine.SpineWidget.fromAsset(
+                        "assets/spine/PhotoUnlock_Eff.atlas",
+                        "assets/spine/PhotoUnlock_Eff.skel",
+                        _unlockEffectController!,
+                        boundsProvider: const spine.SetupPoseBounds(),
+                      ),
+                    ),
+                  ),
+          ),
+        );
+      },
+    );
+
+    overlay.insert(_unlockEffectOverlayEntry!);
+  }
+
+  void _removeUnlockEffectOverlay() {
+    try {
+      _unlockEffectOverlayEntry?.remove();
+      _unlockEffectOverlayEntry = null;
+    } catch (_) {}
   }
 
   void _initializeAnimations() {
@@ -329,6 +416,8 @@ class _NewPhotoPageState extends State<NewPhotoPage>
 
     // 如果特效就绪，则播放特效；否则直接返回
     if (_unlockEffectController != null && _isUnlockEffectReady) {
+      // 插入解锁特效 Overlay
+      _insertUnlockEffectOverlay();
       setState(() {
         _showUnlockEffect = true;
       });
@@ -347,6 +436,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
               setState(() {
                 _showUnlockEffect = false;
               });
+              _removeUnlockEffectOverlay();
             }
           });
         }
@@ -426,6 +516,8 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     _scaleController.dispose();
     _fadeController.dispose();
     _progressController.dispose();
+    _removeTitleSpineOverlay();
+    _removeUnlockEffectOverlay();
     _titleSpineController = null;
     _unlockEffectController = null;
     super.dispose();
@@ -474,27 +566,8 @@ class _NewPhotoPageState extends State<NewPhotoPage>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // NEW PHOTO 标题 - 使用Spine动画
-                        Container(
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // NewPhoto_Eff Spine动画 - 仅判断控制器存在即可渲染
-                              if (_titleSpineController != null)
-                                SizedBox(
-                                  width: 300,
-                                  height: 130,
-                                  child: spine.SpineWidget.fromAsset(
-                                    "assets/spine/NewPhoto_Eff.atlas",
-                                    "assets/spine/NewPhoto_Eff.skel",
-                                    _titleSpineController!,
-                                    boundsProvider:
-                                        const spine.SetupPoseBounds(),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+                        // NEW PHOTO 标题特效改为 Overlay，全屏渲染且不参与排版
+                        const SizedBox(height: 50),
 
                         // 照片框架
                         Container(
@@ -575,20 +648,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
                                   ),
                                 ),
                               ),
-                              if (_showUnlockEffect &&
-                                  _unlockEffectController != null &&
-                                  _isUnlockEffectReady)
-                                Positioned.fill(
-                                  child: SizedBox(
-                                    child: spine.SpineWidget.fromAsset(
-                                      "assets/spine/PhotoUnlock_Eff.atlas",
-                                      "assets/spine/PhotoUnlock_Eff.skel",
-                                      _unlockEffectController!,
-                                      boundsProvider:
-                                          const spine.SetupPoseBounds(),
-                                    ),
-                                  ),
-                                ),
+                              // 解锁特效已改为 Overlay，不再参与照片框架排版
                               Positioned(
                                 top: 20,
                                 left: 20,

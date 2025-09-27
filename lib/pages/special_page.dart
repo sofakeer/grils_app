@@ -22,6 +22,8 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
 
   // Spine动画控制器
   SpineWidgetController? _spineController;
+  // 全屏特效 Overlay
+  OverlayEntry? _spineOverlayEntry;
 
   // 视频广告状态
   bool _isShowingAd = false;
@@ -34,6 +36,11 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
 
     // 播放特殊关卡音效
     AudioManager().playSpecialEffect();
+
+    // 在首帧后插入全屏 Overlay，不参与排版
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _insertSpineOverlay();
+    });
   }
 
   void _initializeAnimations() {
@@ -130,6 +137,45 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
     }
   }
 
+  void _insertSpineOverlay() {
+    if (!mounted || _spineOverlayEntry != null) return;
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    _spineOverlayEntry = OverlayEntry(
+      builder: (context) {
+        return IgnorePointer(
+          ignoring: true, // 仅展示特效，点击穿透
+          child: Positioned.fill(
+            child: _spineController == null
+                ? const SizedBox.shrink()
+                : Center(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width,
+                      height: MediaQuery.of(context).size.height,
+                      child: SpineWidget.fromAsset(
+                        "assets/spine/Special_Eff.atlas",
+                        "assets/spine/Special_Eff.skel",
+                        _spineController!,
+                        boundsProvider: const SetupPoseBounds(),
+                      ),
+                    ),
+                  ),
+          ),
+        );
+      },
+    );
+
+    overlay.insert(_spineOverlayEntry!);
+  }
+
+  void _removeSpineOverlay() {
+    try {
+      _spineOverlayEntry?.remove();
+      _spineOverlayEntry = null;
+    } catch (_) {}
+  }
+
   void _playSpecial() async {
     if (_isShowingAd) return; // 防止重复点击
 
@@ -221,6 +267,7 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
   @override
   void dispose() {
     _scaleController.dispose();
+    _removeSpineOverlay();
     _spineController = null;
     super.dispose();
   }
@@ -249,29 +296,8 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // SPECIAL 标题 - 使用Spine动画
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 20,right: 90),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Special_Eff Spine动画 - 仅判断控制器存在即可渲染
-                              if (_spineController != null)
-                                SizedBox(
-                                  width: 300,
-                                  height: 140,
-                                  child: Center(
-                                    child: SpineWidget.fromAsset(
-                                      "assets/spine/Special_Eff.atlas",
-                                      "assets/spine/Special_Eff.skel",
-                                      _spineController!,
-                                      boundsProvider: const SetupPoseBounds(),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+                        // SPECIAL 标题特效改为 Overlay，全屏渲染且不参与排版
+                        const SizedBox(height: 50),
 
                         // 女孩图片
                         Stack(
