@@ -146,6 +146,8 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
       builder: (context) {
         return IgnorePointer(
           ignoring: true, // 仅展示特效，点击穿透
+            child: Transform.translate(
+              offset:Offset(-80,-300),
           child: Positioned.fill(
             child: _spineController == null
                 ? const SizedBox.shrink()
@@ -162,6 +164,7 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
                     ),
                   ),
           ),
+            ),
         );
       },
     );

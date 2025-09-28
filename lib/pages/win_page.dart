@@ -215,7 +215,10 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
             child: _spineController == null
                 ? const SizedBox.shrink()
                 : Center(
+                  child: Transform.translate(
+                     offset:Offset(0,-150),
                     child: SizedBox(
+
                       width: MediaQuery.of(context).size.width,
                       height: MediaQuery.of(context).size.height,
                       child: SpineWidget.fromAsset(
@@ -227,6 +230,7 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                       ),
                     ),
                   ),
+            ),
           ),
         );
       },

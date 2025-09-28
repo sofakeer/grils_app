@@ -37,6 +37,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
   double _currentEnergy = 0.0;
   bool _isUnlocked = false;
   bool _showUnlockEffect = false;
+  bool _hasPendingUnlockRetry = false;
 
   // Spine controllers
   spine.SpineWidgetController? _titleSpineController;
@@ -64,6 +65,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
   }
 
   Future<void> _initAsync() async {
+    await _findNextUnlockedPhoto();
     await _loadPhotoProgress();
     if (!mounted) return;
     await _calculateNewProgress();
@@ -72,6 +74,34 @@ class _NewPhotoPageState extends State<NewPhotoPage>
   String _getCurrentPhotoAsset() {
     final imageNumber = (_currentPhotoIndex + 1).toString().padLeft(2, '0');
     return 'assets/images/grils_list/Bg_$imageNumber.png';
+  }
+
+  Future<void> _findNextUnlockedPhoto() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // 从当前照片开始查找下一张未解锁的照片
+    for (int i = _currentPhotoIndex; i < maxPhotos; i++) {
+      final photoKey = 'photo_${i}_energy';
+      final storedEnergy = prefs.getDouble(photoKey) ?? 0.0;
+      final isCompleted = EnergyCalculator.isCompleted(storedEnergy);
+
+      if (!isCompleted) {
+        // 找到未解锁的照片，设置为当前照片
+        if (mounted) {
+          setState(() {
+            _currentPhotoIndex = i;
+          });
+        }
+        return;
+      }
+    }
+
+    // 如果所有照片都已解锁，回到第一张
+    if (mounted) {
+      setState(() {
+        _currentPhotoIndex = 0;
+      });
+    }
   }
 
   void _initializeSpineControllers() {
@@ -189,22 +219,26 @@ class _NewPhotoPageState extends State<NewPhotoPage>
       builder: (context) {
         return IgnorePointer(
           ignoring: true, // 仅展示特效，点击穿透
-          child: Positioned(
-            top: MediaQuery.of(context).padding.top + 20, // 更靠近顶部
-            left: 0,
-            right: 0,
-            child: _titleSpineController == null
-                ? const SizedBox.shrink()
-                : SizedBox(
-                    width: MediaQuery.of(context).size.width,
-                    height: 200, // 限制高度，避免占用过多空间
-                    child: spine.SpineWidget.fromAsset(
-                      "assets/spine/NewPhoto_Eff.atlas",
-                      "assets/spine/NewPhoto_Eff.skel",
-                      _titleSpineController!,
-                      boundsProvider: const spine.SetupPoseBounds(),
+          child: Transform.translate(
+            offset: Offset(0, -350),
+            child: Positioned(
+              top: MediaQuery.of(context).padding.top + 20, // 更靠近顶部
+              left: 0,
+              right: 0,
+              child: _titleSpineController == null
+                  ? const SizedBox.shrink()
+                  : SizedBox(
+                      width: MediaQuery.of(context).size.width,
+                      height: 180, // 限制高度，避免占用过多空间
+                      child: spine.SpineWidget.fromAsset(
+                        "assets/spine/NewPhoto_Eff.atlas",
+                        "assets/spine/NewPhoto_Eff.skel",
+                        _titleSpineController!,
+                        boundsProvider: const spine.SetupPoseBounds(),
+                        fit: BoxFit.contain,
+                      ),
                     ),
-                  ),
+            ),
           ),
         );
       },
@@ -408,43 +442,116 @@ class _NewPhotoPageState extends State<NewPhotoPage>
   }
 
   void _triggerUnlockEffect() {
-    // 无论特效是否可用，都应立即解锁按钮
     if (!mounted) return;
+
+    if (!_isUnlocked) {
+      setState(() {
+        _isUnlocked = true;
+      });
+    }
+
+    if (_showUnlockEffect) {
+      return;
+    }
+
+    final controllerReady =
+        _unlockEffectController != null && _isUnlockEffectReady;
+
+    if (!controllerReady) {
+      if (_hasPendingUnlockRetry) {
+        return;
+      }
+      _hasPendingUnlockRetry = true;
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (!mounted) {
+          return;
+        }
+        _hasPendingUnlockRetry = false;
+        _triggerUnlockEffect();
+      });
+      return;
+    }
+
+    _playUnlockEffect();
+  }
+
+  void _playUnlockEffect() {
+    if (!mounted || _unlockEffectController == null) {
+      return;
+    }
+
+    _insertUnlockEffectOverlay();
     setState(() {
-      _isUnlocked = true;
+      _showUnlockEffect = true;
     });
 
-    // 如果特效就绪，则播放特效；否则直接返回
-    if (_unlockEffectController != null && _isUnlockEffectReady) {
-      // 插入解锁特效 Overlay
-      _insertUnlockEffectOverlay();
-      setState(() {
-        _showUnlockEffect = true;
-      });
+    try {
+      final data = _unlockEffectController!.skeleton.getData();
+      final animations = data?.getAnimations() ?? [];
 
-      try {
-        final animations =
-            _unlockEffectController!.skeleton.getData()?.getAnimations();
-        if (animations != null && animations.isNotEmpty) {
-          final effectAnim = animations.first;
-          final duration = effectAnim.getDuration();
+      String? bornName = animations
+              .map((a) => a.getName())
+              .firstWhere((n) => n == 'PhotoUnlock_Eff_born', orElse: () => '')
+              .isNotEmpty
+          ? 'PhotoUnlock_Eff_born'
+          : null;
+      bornName ??= animations.map((a) => a.getName()).firstWhere(
+          (n) => n.toLowerCase().contains('born'),
+          orElse: () => '');
+      if (bornName != null && bornName.isEmpty) bornName = null;
+
+      String? idleName = animations
+              .map((a) => a.getName())
+              .firstWhere((n) => n == 'PhotoUnlock_Eff_idle', orElse: () => '')
+              .isNotEmpty
+          ? 'PhotoUnlock_Eff_idle'
+          : null;
+      idleName ??= animations.map((a) => a.getName()).firstWhere(
+          (n) => n.toLowerCase().contains('idle'),
+          orElse: () => '');
+      if (idleName != null && idleName.isEmpty) idleName = null;
+
+      double duration = 0.0;
+      if (bornName != null &&
+          bornName.isNotEmpty &&
+          data?.findAnimation(bornName) != null) {
+        _unlockEffectController!.animationState
+            .setAnimationByName(0, bornName, false);
+        duration = data?.findAnimation(bornName)?.getDuration() ?? 0.0;
+        if (idleName != null &&
+            idleName.isNotEmpty &&
+            data?.findAnimation(idleName) != null) {
           _unlockEffectController!.animationState
-              .setAnimationByName(0, effectAnim.getName(), false);
-
-          Future.delayed(Duration(milliseconds: (duration * 1000).toInt()), () {
-            if (mounted) {
-              setState(() {
-                _showUnlockEffect = false;
-              });
-              _removeUnlockEffectOverlay();
-            }
-          });
+              .addAnimationByName(0, idleName, false, 0);
         }
-      } catch (e) {
-        print('Unlock effect play failed: $e');
+      } else if (animations.isNotEmpty) {
+        final fallback = animations.first.getName();
+        _unlockEffectController!.animationState
+            .setAnimationByName(0, fallback, false);
+        duration = data?.findAnimation(fallback)?.getDuration() ?? 0.0;
       }
 
       AudioManager().playSettlementCoin();
+
+      if (duration <= 0) {
+        duration = 1.0;
+      }
+
+      Future.delayed(Duration(milliseconds: (duration * 1000).toInt()), () {
+        if (!mounted) return;
+        setState(() {
+          _showUnlockEffect = false;
+        });
+        _removeUnlockEffectOverlay();
+      });
+    } catch (e) {
+      print('Unlock effect play failed: $e');
+      if (mounted) {
+        setState(() {
+          _showUnlockEffect = false;
+        });
+      }
+      _removeUnlockEffectOverlay();
     }
   }
 
@@ -480,8 +587,9 @@ class _NewPhotoPageState extends State<NewPhotoPage>
         name: 'NewPhoto_${_currentPhotoIndex + 1}',
       );
 
-      final isSuccess = (result is Map && (result['isSuccess'] == true || result['isSuccess'] == 'true'))
-          || (result is bool && result == true);
+      final isSuccess = (result is Map &&
+              (result['isSuccess'] == true || result['isSuccess'] == 'true')) ||
+          (result is bool && result == true);
 
       if (isSuccess) {
         AudioManager().playCoinEffect();

@@ -1,6 +1,7 @@
 CoinWin_Eff.png
 size:909,472
 filter:Linear,Linear
+pma:true
 Win_Clown
 bounds:473,186,284,237
 offsets:2,1,288,240

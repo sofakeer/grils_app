@@ -18,6 +18,7 @@ class Assets {
   static const String assetsSpineTakeoff = 'assets/spine/Takeoff.atlas';
   static const String assetsSpineTakeoffClothUnlochEff = 'assets/spine/Takeoff_ClothUnloch_Eff.atlas';
   static const String assetsSpineTakeoffTapEff = 'assets/spine/Takeoff_Tap_Eff.atlas';
+  static const String assetsSpineWin = 'assets/spine/win.atlas';
   static const String audioBgm01 = 'assets/audio/bgm01.mp3';
   static const String audioBgm02 = 'assets/audio/bgm02.mp3';
   static const String audioDaoju01 = 'assets/audio/daoju01.mp3';
@@ -455,6 +456,7 @@ class Assets {
   static const String spineTakeoff = 'assets/spine/Takeoff.png';
   static const String spineTakeoffClothUnlochEff = 'assets/spine/Takeoff_ClothUnloch_Eff.png';
   static const String spineTakeoffTapEff = 'assets/spine/Takeoff_Tap_Eff.png';
+  static const String spineWin = 'assets/spine/win.png';
   static const String winHeartWinHeartBg = 'assets/images/WinHeart/WinHeart_bg.jpg';
   static const String winHeartWinHeartHeartlight = 'assets/images/WinHeart/WinHeart_heartlight.png';
   static const String winHeartWinHeartIconHeart = 'assets/images/WinHeart/WinHeart_icon_heart.png';
