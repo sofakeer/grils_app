@@ -42,15 +42,13 @@ class _NewPhotoPageState extends State<NewPhotoPage>
   // Spine controllers
   spine.SpineWidgetController? _titleSpineController;
   spine.SpineWidgetController? _unlockEffectController;
-  // 全屏特效 Overlay
+  // 全屏特效 Overlay（标题使用）
   OverlayEntry? _titleSpineOverlayEntry;
-  OverlayEntry? _unlockEffectOverlayEntry;
   bool _isTitleSpineReady = false;
   bool _isUnlockEffectReady = false;
 
   int _currentPhotoIndex = 0; // 当前照片索引 (0-79)
   static const int maxPhotos = 80; // 总共80张照片
-  final GlobalKey _photoFrameKey = GlobalKey();
 
   @override
   void initState() {
@@ -192,35 +190,44 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     }
 
     // 初始化解锁特效Spine控制器
-    try {
-      print('[UNLOCK_DEBUG] 🔧 Creating unlock effect controller...');
-      _unlockEffectController =
-          spine.SpineWidgetController(onInitialized: (controller) {
-        try {
-          print('[UNLOCK_DEBUG] 🎯 Controller initialization callback triggered');
-          controller.animationState.getData().setDefaultMix(0.2);
-          if (mounted) {
-            setState(() {
-              _isUnlockEffectReady = true;
-            });
-            print('[UNLOCK_DEBUG] ✅ Unlock effect controller ready');
-            if (_pendingUnlockEffect) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  _playUnlockEffect();
-                }
+    if (_unlockEffectController == null) {
+      try {
+        print('[UNLOCK_DEBUG] 🔧 Creating unlock effect controller...');
+        _unlockEffectController =
+            spine.SpineWidgetController(onInitialized: (controller) {
+          try {
+            print(
+                '[UNLOCK_DEBUG] 🎯 Controller initialization callback triggered');
+            controller.animationState.getData().setDefaultMix(0.2);
+            if (mounted) {
+              setState(() {
+                _isUnlockEffectReady = true;
               });
+              print('[UNLOCK_DEBUG] ✅ Unlock effect controller ready');
+              if (_pendingUnlockEffect) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    _playUnlockEffect();
+                  }
+                });
+              }
+            } else {
+              print(
+                  '[UNLOCK_DEBUG] ❌ Widget not mounted during initialization');
             }
-          } else {
-            print('[UNLOCK_DEBUG] ❌ Widget not mounted during initialization');
+          } catch (e) {
+            print('[UNLOCK_DEBUG] ❌ Unlock effect initialization failed: $e');
           }
-        } catch (e) {
-          print('[UNLOCK_DEBUG] ❌ Unlock effect initialization failed: $e');
-        }
-      });
-      print('[UNLOCK_DEBUG] 🔧 Unlock effect controller created successfully');
-    } catch (e) {
-      print('[UNLOCK_DEBUG] ❌ Unlock effect spine controller creation failed: $e');
+        });
+        print(
+            '[UNLOCK_DEBUG] 🔧 Unlock effect controller created successfully');
+      } catch (e) {
+        print(
+            '[UNLOCK_DEBUG] ❌ Unlock effect spine controller creation failed: $e');
+      }
+    } else {
+      print(
+          '[UNLOCK_DEBUG] 🔧 Unlock effect controller already exists, skipping creation');
     }
   }
 
@@ -265,64 +272,6 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     try {
       _titleSpineOverlayEntry?.remove();
       _titleSpineOverlayEntry = null;
-    } catch (_) {}
-  }
-
-  void _insertUnlockEffectOverlay() {
-    print('[UNLOCK_DEBUG] 🎭 _insertUnlockEffectOverlay called');
-    if (!mounted) {
-      print('[UNLOCK_DEBUG] ❌ Cannot insert overlay: widget not mounted');
-      return;
-    }
-
-    final overlay = Overlay.maybeOf(context);
-    if (overlay == null) {
-      print('[UNLOCK_DEBUG] ❌ No overlay available');
-      return;
-    }
-
-    final frameContext = _photoFrameKey.currentContext;
-    final renderBox = frameContext?.findRenderObject() as RenderBox?;
-    final frameOffset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
-    final frameSize = renderBox?.size ??
-        Size(MediaQuery.of(context).size.width,
-            MediaQuery.of(context).size.height * 0.6);
-
-    _removeUnlockEffectOverlay();
-
-    _unlockEffectOverlayEntry = OverlayEntry(
-      builder: (context) {
-        if (_unlockEffectController == null) {
-          return const SizedBox.shrink();
-        }
-
-        return IgnorePointer(
-          ignoring: true,
-          child: Positioned(
-            top: frameOffset.dy,
-            left: frameOffset.dx,
-            width: frameSize.width,
-            height: frameSize.height,
-            child: spine.SpineWidget.fromAsset(
-              "assets/spine/PhotoUnlock_Eff.atlas",
-              "assets/spine/PhotoUnlock_Eff.skel",
-              _unlockEffectController!,
-              boundsProvider: const spine.SetupPoseBounds(),
-              fit: BoxFit.contain,
-            ),
-          ),
-        );
-      },
-    );
-
-    overlay.insert(_unlockEffectOverlayEntry!);
-    print('[UNLOCK_DEBUG] ✅ Unlock effect overlay inserted successfully');
-  }
-
-  void _removeUnlockEffectOverlay() {
-    try {
-      _unlockEffectOverlayEntry?.remove();
-      _unlockEffectOverlayEntry = null;
     } catch (_) {}
   }
 
@@ -488,7 +437,6 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     }
 
     _pendingUnlockEffect = true;
-    _insertUnlockEffectOverlay();
 
     if (_isUnlockEffectReady) {
       _playUnlockEffect();
@@ -497,28 +445,41 @@ class _NewPhotoPageState extends State<NewPhotoPage>
 
   void _testUnlockEffect() {
     print('[UNLOCK_DEBUG] 🧪 Testing unlock effect manually');
+    print(
+        '[UNLOCK_DEBUG] 🔍 Controller status: ${_unlockEffectController != null}, ready: $_isUnlockEffectReady');
+    print(
+        '[UNLOCK_DEBUG] 🔍 Mounted: $mounted, showEffect: $_showUnlockEffect');
+
+    if (_showUnlockEffect) {
+      setState(() {
+        _showUnlockEffect = false;
+      });
+    }
+
     _triggerUnlockEffect();
   }
 
   void _playUnlockEffect() {
     print('[UNLOCK_DEBUG] 🎬 _playUnlockEffect called');
     if (!mounted || _unlockEffectController == null || !_isUnlockEffectReady) {
-      print('[UNLOCK_DEBUG] ❌ Cannot play effect: mounted=$mounted, controller=${_unlockEffectController != null}, ready=$_isUnlockEffectReady');
+      print(
+          '[UNLOCK_DEBUG] ❌ Cannot play effect: mounted=$mounted, controller=${_unlockEffectController != null}, ready=$_isUnlockEffectReady');
       return;
     }
 
     print('[UNLOCK_DEBUG] ✅ Starting unlock effect');
     _pendingUnlockEffect = false;
 
-    _insertUnlockEffectOverlay();
     setState(() {
       _showUnlockEffect = true;
     });
-    print('[UNLOCK_DEBUG] ✅ Overlay inserted and state updated');
+    print('[UNLOCK_DEBUG] ✅ Effect state updated');
 
     try {
       final data = _unlockEffectController!.skeleton.getData();
       final animations = data?.getAnimations() ?? [];
+      print('[UNLOCK_DEBUG] 📜 Available animations: '
+          '${animations.map((a) => a.getName()).toList()}');
 
       String? bornName = animations
               .map((a) => a.getName())
@@ -543,22 +504,20 @@ class _NewPhotoPageState extends State<NewPhotoPage>
       if (idleName != null && idleName.isEmpty) idleName = null;
 
       double duration = 0.0;
+      final state = _unlockEffectController!.animationState;
       if (bornName != null &&
           bornName.isNotEmpty &&
           data?.findAnimation(bornName) != null) {
-        _unlockEffectController!.animationState
-            .setAnimationByName(0, bornName, false);
+        state.setAnimationByName(0, bornName, false);
         duration = data?.findAnimation(bornName)?.getDuration() ?? 0.0;
         if (idleName != null &&
             idleName.isNotEmpty &&
             data?.findAnimation(idleName) != null) {
-          _unlockEffectController!.animationState
-              .addAnimationByName(0, idleName, false, 0);
+          state.addAnimationByName(0, idleName, false, 0);
         }
       } else if (animations.isNotEmpty) {
         final fallback = animations.first.getName();
-        _unlockEffectController!.animationState
-            .setAnimationByName(0, fallback, false);
+        state.setAnimationByName(0, fallback, false);
         duration = data?.findAnimation(fallback)?.getDuration() ?? 0.0;
       }
 
@@ -575,7 +534,6 @@ class _NewPhotoPageState extends State<NewPhotoPage>
         setState(() {
           _showUnlockEffect = false;
         });
-        _removeUnlockEffectOverlay();
       });
     } catch (e) {
       print('[UNLOCK_DEBUG] ❌ Unlock effect play failed: $e');
@@ -584,7 +542,6 @@ class _NewPhotoPageState extends State<NewPhotoPage>
           _showUnlockEffect = false;
         });
       }
-      _removeUnlockEffectOverlay();
     }
   }
 
@@ -658,7 +615,6 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     _fadeController.dispose();
     _progressController.dispose();
     _removeTitleSpineOverlay();
-    _removeUnlockEffectOverlay();
     _titleSpineController = null;
     _unlockEffectController = null;
     super.dispose();
@@ -712,7 +668,6 @@ class _NewPhotoPageState extends State<NewPhotoPage>
 
                         // 照片框架
                         Container(
-                          key: _photoFrameKey,
                           margin: const EdgeInsets.only(
                               bottom: 10, right: 30, left: 30),
                           child: Stack(
@@ -790,7 +745,20 @@ class _NewPhotoPageState extends State<NewPhotoPage>
                                   ),
                                 ),
                               ),
-                              // 解锁特效已改为 Overlay，不再参与照片框架排版
+                              if (_showUnlockEffect &&
+                                  _unlockEffectController != null)
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    child: spine.SpineWidget.fromAsset(
+                                      "assets/spine/PhotoUnlock_Eff.atlas",
+                                      "assets/spine/PhotoUnlock_Eff.skel",
+                                      _unlockEffectController!,
+                                      boundsProvider:
+                                          const spine.SetupPoseBounds(),
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
                               Positioned(
                                 top: 20,
                                 left: 20,
