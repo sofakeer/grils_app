@@ -27,8 +27,6 @@ class _WinHeartPageState extends State<WinHeartPage>
 
   // Spine animation controller
   SpineWidgetController? _spineController;
-  // 全屏特效 Overlay
-  OverlayEntry? _spineOverlayEntry;
   bool _isSpineReady = false;
   bool _showButtons = false;
 
@@ -49,11 +47,6 @@ class _WinHeartPageState extends State<WinHeartPage>
     _initializeAnimations();
     _calculateHeartReward();
     _initializeSpineController();
-
-    // 在首帧后插入全屏 Overlay，不参与排版
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _insertSpineOverlay();
-    });
   }
 
   // Calculate heart reward based on current level
@@ -177,46 +170,6 @@ class _WinHeartPageState extends State<WinHeartPage>
     } catch (e) {
       print("Spine controller creation failed: $e");
     }
-  }
-
-  void _insertSpineOverlay() {
-    if (!mounted || _spineOverlayEntry != null) return;
-    final overlay = Overlay.maybeOf(context);
-    if (overlay == null) return;
-
-    _spineOverlayEntry = OverlayEntry(
-      builder: (context) {
-        return IgnorePointer(
-          ignoring: true, // 仅展示特效，点击穿透
-          child: Positioned.fill(
-            child: _spineController == null
-                ? const SizedBox.shrink()
-                : Center(
-                    child: SizedBox(
-                      width: MediaQuery.of(context).size.width,
-                      height: MediaQuery.of(context).size.height,
-                      child: SpineWidget.fromAsset(
-                        "assets/spine/HeartGetPage_Eff.atlas",
-                        "assets/spine/HeartGetPage_Eff.skel",
-                        _spineController!,
-                        boundsProvider: const SetupPoseBounds(),
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-          ),
-        );
-      },
-    );
-
-    overlay.insert(_spineOverlayEntry!);
-  }
-
-  void _removeSpineOverlay() {
-    try {
-      _spineOverlayEntry?.remove();
-      _spineOverlayEntry = null;
-    } catch (_) {}
   }
 
   // Play the born animation
@@ -498,7 +451,6 @@ class _WinHeartPageState extends State<WinHeartPage>
   @override
   void dispose() {
     _fadeController.dispose();
-    _removeSpineOverlay();
     _spineController = null;
     _idleTimer?.cancel();
     super.dispose();
@@ -518,12 +470,29 @@ class _WinHeartPageState extends State<WinHeartPage>
         ),
         child: Stack(
           children: [
-            // Spine动画已改为 Overlay，全屏渲染且不参与排版
+            // Spine动画区域 - 占据主要空间
+            if (_spineController != null)
+              Positioned(
+                top: MediaQuery.of(context).padding.top - 100, // 避开头部
+                left: -140,
+                right: 0,
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height, // 占据屏幕高度的60%
+                  child: SpineWidget.fromAsset(
+                    "assets/spine/HeartGetPage_Eff.atlas",
+                    "assets/spine/HeartGetPage_Eff.skel",
+                    _spineController!,
+                    boundsProvider: const SetupPoseBounds(),
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
 
             // 桃心数量文字 (在born动画完成后显示)
             if (_showButtons)
               Positioned(
-                top: 260,
+                top: MediaQuery.of(context).size.height * 0.32, // 避开头部
                 left: 0,
                 right: 0,
                 child: Center(
