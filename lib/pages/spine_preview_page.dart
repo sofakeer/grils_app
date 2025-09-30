@@ -105,6 +105,66 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
     return map;
   }
 
+  String _getPartNameForGirl(int girlIndex, int buttonType) {
+    if (girlIndex == 0) {
+      switch (buttonType) {
+        case 0:
+          return 'bra';
+        case 1:
+          return 'pants';
+        case 2:
+          return 'hands';
+        case 3:
+          return 'socks';
+        default:
+          return 'bra';
+      }
+    } else if (girlIndex == 1) {
+      switch (buttonType) {
+        case 0:
+          return 'head';
+        case 1:
+          return 'bra';
+        case 2:
+          return 'hands';
+        case 3:
+          return 'socks';
+        default:
+          return 'head';
+      }
+    } else {
+      // girlIndex == 2（Girl03）或其他暂未定义的女孩，统一按 Girl03 的布局处理
+      switch (buttonType) {
+        case 0:
+          return 'head';
+        case 1:
+          return 'bra';
+        case 2:
+          return 'pants';
+        case 3:
+          return 'socks';
+        default:
+          return 'head';
+      }
+    }
+  }
+
+  Map<int, int> _buildSkinIndicesFromSaved(
+    int girlIndex,
+    Map<String, int> savedSkins, {
+    Map<int, int>? fallback,
+  }) {
+    final result = <int, int>{};
+    for (int button = 0; button < 4; button++) {
+      final partName = _getPartNameForGirl(girlIndex, button);
+      final fallbackValue = fallback != null && fallback.containsKey(button)
+          ? fallback[button]!
+          : 0;
+      result[button] = savedSkins[partName] ?? fallbackValue;
+    }
+    return result;
+  }
+
   void _cacheCurrentGirlState() {
     if (_currentIndex < 0 || _currentIndex >= _spineAssets.length) {
       return;
@@ -369,27 +429,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       // 不预先显示引导；在首次脱衣操作时再显示一次引导
       _showTakeoffOverlay = false;
 
-      // 恢复当前女孩的皮肤选择（按女孩的按钮布局映射）
       final skins = GameStateManager().getCurrentSkins(_currentIndex);
-      if (_currentIndex == 0) {
-        // Girl01: 0 bra, 1 pants, 2 hands, 3 socks
-        _currentSkinIndices[0] = skins['bra'] ?? 0;
-        _currentSkinIndices[1] = skins['pants'] ?? 0;
-        _currentSkinIndices[2] = skins['hands'] ?? 0;
-        _currentSkinIndices[3] = skins['socks'] ?? 0;
-      } else if (_currentIndex == 1) {
-        // Girl02: 0 head, 1 bra, 2 hands, 3 socks
-        _currentSkinIndices[0] = skins['head'] ?? 0;
-        _currentSkinIndices[1] = skins['bra'] ?? 0;
-        _currentSkinIndices[2] = skins['hands'] ?? 0;
-        _currentSkinIndices[3] = skins['socks'] ?? 0;
-      } else if (_currentIndex == 2) {
-        // Girl03: 0 head, 1 bra, 2 pants, 3 socks
-        _currentSkinIndices[0] = skins['head'] ?? 0;
-        _currentSkinIndices[1] = skins['bra'] ?? 0;
-        _currentSkinIndices[2] = skins['pants'] ?? 0;
-        _currentSkinIndices[3] = skins['socks'] ?? 0;
-      }
+      _currentSkinIndices =
+          _buildSkinIndicesFromSaved(_currentIndex, skins);
     });
     _cacheCurrentGirlState();
     
@@ -2220,13 +2262,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       _previousUnderwearButton = -1;
       
       // 恢复新女孩的皮肤选择
-      Map<String, int> savedSkins = GameStateManager().getCurrentSkins(index);
-      _currentSkinIndices = {
-        0: savedSkins['bra'] ?? 0,
-        1: savedSkins[index == 0 ? 'pants' : (index == 1 ? 'hands' : 'head')] ?? 0,
-        2: savedSkins[index == 0 ? 'hands' : (index == 1 ? 'head' : 'pants')] ?? 0,
-        3: savedSkins['socks'] ?? 0,
-      };
+      final savedSkins = GameStateManager().getCurrentSkins(index);
+      _currentSkinIndices =
+          _buildSkinIndicesFromSaved(index, savedSkins);
     });
     _cacheCurrentGirlState();
     _dumpGirlState(index, tag: "after setState");
@@ -2627,34 +2665,14 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
       if (isUnderwearMode) {
         _log("Entering underwear mode - restore saved skin selections");
         // 进入内衣模式时，读取并恢复上次保存的皮肤索引
-        Map<String, int> savedSkins = GameStateManager().getCurrentSkins(_currentIndex);
+        final savedSkins = GameStateManager().getCurrentSkins(_currentIndex);
+        final previous = Map<int, int>.from(_currentSkinIndices);
         setState(() {
-          // 恢复已保存的皮肤选择（不要重置为默认）
-          if (_currentIndex == 0) {
-            // Girl01: 0 bra, 1 pants, 2 hands, 3 socks
-            _currentSkinIndices = {
-              0: savedSkins['bra'] ?? _currentSkinIndices[0] ?? 0,
-              1: savedSkins['pants'] ?? _currentSkinIndices[1] ?? 0,
-              2: savedSkins['hands'] ?? _currentSkinIndices[2] ?? 0,
-              3: savedSkins['socks'] ?? _currentSkinIndices[3] ?? 0,
-            };
-          } else if (_currentIndex == 1) {
-            // Girl02: 0 head, 1 bra, 2 hands, 3 socks
-            _currentSkinIndices = {
-              0: savedSkins['head'] ?? _currentSkinIndices[0] ?? 0,
-              1: savedSkins['bra'] ?? _currentSkinIndices[1] ?? 0,
-              2: savedSkins['hands'] ?? _currentSkinIndices[2] ?? 0,
-              3: savedSkins['socks'] ?? _currentSkinIndices[3] ?? 0,
-            };
-          } else if (_currentIndex == 2) {
-            // Girl03: 0 head, 1 bra, 2 pants, 3 socks
-            _currentSkinIndices = {
-              0: savedSkins['head'] ?? _currentSkinIndices[0] ?? 0,
-              1: savedSkins['bra'] ?? _currentSkinIndices[1] ?? 0,
-              2: savedSkins['pants'] ?? _currentSkinIndices[2] ?? 0,
-              3: savedSkins['socks'] ?? _currentSkinIndices[3] ?? 0,
-            };
-          }
+          _currentSkinIndices = _buildSkinIndicesFromSaved(
+            _currentIndex,
+            savedSkins,
+            fallback: previous,
+          );
           // 不强制清空已选按钮，保留上次交互感；如需清空，可设置为 -1
           // _selectedUnderwearButton = -1;
           _previousUnderwearButton = _selectedUnderwearButton;
@@ -3106,37 +3124,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage> with TickerProvider
   }
 
   // 获取部位名称
-  String _getPartName(int buttonType) {
-    if (_currentIndex == 0) {
-      // Girl01: 左侧 bra(0) 和 pants(1)，右侧 hands(2) 和 socks(3)
-      switch (buttonType) {
-        case 0: return "bra";
-        case 1: return "pants";
-        case 2: return "hands";
-        case 3: return "socks";
-        default: return "bra";
-      }
-    } else if (_currentIndex == 1) {
-      // Girl02: 左侧 head(0) 和 bra(1)，右侧 hands(2) 和 socks(3)
-      switch (buttonType) {
-        case 0: return "head";
-        case 1: return "bra";
-        case 2: return "hands";
-        case 3: return "socks";
-        default: return "head";
-      }
-    } else if (_currentIndex == 2) {
-      // Girl03: 左侧 head(0) 和 bra(1)，右侧 pants(2) 和 socks(3)
-      switch (buttonType) {
-        case 0: return "head";
-        case 1: return "bra";
-        case 2: return "pants";
-        case 3: return "socks";
-        default: return "head";
-      }
-    }
-    return "bra";
-  }
+  String _getPartName(int buttonType) =>
+      _getPartNameForGirl(_currentIndex, buttonType);
 
   // 获取女孩头像路径
   String _getGirlIconPath(int index, bool isUnlocked) {
