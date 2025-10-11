@@ -1,9 +1,10 @@
 Coin_Eff01.png
-size:246,132
+size:299,187
 filter:Linear,Linear
-Icon_heart
-bounds:132,12,118,112
-offsets:1,2,121,114
-rotate:90
-Spark
-bounds:2,2,128,128
+pma:true
+Main_icon_coin
+bounds:188,76,109,109
+offsets:2,2,113,113
+dot
+bounds:2,2,184,183
+offsets:9,7,200,199
