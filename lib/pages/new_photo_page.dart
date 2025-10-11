@@ -478,24 +478,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
       _playUnlockEffect();
     }
   }
-
-  void _testUnlockEffect() {
-    print('[UNLOCK_DEBUG] 🧪 Testing unlock effect manually');
-    print(
-        '[UNLOCK_DEBUG] 🔍 Controller status: ${_unlockEffectController != null}, ready: $_isUnlockEffectReady');
-    print(
-        '[UNLOCK_DEBUG] 🔍 Mounted: $mounted, showEffect: $_showUnlockEffect');
-
-    if (_showUnlockEffect) {
-      setState(() {
-        _showUnlockEffect = false;
-      });
-    }
-
-    _triggerUnlockEffect();
-  }
-
-  void _playUnlockEffect() {
+  void _playUnlockEffect() async {
     print('[UNLOCK_DEBUG] 🎬 _playUnlockEffect called');
     if (!mounted || _unlockEffectController == null || !_isUnlockEffectReady) {
       print(
@@ -529,53 +512,67 @@ class _NewPhotoPageState extends State<NewPhotoPage>
       bornName ??= animations.map((a) => a.getName()).firstWhere(
           (n) => n.toLowerCase().contains('born'),
           orElse: () => '');
-      if (bornName != null && bornName.isEmpty) bornName = null;
+      if (bornName?.isEmpty ?? true) bornName = null;
 
-      String? idleName = animations
-              .map((a) => a.getName())
-              .firstWhere((n) => n == 'PhotoUnlock_Eff_idle', orElse: () => '')
-              .isNotEmpty
-          ? 'PhotoUnlock_Eff_idle'
-          : null;
-      idleName ??= animations.map((a) => a.getName()).firstWhere(
-          (n) => n.toLowerCase().contains('idle'),
-          orElse: () => '');
-      if (idleName != null && idleName.isEmpty) idleName = null;
+      // 不再需要 idle 动画，因为我们只播放一次就消失
 
-      double duration = 0.0;
-      final state = _unlockEffectController!.animationState;
-      if (bornName != null &&
-          bornName.isNotEmpty &&
-          data?.findAnimation(bornName) != null) {
-        state.setAnimationByName(0, bornName, false);
-        duration = data?.findAnimation(bornName)?.getDuration() ?? 0.0;
-        if (idleName != null &&
-            idleName.isNotEmpty &&
-            data?.findAnimation(idleName) != null) {
-          state.addAnimationByName(0, idleName, false, 0);
+      try {
+        _unlockEffectController!.animationState.clearTracks();
+        if (bornName != null && data?.findAnimation(bornName) != null) {
+          _unlockEffectController!.animationState
+              .setAnimationByName(0, bornName, false);
+          final duration =
+              (data?.findAnimation(bornName)?.getDuration() ?? 1.0);
+          print('✓ PhotoUnlock play once: $bornName, duration: $duration s');
+
+          AudioManager().playSettlementCoin();
+
+          // 等待动画播放完成后隐藏特效
+          await Future.delayed(
+              Duration(milliseconds: (duration * 1000).toInt()));
+          if (!mounted) return;
+
+          print('[UNLOCK_DEBUG] 🏁 Animation finished, hiding effect');
+          setState(() {
+            _showUnlockEffect = false;
+          });
+          // 更新Overlay隐藏特效
+          _unlockEffectOverlayEntry?.markNeedsBuild();
+        } else {
+          // 如果没有找到born动画，播放第一个动画（不循环）
+          final next = animations.first.getName();
+          if (next.isNotEmpty && data?.findAnimation(next) != null) {
+            _unlockEffectController!.animationState.setAnimationByName(0, next, false);
+            final duration = data?.findAnimation(next)?.getDuration() ?? 1.0;
+            print('✓ PhotoUnlock play fallback: $next, duration: $duration s');
+
+            AudioManager().playSettlementCoin();
+
+            // 等待动画播放完成后隐藏特效
+            await Future.delayed(
+                Duration(milliseconds: (duration * 1000).toInt()));
+            if (!mounted) return;
+
+            print('[UNLOCK_DEBUG] 🏁 Animation finished, hiding effect');
+            setState(() {
+              _showUnlockEffect = false;
+            });
+            // 更新Overlay隐藏特效
+            _unlockEffectOverlayEntry?.markNeedsBuild();
+          } else {
+            print('✗ PhotoUnlock no playable animation');
+          }
         }
-      } else if (animations.isNotEmpty) {
-        final fallback = animations.first.getName();
-        state.setAnimationByName(0, fallback, false);
-        duration = data?.findAnimation(fallback)?.getDuration() ?? 0.0;
+      } catch (e) {
+        print('PhotoUnlock animations play failed: $e');
+        if (mounted) {
+          setState(() {
+            _showUnlockEffect = false;
+          });
+          // 更新Overlay隐藏特效
+          _unlockEffectOverlayEntry?.markNeedsBuild();
+        }
       }
-
-      AudioManager().playSettlementCoin();
-
-      if (duration <= 0) {
-        duration = 1.0;
-      }
-
-      print('[UNLOCK_DEBUG] 🎭 Playing animation for ${duration}s');
-      Future.delayed(Duration(milliseconds: (duration * 1000).toInt()), () {
-        if (!mounted) return;
-        print('[UNLOCK_DEBUG] 🏁 Animation finished');
-        setState(() {
-          _showUnlockEffect = false;
-        });
-        // 更新Overlay隐藏特效
-        _unlockEffectOverlayEntry?.markNeedsBuild();
-      });
     } catch (e) {
       print('[UNLOCK_DEBUG] ❌ Unlock effect play failed: $e');
       if (mounted) {

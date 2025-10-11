@@ -64,16 +64,17 @@ class _SpecialGamePageState extends State<SpecialGamePage> with TickerProviderSt
     setState(() {
       _isGameComplete = true;
     });
-    
+
     // 播放完成音效
     await AudioManager().playSettlementCoin();
-    
-    // 延迟后返回 true 表示获胜
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.of(context).pop(true);
-      }
-    });
+
+    // 延迟后返回 true 表示游戏完成
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (mounted) {
+      // 返回 true 表示特殊关卡完成
+      Navigator.of(context).pop(true);
+    }
   }
 
   @override

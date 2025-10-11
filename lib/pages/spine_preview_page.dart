@@ -73,6 +73,10 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
   int _selectedUnderwearButton = -1;
   int _previousUnderwearButton = -1; // 记录上一个选中的按钮
 
+  // 返回按钮控制
+  bool _isReturnButtonEnabled = true;
+  Timer? _returnButtonCooldownTimer;
+
   // 皮肤选择列表动画控制器
   late AnimationController _skinListAnimationController;
   late Animation<Offset> _skinListSlideAnimation;
@@ -1824,6 +1828,25 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
     // 只在初始化时播放一次即可
   }
 
+  // 禁用返回按钮并启动冷却计时器
+  void _disableReturnButtonTemporarily() {
+    // 取消之前的计时器
+    _returnButtonCooldownTimer?.cancel();
+
+    setState(() {
+      _isReturnButtonEnabled = false;
+    });
+
+    // 1秒后重新启用返回按钮
+    _returnButtonCooldownTimer = Timer(Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() {
+          _isReturnButtonEnabled = true;
+        });
+      }
+    });
+  }
+
   // 为指定女孩播放当前idle动画
   void _playCurrentIdleAnimationForGirl(int girlIndex) {
     _v("=== _playCurrentIdleAnimationForGirl START ===");
@@ -1947,6 +1970,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
     // 停止动画计时器
     _animationTimer?.cancel();
     _pendingUnderwearSkinTimer?.cancel();
+    _returnButtonCooldownTimer?.cancel();
 
     // 销毁音频播放器
     _audioPlayer.dispose();
@@ -2235,9 +2259,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
                                     onTap: () async {
                                       await _handleExit();
                                     },
-                                    child: Image.asset(
-                                        Assets.imagesBtnHeartBack,
-                                        height: 50),
+                                    child: Opacity(
+                                      opacity: _isReturnButtonEnabled ? 1.0 : 0.5,
+                                      child: Image.asset(
+                                          Assets.imagesBtnHeartBack,
+                                          height: 50),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -2379,6 +2406,16 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
   void _loadSpineAsset(int index) async {
     if (_isDisposing || !mounted) return;
     _log("BEGIN loadSpineAsset -> $index");
+
+    // 确保当前状态保存完成，添加等待机制
+    if (_currentIndex >= 0 && _currentIndex < 3) {
+      _log("Saving previous girl state index=$_currentIndex before switching");
+      await _saveCurrentGirlState();
+      // 等待一小段时间确保异步保存操作完成
+      await Future.delayed(Duration(milliseconds: 100));
+      _v("Saved previous girl state index=$_currentIndex with delay");
+    }
+
     // 先安全地销毁所有Spine控制器，避免调用clearTracks导致崩溃
     for (int i = 0; i < _spineControllers.length; i++) {
       if (_spineControllers[i] != null) {
@@ -2391,11 +2428,6 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
     _controllersReady.clear();
     _girlAnimations.clear();
     _v("Cleared controllersReady and girlAnimations caches");
-    // 保存当前女孩的状态
-    if (_currentIndex >= 0 && _currentIndex < 3) {
-      await _saveCurrentGirlState();
-    }
-    _v("Saved previous girl state index=$_currentIndex");
     // 检查是否已经销毁
     if (_isDisposing || !mounted) return;
     _log("Switch setState to new girl=$index");
@@ -2453,28 +2485,40 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
 
   // 保存当前女孩的完整状态（包括idle索引和皮肤选择）
   Future<void> _saveCurrentGirlState() async {
-    if (_currentIndex >= 0 && _currentIndex < 3) {
-      _cacheCurrentGirlState();
-      // 保存当前女孩的idle索引到独立存储
-      await _saveGirlIdleIndex(_currentIndex, _currentIdleIndex);
-      // 保存当前女孩的皮肤选择
-      final selectedSkins = <String, int>{};
-      for (int i = 0; i < 4; i++) {
-        final partName = _getPartName(i);
-        final skinIndex = _currentSkinIndices[i]!;
-        selectedSkins[partName] = skinIndex;
-        await GameStateManager()
-            .setCurrentSkin(_currentIndex, partName, skinIndex);
+    if (_currentIndex >= 0 && _currentIndex < 3 && !_isDisposing && mounted) {
+      try {
+        _log("开始保存女孩状态: girl=$_currentIndex, idle=$_currentIdleIndex");
+
+        _cacheCurrentGirlState();
+
+        // 保存当前女孩的idle索引到独立存储
+        await _saveGirlIdleIndex(_currentIndex, _currentIdleIndex);
+
+        // 保存当前女孩的皮肤选择
+        final selectedSkins = <String, int>{};
+        for (int i = 0; i < 4; i++) {
+          final partName = _getPartName(i);
+          final skinIndex = _currentSkinIndices[i] ?? 0; // 添加默认值
+          selectedSkins[partName] = skinIndex;
+          await GameStateManager()
+              .setCurrentSkin(_currentIndex, partName, skinIndex);
+        }
+
+        await GameStateManager().setCurrentGirlIndex(_currentIndex);
+        await GameStateManager().setCurrentIdleIndex(_currentIdleIndex);
+        await GameStateManager().setLastGirlState(
+          girlIndex: _currentIndex,
+          idleIndex: _currentIdleIndex,
+          skins: selectedSkins,
+        );
+
+        _log("成功保存女孩状态: girl=$_currentIndex, idle=$_currentIdleIndex, skins=$_currentSkinIndices");
+      } catch (e) {
+        _log("保存女孩状态失败: $e");
+        // 即使保存失败也不中断流程，只记录错误
       }
-      await GameStateManager().setCurrentGirlIndex(_currentIndex);
-      await GameStateManager().setCurrentIdleIndex(_currentIdleIndex);
-      await GameStateManager().setLastGirlState(
-        girlIndex: _currentIndex,
-        idleIndex: _currentIdleIndex,
-        skins: selectedSkins,
-      );
-      print(
-          "Saved current girl state: girl $_currentIndex, idle $_currentIdleIndex, skins $_currentSkinIndices");
+    } else {
+      _log("跳过保存女孩状态: index=$_currentIndex, disposing=$_isDisposing, mounted=$mounted");
     }
   }
 
@@ -2567,6 +2611,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
     // 如果正在切换中，忽略新的切换请求
     if (_isLoading) return;
 
+    // 禁用返回按钮1秒，避免快速切换时状态保存不完整
+    _disableReturnButtonTemporarily();
+
     // 延迟切换，确保旧的SpineWidget完全清理
     Future.delayed(Duration(milliseconds: 200), () {
       if (!_isDisposing && mounted) {
@@ -2597,6 +2644,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
   }
 
   Future<void> _handleExit({bool pop = true}) async {
+    // 检查返回按钮是否可用
+    if (!_isReturnButtonEnabled) {
+      print("Return button is on cooldown, ignoring exit request");
+      return;
+    }
+
     if (_isExiting) {
       return;
     }
@@ -2608,13 +2661,21 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
       } catch (e) {
         print("SpinePreview exit sound failed: $e");
       }
+
+      // 确保状态保存完成，添加额外的等待时间
+      print("Saving current girl state before exit...");
       await _saveCurrentGirlState();
+
+      // 等待一小段时间确保所有异步操作完成
+      await Future.delayed(Duration(milliseconds: 300));
+
       await _checkForNewUnlockOnExit();
       result = {
         'girlIndex': _currentIndex,
         'idleIndex': _currentIdleIndex,
         'skins': Map<String, int>.from(_buildCurrentSkinSelectionMap()),
       };
+      print("Exit completed successfully");
     } catch (e) {
       print("SpinePreview exit handling failed: $e");
     } finally {

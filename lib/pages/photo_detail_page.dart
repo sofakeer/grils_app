@@ -107,7 +107,15 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
   Future<void> _downloadPhoto() async {
     try {
       print('开始下载图片流程...');
-      
+
+      // 首先检查并请求存储权限
+      bool hasPermission = await _requestPermissionWithDialog();
+
+      if (!hasPermission) {
+        print('用户拒绝存储权限，无法下载');
+        return;
+      }
+
       // 触发视频广告
       bool adCompleted = await AdManager.instance.showRewardedAd(
         context: context,
@@ -128,7 +136,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
           }
         },
       );
-      
+
       if (!adCompleted) {
         print('用户取消广告或广告失败');
       }
@@ -145,10 +153,126 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
     }
   }
 
+  Future<bool> _requestPermissionWithDialog() async {
+    try {
+      print('开始请求存储权限...');
+
+      // 首先检查是否已有权限
+      if (_hasStoragePermission) {
+        return true;
+      }
+
+      // 显示权限说明对话框
+      bool shouldRequestPermission = await _showPermissionDialog();
+      if (!shouldRequestPermission) {
+        print('用户拒绝授权存储权限');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('需要存储权限才能保存图片到相册'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return false;
+      }
+
+      // 用户同意后，正式请求权限
+      bool granted = await _requestPermission();
+
+      // 更新权限状态
+      if (mounted) {
+        setState(() {
+          _hasStoragePermission = granted;
+        });
+      }
+
+      if (!granted) {
+        // 权限被永久拒绝，引导用户去设置
+        await _showPermissionDeniedDialog();
+      }
+
+      return granted;
+    } catch (e) {
+      print('权限请求失败: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _showPermissionDialog() async {
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('存储权限'),
+          content: const Text(
+            '为了保存图片到您的相册，需要您授予存储权限。\n\n同意权限后即可下载高清无水印图片。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: const Text(
+                '不同意',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text(
+                '同意',
+                style: TextStyle(color: Colors.blue),
+              ),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
+  }
+
+  Future<void> _showPermissionDeniedDialog() async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('权限被拒绝'),
+          content: const Text(
+            '您拒绝了存储权限，无法保存图片到相册。\n\n如需使用下载功能，请前往设置手动开启权限。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('知道了'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                // 打开应用设置页面
+                await openAppSettings();
+              },
+              child: const Text(
+                '前往设置',
+                style: TextStyle(color: Colors.blue),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<bool> _requestPermission() async {
     try {
       print('开始请求存储权限...');
-      
+
       // iOS平台
       if (Platform.isIOS) {
         var status = await Permission.photosAddOnly.status;
@@ -159,7 +283,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
         if (status.isGranted) {
           return true;
         }
-        
+
         // 如果photosAddOnly权限失败，尝试photos权限
         status = await Permission.photos.status;
         if (status.isGranted) {
@@ -168,7 +292,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
         status = await Permission.photos.request();
         return status.isGranted;
       }
-      
+
       // Android平台 - 先尝试photos权限（Android 13+），再尝试storage权限
       if (Platform.isAndroid) {
         // 先尝试photos权限
@@ -176,22 +300,22 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
         if (photosStatus.isGranted) {
           return true;
         }
-        
+
         photosStatus = await Permission.photos.request();
         if (photosStatus.isGranted) {
           return true;
         }
-        
+
         // 如果photos权限失败，尝试storage权限（适用于Android 13以下）
         var storageStatus = await Permission.storage.status;
         if (storageStatus.isGranted) {
           return true;
         }
-        
+
         storageStatus = await Permission.storage.request();
         return storageStatus.isGranted;
       }
-      
+
       return false;
     } catch (e) {
       print('权限请求失败: $e');
@@ -202,28 +326,7 @@ class _PhotoDetailPageState extends State<PhotoDetailPage>
 
   Future<void> _saveImageToGallery() async {
     try {
-      // 先请求权限
-      bool hasPermission = await _requestPermission();
-      
-      // 更新权限状态
-      if (mounted) {
-        setState(() {
-          _hasStoragePermission = hasPermission;
-        });
-      }
-      
-      if (!hasPermission) {
-        print('没有存储权限');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('需要存储权限才能保存图片'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
+      // 权限检查已经在下载流程中完成，这里直接保存图片
       
       final imageNumber = (_currentIndex + 1).toString().padLeft(2, '0');
       final imagePath = 'assets/images/grils_list/Bg_$imageNumber.png';

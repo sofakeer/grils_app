@@ -222,46 +222,21 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
         builder: (context) => const SpecialGamePage(),
       ),
     )
-        .then((_) {
-      if (mounted) {
-        _showHeartRewardDialog();
+        .then((result) {
+      if (mounted && result == true) {
+        // 特殊关卡完成，直接跳转到爱心货币界面
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const WinHeartPage(
+              isSpecialStage: true,
+            ),
+          ),
+        );
       }
     });
   }
 
-  // 显示爱心货币奖励弹窗
-  void _showHeartRewardDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Special Stage Complete!'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.favorite, size: 64, color: Colors.red),
-            SizedBox(height: 16),
-            Text('Congratulations! You completed the special stage!\n\nYou earned double heart rewards!'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // 跳转到爱心货币界面
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const WinHeartPage(),
-                ),
-              );
-            },
-            child: const Text('Claim Rewards'),
-          ),
-        ],
-      ),
-    );
-  }
-
+  
   void _skipSpecial() {
     // 跳过特殊关卡
     Navigator.of(context).pop();

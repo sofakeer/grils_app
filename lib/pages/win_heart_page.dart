@@ -11,10 +11,12 @@ import 'dart:async';
 
 class WinHeartPage extends StatefulWidget {
   final int currentLevel;
+  final bool isSpecialStage;
 
   const WinHeartPage({
     super.key,
     this.currentLevel = 1,
+    this.isSpecialStage = false,
   });
 
   @override
@@ -51,22 +53,28 @@ class _WinHeartPageState extends State<WinHeartPage>
 
   // Calculate heart reward based on current level
   void _calculateHeartReward() {
-    int level = widget.currentLevel;
-
-    if (level <= 10) {
-      _baseHeartReward = 5;
-    } else if (level <= 30) {
-      _baseHeartReward = 8;
-    } else if (level <= 100) {
-      _baseHeartReward = 10;
-    } else if (level <= 200) {
-      _baseHeartReward = 12;
-    } else if (level <= 300) {
-      _baseHeartReward = 15;
-    } else if (level <= 400) {
-      _baseHeartReward = 18;
+    if (widget.isSpecialStage) {
+      // 特殊关卡使用单独的奖励配置，给予更高的基础奖励
+      _baseHeartReward = 50; // 特殊关卡固定50个基础爱心
     } else {
-      _baseHeartReward = 20;
+      // 普通关卡根据等级计算奖励
+      int level = widget.currentLevel;
+
+      if (level <= 10) {
+        _baseHeartReward = 5;
+      } else if (level <= 30) {
+        _baseHeartReward = 8;
+      } else if (level <= 100) {
+        _baseHeartReward = 10;
+      } else if (level <= 200) {
+        _baseHeartReward = 12;
+      } else if (level <= 300) {
+        _baseHeartReward = 15;
+      } else if (level <= 400) {
+        _baseHeartReward = 18;
+      } else {
+        _baseHeartReward = 20;
+      }
     }
 
     _totalHeartReward = _baseHeartReward;

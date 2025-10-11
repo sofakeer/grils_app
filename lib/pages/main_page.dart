@@ -38,8 +38,11 @@ class _MainPageState extends ConsumerState<MainPage>
   // 背景女孩Spine控制器
   spine.SpineWidgetController? _backgroundSpineController;
   bool _isBackgroundSpineReady = false;
+  bool _isBackgroundLoading = true;
+  String? _backgroundError;
   int _backgroundIdleIndex = 0;
   Map<String, int> _backgroundSkinSelections = {};
+  int _backgroundApplyRetryCount = 0;
 
   // 使用UserService管理金币和爱心
   late UserService _userService;
@@ -130,12 +133,16 @@ class _MainPageState extends ConsumerState<MainPage>
 
     ref.read(currentGirlIndexProvider.notifier).state = normalizedGirlIndex;
 
+    // 重置状态和重试计数
     setState(() {
       _backgroundIdleIndex =
           _normalizeIdleIndex(normalizedGirlIndex, storedIdle);
       _backgroundSkinSelections =
           _normalizeSkinSelections(normalizedGirlIndex, mergedSkins);
       _isBackgroundSpineReady = false;
+      _isBackgroundLoading = true;
+      _backgroundError = null;
+      _backgroundApplyRetryCount = 0;
     });
 
     await GameStateManager().setCurrentGirlIndex(normalizedGirlIndex);
@@ -145,7 +152,12 @@ class _MainPageState extends ConsumerState<MainPage>
       return;
     }
 
-    _initializeBackgroundSpine();
+    // 延迟一帧确保状态更新完成
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initializeBackgroundSpine();
+      }
+    });
   }
 
   Map<String, int> _normalizeSkinSelections(
@@ -294,67 +306,114 @@ class _MainPageState extends ConsumerState<MainPage>
     _applySkinSet(controller, skinNames);
   }
 
-  void _applyBackgroundState(spine.SpineWidgetController controller) {
-    final animationState = controller.animationState;
-    final stateData = animationState?.getData();
-    final skeleton = controller.skeleton;
-    final skeletonData = skeleton?.getData();
+  void _applyBackgroundStateWithRetry(spine.SpineWidgetController controller) {
+    const maxRetries = 5;
 
-    if (animationState == null ||
-        stateData == null ||
-        skeleton == null ||
-        skeletonData == null) {
-      // 控制器尚未准备就绪，等待下一帧再试
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (_backgroundApplyRetryCount >= maxRetries) {
+      print("背景女孩状态应用失败，已重试$maxRetries次");
+      if (mounted) {
+        setState(() {
+          _isBackgroundLoading = false;
+          _backgroundError = "状态应用失败，已重试$maxRetries次";
+        });
+      }
+      return;
+    }
+
+    print("背景女孩状态应用尝试 ${_backgroundApplyRetryCount + 1}/$maxRetries");
+
+    final animationState = controller.animationState;
+    final skeleton = controller.skeleton;
+
+    // 简化检查逻辑 - 只要基本组件存在就尝试应用状态
+    if (animationState == null || skeleton == null) {
+      // 控制器尚未准备就绪，增加重试计数并延迟重试
+      _backgroundApplyRetryCount++;
+      final delay = Duration(milliseconds: 100 * _backgroundApplyRetryCount);
+
+      print("背景女孩控制器未准备好，${delay.inMilliseconds}ms后重试 $_backgroundApplyRetryCount");
+
+      Future.delayed(delay, () {
         if (mounted && controller == _backgroundSpineController) {
-          _applyBackgroundState(controller);
+          _applyBackgroundStateWithRetry(controller);
         }
       });
       return;
     }
 
-    try {
-      stateData.setDefaultMix(0.2);
-    } catch (e) {
-      print('背景女孩动画过渡设置失败: $e');
-    }
+    // 控制器已准备好，应用状态
+    _doApplyBackgroundState(controller);
+  }
 
-    final girlIndex = ref.read(currentGirlIndexProvider);
-    final idleIndex = _backgroundIdleIndex;
-    final isUnderwear = _isUnderwearMode(girlIndex, idleIndex);
-    final desiredAnimation = _resolveIdleAnimationName(girlIndex, idleIndex);
-
-    String? animationToPlay;
+  void _doApplyBackgroundState(spine.SpineWidgetController controller) {
     try {
-      if (skeletonData.findAnimation(desiredAnimation) != null) {
+      print("=== 开始应用背景女孩状态 ===");
+
+      final animationState = controller.animationState;
+      final skeleton = controller.skeleton;
+
+      // 设置动画过渡
+      try {
+        animationState.getData()?.setDefaultMix(0.2);
+      } catch (e) {
+        print('背景女孩动画过渡设置失败: $e');
+      }
+
+      final girlIndex = ref.read(currentGirlIndexProvider);
+      final idleIndex = _backgroundIdleIndex;
+      final isUnderwear = _isUnderwearMode(girlIndex, idleIndex);
+      final desiredAnimation = _resolveIdleAnimationName(girlIndex, idleIndex);
+
+      print("背景女孩信息: 索引=$girlIndex, idle=$idleIndex, 内衣模式=$isUnderwear, 动画=$desiredAnimation");
+
+      // 查找并设置动画 - 直接使用字符串名称尝试
+      String? animationToPlay;
+      try {
+        // 首先尝试设置目标动画
+        animationState.setAnimationByName(0, desiredAnimation, true);
         animationToPlay = desiredAnimation;
-      } else if (skeletonData.findAnimation('idle_01') != null) {
-        animationToPlay = 'idle_01';
-      } else {
-        final animations = skeletonData.getAnimations();
-        if (animations != null && animations.isNotEmpty) {
-          animationToPlay = animations.first.getName();
+        print("尝试播放目标动画: $animationToPlay");
+      } catch (e) {
+        print('目标动画设置失败，尝试fallback: $e');
+        try {
+          // 尝试使用 idle_01 作为fallback
+          animationState.setAnimationByName(0, 'idle_01', true);
+          animationToPlay = 'idle_01';
+          print("使用fallback动画: idle_01");
+        } catch (e2) {
+          print('fallback动画也失败，跳过动画设置: $e2');
+          animationToPlay = null;
         }
       }
-    } catch (e) {
-      print('背景女孩查询动画失败: $e');
-    }
 
-    if (animationToPlay != null && animationToPlay.isNotEmpty) {
-      try {
-        animationState.setAnimationByName(0, animationToPlay, true);
-      } catch (e) {
-        print('背景女孩动画播放失败: $e');
+      // 应用皮肤
+      _applyBackgroundSkin(controller, girlIndex, isUnderwear);
+      print("背景女孩皮肤应用完成");
+
+      // 更新状态
+      if (mounted) {
+        setState(() {
+          _isBackgroundSpineReady = true;
+          _isBackgroundLoading = false;
+          _backgroundError = null;
+          _backgroundApplyRetryCount = 0;
+        });
+        print("背景女孩状态应用成功 - 动画: $animationToPlay");
+      }
+    } catch (e) {
+      print('背景女孩状态应用异常: $e');
+      if (mounted) {
+        setState(() {
+          _isBackgroundLoading = false;
+          _backgroundError = "状态应用异常: $e";
+        });
       }
     }
+  }
 
-    _applyBackgroundSkin(controller, girlIndex, isUnderwear);
-
-    if (mounted) {
-      setState(() {
-        _isBackgroundSpineReady = true;
-      });
-    }
+  // 保留原有方法以防其他地方调用
+  void _applyBackgroundState(spine.SpineWidgetController controller) {
+    _applyBackgroundStateWithRetry(controller);
   }
 
   @override
@@ -410,39 +469,38 @@ class _MainPageState extends ConsumerState<MainPage>
   }
 
   void _initializeBackgroundSpine() {
+    print("=== 开始初始化背景女孩Spine控制器 ===");
+
+    // 清理旧控制器
     if (_backgroundSpineController != null) {
-      if (!mounted) {
-        _backgroundSpineController = null;
-      } else {
-        setState(() {
-          _backgroundSpineController = null;
-          _isBackgroundSpineReady = false;
-        });
-      }
+      _backgroundSpineController = null;
     }
 
     try {
-      final controller =
-          spine.SpineWidgetController(onInitialized: (controller) {
-        _applyBackgroundState(controller);
+      final controller = spine.SpineWidgetController(
+        onInitialized: (controller) {
+          print("背景女孩Spine控制器初始化完成");
+          // 立即尝试应用状态，不需要额外延迟
+          _applyBackgroundStateWithRetry(controller);
+        },
+      );
+
+      setState(() {
+        _backgroundSpineController = controller;
+        _isBackgroundSpineReady = false;
+        _isBackgroundLoading = true;
+        _backgroundError = null;
       });
 
-      if (!mounted) {
-        _backgroundSpineController = controller;
-      } else {
-        setState(() {
-          _backgroundSpineController = controller;
-          _isBackgroundSpineReady = false;
-        });
-      }
+      print("背景女孩Spine控制器创建成功");
     } catch (e) {
       print("背景女孩控制器创建失败: $e");
       if (mounted) {
         setState(() {
           _backgroundSpineController = null;
+          _isBackgroundLoading = false;
+          _backgroundError = "控制器创建失败: $e";
         });
-      } else {
-        _backgroundSpineController = null;
       }
     }
   }
@@ -739,6 +797,114 @@ class _MainPageState extends ConsumerState<MainPage>
     CommonHeader.playSignInEffects(context, 10, 5);
   }
 
+  // 构建背景Spine Widget
+  Widget _buildBackgroundSpineWidget() {
+    // 显示错误状态
+    if (_backgroundError != null) {
+      print("显示背景女孩错误: $_backgroundError");
+      return Container(
+        color: Colors.black,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: Colors.red.withOpacity(0.6),
+                size: 50,
+              ),
+              SizedBox(height: 10),
+              Text(
+                "背景女孩加载失败",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 显示加载状态
+    if (_isBackgroundLoading) {
+      return Container(
+        color: Colors.black,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                color: Colors.pink.withOpacity(0.6),
+                strokeWidth: 2,
+              ),
+              SizedBox(height: 10),
+              Text(
+                "背景女孩加载中...",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 检查控制器是否存在
+    if (_backgroundSpineController == null) {
+      print("背景女孩控制器为null");
+      return Container(
+        color: Colors.black,
+        child: Center(
+          child: Text(
+            "控制器未初始化",
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.4),
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 正常显示Spine动画
+    try {
+      final currentGirlAsset = ref.watch(currentGirlAssetProvider);
+      print("显示背景女孩Spine动画: ${currentGirlAsset.name}");
+
+      return spine.SpineWidget.fromAsset(
+        currentGirlAsset.atlasFile,
+        currentGirlAsset.skeletonFile,
+        _backgroundSpineController!,
+        boundsProvider: const spine.SetupPoseBounds(),
+      );
+    } catch (e) {
+      print("背景女孩SpineWidget创建失败: $e");
+
+      // 记录错误并显示fallback
+      setState(() {
+        _backgroundError = "SpineWidget创建失败: $e";
+        _isBackgroundLoading = false;
+      });
+
+      return Container(
+        color: Colors.black,
+        child: Center(
+          child: Text(
+            "Spine动画渲染失败",
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.4),
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
   // 导航到倾斜测试页面
   void _navigateToTiltTest() {
     Navigator.of(context).push(
@@ -750,9 +916,13 @@ class _MainPageState extends ConsumerState<MainPage>
 
   @override
   void dispose() {
+    print("=== MainPage dispose 开始 ===");
+
     _takeoffController.dispose();
     _backgroundSpineController = null;
     _saveUserData();
+
+    print("=== MainPage dispose 完成 ===");
     super.dispose();
   }
 
@@ -772,15 +942,9 @@ class _MainPageState extends ConsumerState<MainPage>
         child: Stack(
           children: [
             // 背景显示当前选择的女孩 currentGirlAsset spine 动画默认的
-            if (_backgroundSpineController != null)
-              Positioned.fill(
-                child: spine.SpineWidget.fromAsset(
-                  currentGirlAsset.atlasFile,
-                  currentGirlAsset.skeletonFile,
-                  _backgroundSpineController!,
-                  boundsProvider: const spine.SetupPoseBounds(),
-                ),
-              ),
+            Positioned.fill(
+              child: _buildBackgroundSpineWidget(),
+            ),
 
             // 顶部货币显示区域
             CommonHeader(
