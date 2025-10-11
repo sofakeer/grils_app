@@ -42,8 +42,9 @@ class _NewPhotoPageState extends State<NewPhotoPage>
   // Spine controllers
   spine.SpineWidgetController? _titleSpineController;
   spine.SpineWidgetController? _unlockEffectController;
-  // 全屏特效 Overlay（标题使用）
+  // 全屏特效 Overlay（标题和解锁特效使用）
   OverlayEntry? _titleSpineOverlayEntry;
+  OverlayEntry? _unlockEffectOverlayEntry;
   bool _isTitleSpineReady = false;
   bool _isUnlockEffectReady = false;
 
@@ -60,6 +61,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     // 在首帧后插入全屏 Overlay，不参与排版
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _insertTitleSpineOverlay();
+      _insertUnlockEffectOverlay();
     });
   }
 
@@ -275,6 +277,40 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     } catch (_) {}
   }
 
+  void _insertUnlockEffectOverlay() {
+    if (!mounted || _unlockEffectOverlayEntry != null) return;
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    _unlockEffectOverlayEntry = OverlayEntry(
+      builder: (context) {
+        return IgnorePointer(
+          ignoring: true, // 仅展示特效，点击穿透
+          child: _showUnlockEffect && _unlockEffectController != null
+              ? Positioned.fill(
+                  child: spine.SpineWidget.fromAsset(
+                    "assets/spine/PhotoUnlock_Eff.atlas",
+                    "assets/spine/PhotoUnlock_Eff.skel",
+                    _unlockEffectController!,
+                    boundsProvider: const spine.SetupPoseBounds(),
+                    fit: BoxFit.contain,
+                  ),
+                )
+              : const SizedBox.shrink(),
+        );
+      },
+    );
+
+    overlay.insert(_unlockEffectOverlayEntry!);
+  }
+
+  void _removeUnlockEffectOverlay() {
+    try {
+      _unlockEffectOverlayEntry?.remove();
+      _unlockEffectOverlayEntry = null;
+    } catch (_) {}
+  }
+
   void _initializeAnimations() {
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 1500),
@@ -475,6 +511,9 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     });
     print('[UNLOCK_DEBUG] ✅ Effect state updated');
 
+    // 更新Overlay显示
+    _unlockEffectOverlayEntry?.markNeedsBuild();
+
     try {
       final data = _unlockEffectController!.skeleton.getData();
       final animations = data?.getAnimations() ?? [];
@@ -534,6 +573,8 @@ class _NewPhotoPageState extends State<NewPhotoPage>
         setState(() {
           _showUnlockEffect = false;
         });
+        // 更新Overlay隐藏特效
+        _unlockEffectOverlayEntry?.markNeedsBuild();
       });
     } catch (e) {
       print('[UNLOCK_DEBUG] ❌ Unlock effect play failed: $e');
@@ -541,6 +582,8 @@ class _NewPhotoPageState extends State<NewPhotoPage>
         setState(() {
           _showUnlockEffect = false;
         });
+        // 更新Overlay隐藏特效
+        _unlockEffectOverlayEntry?.markNeedsBuild();
       }
     }
   }
@@ -615,6 +658,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     _fadeController.dispose();
     _progressController.dispose();
     _removeTitleSpineOverlay();
+    _removeUnlockEffectOverlay();
     _titleSpineController = null;
     _unlockEffectController = null;
     super.dispose();
@@ -745,20 +789,6 @@ class _NewPhotoPageState extends State<NewPhotoPage>
                                   ),
                                 ),
                               ),
-                              if (_showUnlockEffect &&
-                                  _unlockEffectController != null)
-                                Positioned.fill(
-                                  child: IgnorePointer(
-                                    child: spine.SpineWidget.fromAsset(
-                                      "assets/spine/PhotoUnlock_Eff.atlas",
-                                      "assets/spine/PhotoUnlock_Eff.skel",
-                                      _unlockEffectController!,
-                                      boundsProvider:
-                                          const spine.SetupPoseBounds(),
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                ),
                               Positioned(
                                 top: 20,
                                 left: 20,

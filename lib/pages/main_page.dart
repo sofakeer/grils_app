@@ -410,18 +410,40 @@ class _MainPageState extends ConsumerState<MainPage>
   }
 
   void _initializeBackgroundSpine() {
-    // 销毁旧的控制器
     if (_backgroundSpineController != null) {
-      _backgroundSpineController = null;
+      if (!mounted) {
+        _backgroundSpineController = null;
+      } else {
+        setState(() {
+          _backgroundSpineController = null;
+          _isBackgroundSpineReady = false;
+        });
+      }
     }
 
     try {
-      _backgroundSpineController =
+      final controller =
           spine.SpineWidgetController(onInitialized: (controller) {
         _applyBackgroundState(controller);
       });
+
+      if (!mounted) {
+        _backgroundSpineController = controller;
+      } else {
+        setState(() {
+          _backgroundSpineController = controller;
+          _isBackgroundSpineReady = false;
+        });
+      }
     } catch (e) {
       print("背景女孩控制器创建失败: $e");
+      if (mounted) {
+        setState(() {
+          _backgroundSpineController = null;
+        });
+      } else {
+        _backgroundSpineController = null;
+      }
     }
   }
 
@@ -455,7 +477,8 @@ class _MainPageState extends ConsumerState<MainPage>
   Future<void> _checkForSpecialStage() async {
     await GameStateManager().init();
     // 仅当标记要求在返回后触发时，才检查并弹出
-    if (GameStateManager().shouldTriggerSpecialOnReturn() && GameStateManager().shouldTriggerSpecialStage()) {
+    if (GameStateManager().shouldTriggerSpecialOnReturn() &&
+        GameStateManager().shouldTriggerSpecialStage()) {
       // 延迟一下，等页面完全加载后再显示弹窗
       await Future.delayed(Duration(milliseconds: 500));
 
@@ -651,19 +674,61 @@ class _MainPageState extends ConsumerState<MainPage>
     await _loadGirlStateForBackground(nextIndex);
   }
 
-  void _startTakeOff() {
-    Navigator.of(context)
-        .push(
+  Future<void> _startTakeOff() async {
+    final result = await Navigator.of(context).push<Map<String, dynamic>?>(
       MaterialPageRoute(
         builder: (context) => const SpinePreviewPage(),
       ),
-    )
-        .then((_) {
-      // 从预览页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
-      _loadUserData();
-      // 不再重置已弹标记，确保跨页面也只弹一次
-      _restoreBackgroundState();
-    });
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    int? targetGirlIndex;
+    int? idleIndexOverride;
+    Map<String, int>? skinsOverride;
+
+    if (result != null) {
+      final dynamic girlIndexRaw = result['girlIndex'];
+      if (girlIndexRaw is int) {
+        targetGirlIndex = girlIndexRaw;
+      }
+
+      final dynamic idleRaw = result['idleIndex'];
+      if (idleRaw is int) {
+        idleIndexOverride = idleRaw;
+      }
+
+      final dynamic skinsRaw = result['skins'];
+      if (skinsRaw is Map) {
+        final parsed = <String, int>{};
+        skinsRaw.forEach((key, value) {
+          if (key is String) {
+            if (value is int) {
+              parsed[key] = value;
+            } else if (value is num) {
+              parsed[key] = value.toInt();
+            }
+          }
+        });
+        if (parsed.isNotEmpty) {
+          skinsOverride = parsed;
+        }
+      }
+    }
+
+    if (targetGirlIndex != null) {
+      await _loadGirlStateForBackground(
+        targetGirlIndex,
+        idleIndexOverride: idleIndexOverride,
+        skinsOverride: skinsOverride,
+      );
+    } else {
+      await _restoreBackgroundState();
+    }
+
+    await _loadUserData();
   }
 
   // 临时测试方法 - 播放金币和心特效
