@@ -164,7 +164,8 @@ class _MainPageState extends ConsumerState<MainPage>
           _normalizeIdleIndex(normalizedGirlIndex, storedIdle);
       _backgroundSkinSelections =
           _normalizeSkinSelections(normalizedGirlIndex, mergedSkins);
-      _isBackgroundSpineReady = false;
+      // 注意：不重置 _isBackgroundSpineReady，避免显示splash页面
+      // _isBackgroundSpineReady = false;
     });
 
     await GameStateManager().setCurrentGirlIndex(normalizedGirlIndex);
@@ -717,7 +718,13 @@ class _MainPageState extends ConsumerState<MainPage>
     Navigator.of(context)
         .push(
       MaterialPageRoute(
-        builder: (context) => const SpinePreviewPage(),
+        builder: (context) => SpinePreviewPage(
+          onStateChanged: (stateData) {
+            // 当预览页面状态变化时，立即刷新背景状态
+            print("MainPage: 收到预览页面状态变化通知: $stateData");
+            _refreshBackgroundState();
+          },
+        ),
       ),
     )
         .then((_) {
@@ -765,7 +772,7 @@ class _MainPageState extends ConsumerState<MainPage>
 
       print("MainPage: 应用最新状态 - girl=$girlIndex, idle=$idleIndex, skins=$skinsOverride");
 
-      // 应用最新状态到背景女孩
+      // 应用最新状态到背景女孩（不重置页面状态，避免显示splash）
       await _loadGirlStateForBackground(
         girlIndex,
         idleIndexOverride: idleIndex,

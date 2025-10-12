@@ -12,11 +12,13 @@ import 'dart:async';
 class WinHeartPage extends StatefulWidget {
   final int currentLevel;
   final bool isSpecialStage;
+  final bool fromSpecialPage;
 
   const WinHeartPage({
     super.key,
     this.currentLevel = 1,
     this.isSpecialStage = false,
+    this.fromSpecialPage = false,
   });
 
   @override
@@ -48,12 +50,16 @@ class _WinHeartPageState extends State<WinHeartPage>
     super.initState();
     _initializeAnimations();
     _calculateHeartReward();
+    print('WinHeartPage: fromSpecialPage=${widget.fromSpecialPage}, isSpecialStage=${widget.isSpecialStage}, baseHeartReward=$_baseHeartReward');
     _initializeSpineController();
   }
 
   // Calculate heart reward based on current level
   void _calculateHeartReward() {
-    if (widget.isSpecialStage) {
+    if (widget.fromSpecialPage) {
+      // 从 SpecialPage 进入时固定100个基础爱心
+      _baseHeartReward = 100;
+    } else if (widget.isSpecialStage) {
       // 特殊关卡使用单独的奖励配置，给予更高的基础奖励
       _baseHeartReward = 50; // 特殊关卡固定50个基础爱心
     } else {
@@ -78,6 +84,7 @@ class _WinHeartPageState extends State<WinHeartPage>
     }
 
     _totalHeartReward = _baseHeartReward;
+    print('WinHeartPage: totalHeartReward=$_totalHeartReward (fromSpecialPage=${widget.fromSpecialPage})');
   }
 
   // Initialize Spine controller

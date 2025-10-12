@@ -17,7 +17,9 @@ import '../widgets/gril_waiting_dialog.dart';
 import '../widgets/unlock_new_gril_dialog.dart';
 
 class SpinePreviewPage extends StatefulWidget {
-  const SpinePreviewPage({super.key});
+  final Function(Map<String, dynamic>)? onStateChanged;
+
+  const SpinePreviewPage({super.key, this.onStateChanged});
 
   @override
   State<SpinePreviewPage> createState() => _SpinePreviewPageState();
@@ -1137,15 +1139,6 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
           _setGirl03DefaultSkin(controller);
         }
       }
-
-      // 皮肤应用完成后，立即保存状态以确保同步
-      _cacheCurrentGirlState();
-      // 异步保存，不阻塞UI
-      _saveCurrentGirlState().then((_) {
-        _log("Skin state saved successfully");
-      }).catchError((e) {
-        _log("Failed to save skin state: $e");
-      });
     }
   }
 
@@ -2522,12 +2515,36 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
         );
 
         _log("成功保存女孩状态: girl=$_currentIndex, idle=$_currentIdleIndex, skins=$_currentSkinIndices");
+
+        // 通知首页状态已更新
+        _notifyStateChanged();
       } catch (e) {
         _log("保存女孩状态失败: $e");
         // 即使保存失败也不中断流程，只记录错误
       }
     } else {
       _log("跳过保存女孩状态: index=$_currentIndex, disposing=$_isDisposing, mounted=$mounted");
+    }
+  }
+
+  // 通知首页状态已变化
+  void _notifyStateChanged() {
+    if (widget.onStateChanged != null && mounted) {
+      final stateData = {
+        'girlIndex': _currentIndex,
+        'idleIndex': _currentIdleIndex,
+        'skins': _buildCurrentSkinSelectionMap(),
+        'fromPreview': true,
+      };
+
+      // 异步调用回调，避免阻塞当前操作
+      Future.microtask(() {
+        if (widget.onStateChanged != null) {
+          widget.onStateChanged!(stateData);
+        }
+      });
+
+      _log("已通知首页状态变化: girl=$_currentIndex, idle=$_currentIdleIndex");
     }
   }
 
@@ -2663,36 +2680,36 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
       return;
     }
     _isExiting = true;
-    Map<String, dynamic>? result;
-    try {
-      try {
-        await AudioManager().playExit();
-      } catch (e) {
-        print("SpinePreview exit sound failed: $e");
-      }
 
-      // 确保状态保存完成，添加额外的等待时间
-      print("Saving current girl state before exit...");
-      await _saveCurrentGirlState();
+    // 立即关闭页面，提供自然的返回体验
+    if (pop && mounted) {
+      // 播放退出音效（不等待完成）
+      AudioManager().playExit().catchError((e) => print("SpinePreview exit sound failed: $e"));
 
-      // 等待一小段时间确保所有异步操作完成
-      await Future.delayed(Duration(milliseconds: 300));
-
-      await _checkForNewUnlockOnExit();
-      result = {
+      // 立即返回结果，让用户感受到即时的响应
+      final result = {
         'girlIndex': _currentIndex,
         'idleIndex': _currentIdleIndex,
         'skins': Map<String, int>.from(_buildCurrentSkinSelectionMap()),
       };
-      print("Exit completed successfully");
-    } catch (e) {
-      print("SpinePreview exit handling failed: $e");
-    } finally {
-      if (pop && mounted) {
-        Navigator.of(context).pop(result);
-      }
-      _isExiting = false;
+      Navigator.of(context).pop(result);
     }
+
+    // 在页面关闭后异步处理其他操作
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        // 确保状态保存完成
+        print("Saving current girl state after exit...");
+        await _saveCurrentGirlState();
+
+        await _checkForNewUnlockOnExit();
+        print("Exit background operations completed successfully");
+      } catch (e) {
+        print("SpinePreview exit background handling failed: $e");
+      } finally {
+        _isExiting = false;
+      }
+    });
   }
 
   Future<bool> _handleWillPop() async {
@@ -3044,9 +3061,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
     }
 
     _cacheCurrentGirlState();
-
-    // 立即保存完整状态到持久化存储，确保MainPage能同步
-    await _saveCurrentGirlState();
+    // 通知首页状态已更新
+    _notifyStateChanged();
     _log("=== _nextIdleAnimation END ===");
   }
 
@@ -3586,6 +3602,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
     }
 
     _v("Skin button tapped end: type=$buttonType, skin=$skinIndex");
+
+    // 通知首页状态已更新
+    _notifyStateChanged();
   }
 
   void _resetPreviewState() async {
@@ -3606,6 +3625,8 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
       };
     });
     _cacheCurrentGirlState();
+    // 通知首页状态已更新
+    _notifyStateChanged();
     // 保存进度与皮肤索引（全部回到 1号皮肤）
     try {
       await _saveGirlIdleIndex(_currentIndex, 0);

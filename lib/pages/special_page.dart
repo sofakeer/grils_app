@@ -219,7 +219,9 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
     Navigator.of(context)
         .push(
       MaterialPageRoute(
-        builder: (context) => const WinHeartPage(),
+        builder: (context) => const WinHeartPage(
+          fromSpecialPage: true,
+        ),
       ),
     )
         .then((_) {
@@ -251,7 +253,9 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
               // 跳转到爱心货币界面
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => const WinHeartPage(),
+                  builder: (context) => const WinHeartPage(
+                    fromSpecialPage: true,
+                  ),
                 ),
               );
             },
