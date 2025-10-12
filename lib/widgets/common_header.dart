@@ -60,7 +60,7 @@ class CommonHeader extends StatefulWidget {
       // 爱心Stack左边距: 10px (padding)
       // 爱心图标大小: 45px，中心位置: 20 + 50 + 10 + 10 + 22.5 = 112.5px
       // 顶部位置: 外层容器顶部(topPadding + 10) + 爱心padding(8) + 爱心图标中心(22.5) = topPadding + 40.5px
-      final heartPosition = Offset(112.5, topPadding + 40.5);
+      final heartPosition = Offset(212.5, topPadding + 40.5);
       print("爱心特效目标位置: $heartPosition");
       EffectManager.instance.playHeartEffect(context, targetPosition: heartPosition);
       await AudioManager().playHeartEffect();
