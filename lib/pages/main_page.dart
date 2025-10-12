@@ -39,6 +39,10 @@ class _MainPageState extends ConsumerState<MainPage>
   // 页面加载状态
   bool _isPageReady = false;
 
+  // 防重复调用标记
+  bool _isRestoringState = false;
+  DateTime? _lastRestoreTime;
+
   // 背景女孩Spine控制器
   spine.SpineWidgetController? _backgroundSpineController;
   bool _isBackgroundSpineReady = false;
@@ -70,8 +74,32 @@ class _MainPageState extends ConsumerState<MainPage>
   }
 
   Future<void> _restoreBackgroundState() async {
-    await GameStateManager().init();
+    // 防重复调用检查
+    final now = DateTime.now();
+    if (_isRestoringState) {
+      print("[SPINE流程] 警告: 正在恢复状态中，跳过重复调用");
+      return;
+    }
 
+    if (_lastRestoreTime != null) {
+      final timeDiff = now.difference(_lastRestoreTime!);
+      if (timeDiff.inMilliseconds < 500) {
+        print("[SPINE流程] 警告: 距离上次恢复时间过短(${timeDiff.inMilliseconds}ms)，跳过重复调用");
+        return;
+      }
+    }
+
+    print("=== [SPINE流程] 开始恢复背景女孩状态 ===");
+    print("[SPINE流程] 防重复检查通过，开始执行状态恢复");
+
+    _isRestoringState = true;
+    _lastRestoreTime = now;
+
+    try {
+      print("[SPINE流程] 步骤1: 初始化GameStateManager");
+      await GameStateManager().init();
+
+    print("[SPINE流程] 步骤2: 尝试获取上次保存的女孩状态");
     // 优先尝试恢复上次保存的女孩状态
     final lastState = GameStateManager().getLastGirlState();
     int targetGirlIndex;
@@ -79,13 +107,19 @@ class _MainPageState extends ConsumerState<MainPage>
     Map<String, int>? skinsOverride;
 
     if (lastState != null) {
+      print("[SPINE流程] 步骤2a: 找到保存的状态，正在解析...");
+      print("[SPINE流程] 原始状态数据: $lastState");
+
       // 如果有上次保存的状态，使用它
       targetGirlIndex = (lastState['girlIndex'] as int?) ?? 0;
       idleOverride = (lastState['idleIndex'] as int?) ?? 0;
 
+      print("[SPINE流程] 解析出的基础值 - 女孩索引: $targetGirlIndex, 待机索引: $idleOverride");
+
       // 解析皮肤状态
       final dynamic skins = lastState['skins'];
       if (skins is Map) {
+        print("[SPINE流程] 开始解析皮肤状态...");
         final map = <String, int>{};
         skins.forEach((key, value) {
           if (key is String) {
@@ -99,16 +133,22 @@ class _MainPageState extends ConsumerState<MainPage>
         if (map.isNotEmpty) {
           skinsOverride = map;
         }
+        print("[SPINE流程] 解析完成的皮肤状态: $skinsOverride");
+      } else {
+        print("[SPINE流程] 未找到皮肤状态或皮肤状态格式错误");
       }
-      print("恢复上次保存的女孩状态: girl=$targetGirlIndex, idle=$idleOverride, skins=$skinsOverride");
+
+      print("[SPINE流程] 恢复上次保存的女孩状态: girl=$targetGirlIndex, idle=$idleOverride, skins=$skinsOverride");
     } else {
+      print("[SPINE流程] 步骤2b: 未找到保存的状态，使用StateManager当前状态");
       // 如果没有保存的状态，使用当前StateManager的状态
       targetGirlIndex = GameStateManager().getCurrentGirlIndex();
       idleOverride = GameStateManager().getCurrentIdleIndex();
       skinsOverride = GameStateManager().getCurrentSkins(targetGirlIndex);
-      print("使用StateManager当前状态: girl=$targetGirlIndex, idle=$idleOverride, skins=$skinsOverride");
+      print("[SPINE流程] 使用StateManager当前状态: girl=$targetGirlIndex, idle=$idleOverride, skins=$skinsOverride");
     }
 
+    print("[SPINE流程] 步骤3: 调用_loadGirlStateForBackground加载女孩状态");
     await _loadGirlStateForBackground(
       targetGirlIndex,
       idleIndexOverride: idleOverride,
@@ -116,15 +156,29 @@ class _MainPageState extends ConsumerState<MainPage>
       ensureInit: false,
     );
 
+    print("[SPINE流程] 步骤4: 更新GameStateManager状态");
     // 更新StateManager状态
     await GameStateManager().setCurrentGirlIndex(targetGirlIndex);
     await GameStateManager().setCurrentIdleIndex(idleOverride);
 
+    print("[SPINE流程] 步骤5: 标记页面准备就绪");
     // 标记页面准备就绪
     if (mounted) {
       setState(() {
         _isPageReady = true;
       });
+      print("[SPINE流程] 页面状态已更新为准备就绪");
+    } else {
+      print("[SPINE流程] 警告: Widget已销毁，无法更新页面状态");
+    }
+
+    print("=== [SPINE流程] 背景女孩状态恢复完成 ===");
+    } catch (e) {
+      print("[SPINE流程] 错误: 状态恢复过程中发生异常: $e");
+    } finally {
+      // 确保无论如何都重置恢复标记
+      _isRestoringState = false;
+      print("[SPINE流程] 状态恢复标记已重置");
     }
   }
 
@@ -134,48 +188,83 @@ class _MainPageState extends ConsumerState<MainPage>
     Map<String, int>? skinsOverride,
     bool ensureInit = true,
   }) async {
+    print("=== [SPINE流程] 开始加载女孩状态到背景 ===");
+    print("[SPINE流程] 输入参数 - girlIndex: $girlIndex, idleIndexOverride: $idleIndexOverride, skinsOverride: $skinsOverride, ensureInit: $ensureInit");
+
+    print("[SPINE流程] 步骤1: 检查GameStateManager初始化");
     if (ensureInit) {
       await GameStateManager().init();
+      print("[SPINE流程] GameStateManager已初始化");
+    } else {
+      print("[SPINE流程] 跳过GameStateManager初始化");
     }
 
+    print("[SPINE流程] 步骤2: 获取Spine资源");
     final assets = ref.read(spineAssetsProvider);
+    print("[SPINE流程] 获取到的Spine资源数量: ${assets.length}");
     if (assets.isEmpty) {
+      print("[SPINE流程] 错误: Spine资源为空，无法继续加载");
       return;
     }
 
+    print("[SPINE流程] 步骤3: 规范化女孩索引和状态");
     final int normalizedGirlIndex =
         girlIndex.clamp(0, assets.length - 1) as int;
+    print("[SPINE流程] 原始女孩索引: $girlIndex, 规范化后: $normalizedGirlIndex");
+
     final int storedIdle = idleIndexOverride ??
         GameStateManager().getGirlIdleIndex(normalizedGirlIndex);
+    print("[SPINE流程] 使用的待机索引: $storedIdle (override: $idleIndexOverride)");
+
     final Map<String, int> storedSkins =
         GameStateManager().getCurrentSkins(normalizedGirlIndex);
+    print("[SPINE流程] 当前存储的皮肤: $storedSkins");
+
     final Map<String, int> mergedSkins = {...storedSkins};
     if (skinsOverride != null) {
       mergedSkins.addAll(skinsOverride);
+      print("[SPINE流程] 合并了覆盖皮肤: $skinsOverride");
     }
+    print("[SPINE流程] 最终合并的皮肤: $mergedSkins");
 
+    print("[SPINE流程] 步骤4: 检查Widget状态");
     if (!mounted) {
+      print("[SPINE流程] 警告: Widget已销毁，退出加载流程");
       return;
     }
 
+    print("[SPINE流程] 步骤5: 更新Provider状态");
     ref.read(currentGirlIndexProvider.notifier).state = normalizedGirlIndex;
+    print("[SPINE流程] currentGirlIndexProvider已更新为: $normalizedGirlIndex");
+
+    print("[SPINE流程] 步骤6: 规范化并设置状态变量");
+    final normalizedIdle = _normalizeIdleIndex(normalizedGirlIndex, storedIdle);
+    final normalizedSkins = _normalizeSkinSelections(normalizedGirlIndex, mergedSkins);
+    print("[SPINE流程] 规范化后的待机索引: $normalizedIdle");
+    print("[SPINE流程] 规范化后的皮肤选择: $normalizedSkins");
 
     setState(() {
-      _backgroundIdleIndex =
-          _normalizeIdleIndex(normalizedGirlIndex, storedIdle);
-      _backgroundSkinSelections =
-          _normalizeSkinSelections(normalizedGirlIndex, mergedSkins);
+      _backgroundIdleIndex = normalizedIdle;
+      _backgroundSkinSelections = normalizedSkins;
       _isBackgroundSpineReady = false;
     });
+    print("[SPINE流程] 背景状态变量已更新，Spine状态标记为未就绪");
 
+    print("[SPINE流程] 步骤7: 更新GameStateManager");
     await GameStateManager().setCurrentGirlIndex(normalizedGirlIndex);
     await GameStateManager().setCurrentIdleIndex(_backgroundIdleIndex);
+    print("[SPINE流程] GameStateManager状态已更新");
 
+    print("[SPINE流程] 步骤8: 再次检查Widget状态");
     if (!mounted) {
+      print("[SPINE流程] 警告: Widget已销毁，无法初始化Spine控制器");
       return;
     }
 
+    print("[SPINE流程] 步骤9: 初始化背景Spine控制器");
     _initializeBackgroundSpine();
+
+    print("=== [SPINE流程] 女孩状态加载完成 ===");
   }
 
   Map<String, int> _normalizeSkinSelections(
@@ -280,111 +369,413 @@ class _MainPageState extends ConsumerState<MainPage>
 
   void _applySkinSet(
       spine.SpineWidgetController controller, List<String> skinNames) {
+    print("=== [SPINE流程] 开始应用皮肤设置 ===");
+    print("[SPINE流程] 皮肤名称列表: $skinNames");
+
     try {
+      print("[SPINE流程] 步骤1: 获取骨骼数据和骨骼对象");
       final data = controller.skeletonData;
       final skeleton = controller.skeleton;
       if (data == null || skeleton == null) {
+        print("[SPINE流程] 错误: 骨骼数据或骨骼对象为空，无法应用皮肤");
         return;
       }
+      print("[SPINE流程] 骨骼数据和骨骼对象获取成功");
 
+      print("[SPINE流程] 步骤2: 创建自定义皮肤");
       final customSkin = spine.Skin('background-custom-skin');
       bool hasAnySkin = false;
+      int foundSkins = 0;
+      int missingSkins = 0;
+
+      print("[SPINE流程] 步骤3: 查找并添加皮肤");
       for (final name in skinNames) {
+        print("[SPINE流程] 查找皮肤: $name");
         final skin = data.findSkin(name);
         if (skin != null) {
           customSkin.addSkin(skin);
           hasAnySkin = true;
+          foundSkins++;
+          print("[SPINE流程] 皮肤找到并添加: $name");
         } else {
-          print('背景女孩皮肤缺失: $name');
+          missingSkins++;
+          print('[SPINE流程] 警告: 背景女孩皮肤缺失: $name');
         }
       }
 
+      print("[SPINE流程] 皮肤查找统计 - 找到: $foundSkins, 缺失: $missingSkins");
+
+      print("[SPINE流程] 步骤4: 应用皮肤到骨骼");
       if (hasAnySkin) {
         skeleton.setSkin(customSkin);
         skeleton.setSlotsToSetupPose();
+        print("[SPINE流程] 自定义皮肤应用成功");
       } else {
+        print("[SPINE流程] 未找到任何自定义皮肤，尝试应用默认皮肤");
         final defaultSkin = data.findSkin('default');
         if (defaultSkin != null) {
           skeleton.setSkin(defaultSkin);
           skeleton.setSlotsToSetupPose();
+          print("[SPINE流程] 默认皮肤应用成功");
         } else {
           skeleton.setToSetupPose();
+          print("[SPINE流程] 使用默认姿势（未找到任何皮肤）");
         }
       }
+
+      print("[SPINE流程] 步骤5: 验证皮肤应用结果");
+      final currentSkin = skeleton.getSkin();
+      if (currentSkin != null) {
+        print("[SPINE流程] 当前皮肤名称: ${currentSkin.getName()}");
+      } else {
+        print("[SPINE流程] 当前没有设置皮肤");
+      }
+
     } catch (e) {
-      print('背景女孩皮肤设置失败: $e');
+      print('[SPINE流程] 错误: 背景女孩皮肤设置失败: $e');
+      print('[SPINE流程] 错误类型: ${e.runtimeType}');
+      print('[SPINE流程] 错误堆栈: ${StackTrace.current}');
     }
+
+    print("=== [SPINE流程] 皮肤设置完成 ===");
   }
 
   void _applyBackgroundSkin(
       spine.SpineWidgetController controller, int girlIndex, bool isUnderwear) {
+    print("=== [SPINE流程] 开始应用背景皮肤 ===");
+    print("[SPINE流程] 皮肤参数 - 女孩索引: $girlIndex, 是否内衣模式: $isUnderwear");
+    print("[SPINE流程] 当前皮肤选择: $_backgroundSkinSelections");
+
+    print("[SPINE流程] 构建皮肤名称列表...");
     final skinNames = isUnderwear
         ? _buildUnderwearSkinNames(girlIndex, _backgroundSkinSelections)
         : _buildDefaultSkinNames(girlIndex);
+
+    print("[SPINE流程] 生成的皮肤名称: $skinNames");
+    print("[SPINE流程] 调用_applySkinSet应用皮肤...");
+
     _applySkinSet(controller, skinNames);
+
+    print("=== [SPINE流程] 背景皮肤应用完成 ===");
   }
 
   void _applyBackgroundState(spine.SpineWidgetController controller) {
+    print("=== [SPINE流程] 开始应用背景状态 ===");
+
+    print("[SPINE流程] 步骤1: 获取控制器组件");
     final animationState = controller.animationState;
     final stateData = animationState?.getData();
     final skeleton = controller.skeleton;
     final skeletonData = skeleton?.getData();
 
+    print("[SPINE流程] 组件状态检查:");
+    print("[SPINE流程] - animationState: ${animationState != null ? '存在' : '缺失'}");
+    print("[SPINE流程] - stateData: ${stateData != null ? '存在' : '缺失'}");
+    print("[SPINE流程] - skeleton: ${skeleton != null ? '存在' : '缺失'}");
+    print("[SPINE流程] - skeletonData: ${skeletonData != null ? '存在' : '缺失'}");
+
     if (animationState == null ||
         stateData == null ||
         skeleton == null ||
         skeletonData == null) {
+      print("[SPINE流程] 警告: 控制器尚未准备就绪，将在下一帧重试");
       // 控制器尚未准备就绪，等待下一帧再试
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && controller == _backgroundSpineController) {
+          print("[SPINE流程] 重试应用背景状态...");
           _applyBackgroundState(controller);
+        } else {
+          print("[SPINE流程] 重试失败: Widget已销毁或控制器已变更");
         }
       });
       return;
     }
 
+    print("[SPINE流程] 步骤2: 设置动画过渡时间");
     try {
       stateData.setDefaultMix(0.2);
+      print("[SPINE流程] 动画过渡时间设置为: 0.2秒");
     } catch (e) {
-      print('背景女孩动画过渡设置失败: $e');
+      print('[SPINE流程] 错误: 背景女孩动画过渡设置失败: $e');
     }
 
+    print("[SPINE流程] 步骤3: 获取当前状态参数");
     final girlIndex = ref.read(currentGirlIndexProvider);
     final idleIndex = _backgroundIdleIndex;
     final isUnderwear = _isUnderwearMode(girlIndex, idleIndex);
     final desiredAnimation = _resolveIdleAnimationName(girlIndex, idleIndex);
 
+    print("[SPINE流程] 状态参数:");
+    print("[SPINE流程] - 女孩索引: $girlIndex");
+    print("[SPINE流程] - 待机索引: $idleIndex");
+    print("[SPINE流程] - 是否内衣模式: $isUnderwear");
+    print("[SPINE流程] - 期望动画名称: $desiredAnimation");
+
+    print("[SPINE流程] 步骤4: 查找可用动画");
     String? animationToPlay;
     try {
       if (skeletonData.findAnimation(desiredAnimation) != null) {
         animationToPlay = desiredAnimation;
+        print("[SPINE流程] 找到期望动画: $animationToPlay");
       } else if (skeletonData.findAnimation('idle_01') != null) {
         animationToPlay = 'idle_01';
+        print("[SPINE流程] 使用默认动画: $animationToPlay");
       } else {
         final animations = skeletonData.getAnimations();
         if (animations != null && animations.isNotEmpty) {
           animationToPlay = animations.first.getName();
+          print("[SPINE流程] 使用第一个可用动画: $animationToPlay");
+          print("[SPINE流程] 总共找到 ${animations.length} 个动画");
+        } else {
+          print("[SPINE流程] 警告: 未找到任何可用动画");
         }
       }
     } catch (e) {
-      print('背景女孩查询动画失败: $e');
+      print('[SPINE流程] 错误: 背景女孩查询动画失败: $e');
     }
 
+    print("[SPINE流程] 步骤5: 设置动画播放");
     if (animationToPlay != null && animationToPlay.isNotEmpty) {
       try {
         animationState.setAnimationByName(0, animationToPlay, true);
+        print("[SPINE流程] 动画设置成功: $animationToPlay (循环播放)");
+
+        // 添加动画状态验证
+        _scheduleAnimationHealthCheck(controller, animationToPlay);
       } catch (e) {
-        print('背景女孩动画播放失败: $e');
+        print('[SPINE流程] 错误: 背景女孩动画播放失败: $e');
       }
+    } else {
+      print("[SPINE流程] 警告: 没有可播放的动画");
     }
 
+    print("[SPINE流程] 步骤6: 应用皮肤设置");
     _applyBackgroundSkin(controller, girlIndex, isUnderwear);
 
+    print("[SPINE流程] 步骤7: 标记Spine准备就绪");
     if (mounted) {
       setState(() {
         _isBackgroundSpineReady = true;
       });
+      print("[SPINE流程] 背景Spine状态已标记为准备就绪");
+    } else {
+      print("[SPINE流程] 警告: Widget已销毁，无法更新状态");
     }
+
+    print("=== [SPINE流程] 背景状态应用完成 ===");
+  }
+
+  // 动画健康检查 - 确保动画正常播放
+  void _scheduleAnimationHealthCheck(spine.SpineWidgetController controller, String expectedAnimation) {
+    // 延迟500ms检查动画状态
+    Future.delayed(Duration(milliseconds: 500), () {
+      if (!mounted || controller != _backgroundSpineController) {
+        print("[SPINE流程] 健康检查: Widget或控制器已变更，跳过检查");
+        return;
+      }
+
+      try {
+        final animationState = controller.animationState;
+        if (animationState == null) {
+          print("[SPINE流程] 健康检查: animationState为空，尝试重新设置动画");
+          _retryAnimationSetup(controller, expectedAnimation);
+          return;
+        }
+
+        final currentAnimation = animationState.getCurrent(0);
+        final currentAnimationName = currentAnimation?.getAnimation()?.getName();
+
+        print("[SPINE流程] 健康检查: 期望动画=$expectedAnimation, 当前动画=$currentAnimationName");
+
+        if (currentAnimationName != expectedAnimation) {
+          print("[SPINE流程] 健康检查: 动画不匹配，尝试重新设置");
+          _retryAnimationSetup(controller, expectedAnimation);
+        } else {
+          print("[SPINE流程] 健康检查: 动画正常播放");
+
+          // 再检查一次动画是否真的在播放
+          _verifyAnimationPlaying(controller, expectedAnimation);
+        }
+      } catch (e) {
+        print("[SPINE流程] 健康检查失败: $e");
+        _retryAnimationSetup(controller, expectedAnimation);
+      }
+    });
+  }
+
+  // 重试动画设置
+  void _retryAnimationSetup(spine.SpineWidgetController controller, String animationName) {
+    print("[SPINE流程] 尝试重新设置动画: $animationName");
+
+    try {
+      final animationState = controller.animationState;
+      if (animationState != null) {
+        // 清除现有动画
+        animationState.clearTracks();
+
+        // 重新设置动画
+        animationState.setAnimationByName(0, animationName, true);
+        print("[SPINE流程] 动画重新设置成功: $animationName");
+
+        // 再次验证
+        _verifyAnimationPlaying(controller, animationName);
+      }
+    } catch (e) {
+      print("[SPINE流程] 重新设置动画失败: $e");
+    }
+  }
+
+  // 验证动画是否真的在播放
+  void _verifyAnimationPlaying(spine.SpineWidgetController controller, String animationName) {
+    // 再延迟200ms验证动画播放状态
+    Future.delayed(Duration(milliseconds: 200), () {
+      if (!mounted || controller != _backgroundSpineController) return;
+
+      try {
+        final animationState = controller.animationState;
+        if (animationState == null) {
+          print("[SPINE流程] 验证: animationState为空");
+          return;
+        }
+
+        final currentAnimation = animationState.getCurrent(0);
+        final currentAnimationName = currentAnimation?.getAnimation()?.getName();
+
+        print("[SPINE流程] 验证: 当前动画=$currentAnimationName, 是否循环=${currentAnimation?.getLoop()}");
+
+        if (currentAnimationName == animationName) {
+          print("[SPINE流程] ✅ 动画验证成功: $animationName 正常播放");
+
+          // 检查动画时间轴
+          final trackTime = currentAnimation?.getTrackTime() ?? 0.0;
+          final animationDuration = currentAnimation?.getAnimation()?.getDuration() ?? 0.0;
+          print("[SPINE流程] 动画时间轴: 当前时间=${trackTime.toStringAsFixed(2)}s, 总时长=${animationDuration.toStringAsFixed(2)}s");
+
+          if (trackTime > 0) {
+            print("[SPINE流程] ✅ 动画时间轴正常运行");
+
+            // 启动持续监控，确保动画不会卡住
+            _scheduleContinuousAnimationCheck(controller, animationName);
+          } else {
+            print("[SPINE流程] ⚠️ 动画时间轴未开始，可能存在问题");
+
+            // 尝试强制重启动画
+            _forceRestartAnimation(controller, animationName);
+          }
+        } else {
+          print("[SPINE流程] ❌ 动画验证失败: 期望$animationName, 实际$currentAnimationName");
+        }
+      } catch (e) {
+        print("[SPINE流程] 动画验证异常: $e");
+      }
+    });
+  }
+
+  // 持续动画检查 - 确保动画不会卡住
+  void _scheduleContinuousAnimationCheck(spine.SpineWidgetController controller, String animationName) {
+    // 每2秒检查一次动画状态，连续检查3次
+    for (int i = 0; i < 3; i++) {
+      Future.delayed(Duration(seconds: 2 + (i * 2)), () {
+        if (!mounted || controller != _backgroundSpineController) {
+          print("[SPINE流程] 持续检查: Widget或控制器已变更，停止检查");
+          return;
+        }
+
+        try {
+          final animationState = controller.animationState;
+          if (animationState == null) {
+            print("[SPINE流程] 持续检查: animationState为空，尝试重启动画");
+            _forceRestartAnimation(controller, animationName);
+            return;
+          }
+
+          final currentAnimation = animationState.getCurrent(0);
+          final currentAnimationName = currentAnimation?.getAnimation()?.getName();
+          final trackTime = currentAnimation?.getTrackTime() ?? 0.0;
+
+          print("[SPINE流程] 持续检查#${i + 1}: 动画=$currentAnimationName, 时间轴=${trackTime.toStringAsFixed(2)}s");
+
+          if (currentAnimationName != animationName || trackTime <= 0) {
+            print("[SPINE流程] 持续检查: 检测到动画异常，尝试重启");
+            _forceRestartAnimation(controller, animationName);
+            return;
+          }
+
+          if (i == 2) {
+            print("[SPINE流程] ✅ 持续检查完成: 动画稳定运行");
+          }
+        } catch (e) {
+          print("[SPINE流程] 持续检查异常: $e");
+        }
+      });
+    }
+  }
+
+  // 强制重启动画
+  void _forceRestartAnimation(spine.SpineWidgetController controller, String animationName) {
+    print("[SPINE流程] 🔧 强制重启动画: $animationName");
+
+    try {
+      final animationState = controller.animationState;
+      if (animationState == null) {
+        print("[SPINE流程] 重启失败: animationState为空");
+        return;
+      }
+
+      // 方法1: 清除并重新设置动画
+      animationState.clearTracks();
+
+      // 等待一帧
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && controller == _backgroundSpineController) {
+          try {
+            animationState.setAnimationByName(0, animationName, true);
+            print("[SPINE流程] 强制重启成功: $animationName");
+
+            // 验证重启结果
+            Future.delayed(Duration(milliseconds: 300), () {
+              _verifyAnimationPlaying(controller, animationName);
+            });
+          } catch (e) {
+            print("[SPINE流程] 强制重启失败: $e");
+
+            // 方法2: 如果重启失败，尝试重新创建控制器
+            _recreateSpineController();
+          }
+        }
+      });
+    } catch (e) {
+      print("[SPINE流程] 强制重启异常: $e");
+      _recreateSpineController();
+    }
+  }
+
+  // 重新创建Spine控制器 - 最后的手段
+  void _recreateSpineController() {
+    print("[SPINE流程] 🔄 重新创建Spine控制器");
+
+    if (!mounted) return;
+
+    // 保存当前状态
+    final currentGirlIndex = ref.read(currentGirlIndexProvider);
+    final currentIdleIndex = _backgroundIdleIndex;
+    final currentSkins = _backgroundSkinSelections;
+
+    print("[SPINE流程] 保存状态: girl=$currentGirlIndex, idle=$currentIdleIndex, skins=$currentSkins");
+
+    // 重新初始化控制器
+    _initializeBackgroundSpine();
+
+    // 延迟重新应用状态
+    Future.delayed(Duration(milliseconds: 100), () {
+      if (mounted) {
+        _loadGirlStateForBackground(
+          currentGirlIndex,
+          idleIndexOverride: currentIdleIndex,
+          skinsOverride: currentSkins,
+        );
+      }
+    });
   }
 
   @override
@@ -442,19 +833,38 @@ class _MainPageState extends ConsumerState<MainPage>
   }
 
   void _initializeBackgroundSpine() {
+    print("=== [SPINE流程] 开始初始化背景Spine控制器 ===");
+
+    print("[SPINE流程] 步骤1: 检查并销毁现有控制器");
     // 销毁旧的控制器
     if (_backgroundSpineController != null) {
+      print("[SPINE流程] 发现现有控制器，正在销毁...");
       _backgroundSpineController = null;
+      print("[SPINE流程] 现有控制器已销毁");
+    } else {
+      print("[SPINE流程] 未发现现有控制器");
     }
 
+    print("[SPINE流程] 步骤2: 创建新的SpineWidgetController");
     try {
       _backgroundSpineController =
           spine.SpineWidgetController(onInitialized: (controller) {
+        print("[SPINE流程] SpineWidgetController初始化回调触发");
+        print("[SPINE流程] 控制器对象: ${controller.runtimeType}");
+        print("[SPINE流程] 骨骼数据: ${controller.skeletonData?.runtimeType}");
+        print("[SPINE流程] 骨骼对象: ${controller.skeleton?.runtimeType}");
+        print("[SPINE流程] 动画状态: ${controller.animationState?.runtimeType}");
+        print("[SPINE流程] 开始应用背景状态...");
         _applyBackgroundState(controller);
       });
+      print("[SPINE流程] SpineWidgetController创建成功");
     } catch (e) {
-      print("背景女孩控制器创建失败: $e");
+      print("[SPINE流程] 错误: 背景女孩控制器创建失败: $e");
+      print("[SPINE流程] 错误类型: ${e.runtimeType}");
+      print("[SPINE流程] 错误堆栈: ${StackTrace.current}");
     }
+
+    print("=== [SPINE流程] 背景Spine控制器初始化完成 ===");
   }
 
   Future<void> _loadUserData() async {
@@ -731,7 +1141,13 @@ class _MainPageState extends ConsumerState<MainPage>
     if (girlIndex != null) {
       print("MainPage: 收到预览页面状态变化 - girl=$girlIndex, idle=$idleIndex, skins=$skins");
 
-      // 更新背景女孩状态
+      // 如果是从预览页面返回的最终状态，不需要立即更新，等待_restoreBackgroundState处理
+      if (fromPreview) {
+        print("MainPage: 检测到从预览页面返回，跳过立即状态更新，等待批量恢复");
+        return;
+      }
+
+      // 更新背景女孩状态（仅在预览页面内部状态变化时）
       _loadGirlStateForBackground(
         girlIndex,
         idleIndexOverride: idleIndex,
@@ -751,9 +1167,16 @@ class _MainPageState extends ConsumerState<MainPage>
     )
         .then((_) {
       // 从预览页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
+      print("[SPINE流程] 从预览页面返回，开始数据同步...");
       _loadUserData();
-      // 不再重置已弹标记，确保跨页面也只弹一次
-      _restoreBackgroundState();
+
+      // 延迟一点再恢复背景状态，避免与_loadUserData中的状态更新冲突
+      Future.delayed(Duration(milliseconds: 100), () {
+        if (mounted) {
+          print("[SPINE流程] 延迟恢复背景状态");
+          _restoreBackgroundState();
+        }
+      });
     });
   }
 
