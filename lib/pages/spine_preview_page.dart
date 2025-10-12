@@ -2452,6 +2452,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
       _currentSkinIndices = _buildSkinIndicesFromSaved(index, savedSkins);
     });
     _cacheCurrentGirlState();
+    _notifyStateChanged(); // 通知首页女孩已切换
     _dumpGirlState(index, tag: "after setState");
 
     // 检查是否已经销毁

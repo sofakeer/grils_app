@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:spine_flutter/spine_flutter.dart';
 
 class SpineGalleryPage extends StatefulWidget {
-  const SpineGalleryPage({super.key});
+  final Function(Map<String, dynamic>)? onStateChanged;
+
+  const SpineGalleryPage({super.key, this.onStateChanged});
 
   @override
   State<SpineGalleryPage> createState() => _SpineGalleryPageState();
@@ -10,7 +12,26 @@ class SpineGalleryPage extends StatefulWidget {
 
 class _SpineGalleryPageState extends State<SpineGalleryPage> {
   int _currentIndex = 0;
-  
+
+  // 通知状态变化
+  void _notifyStateChanged() {
+    if (widget.onStateChanged != null && mounted) {
+      final stateData = {
+        'girlIndex': _currentIndex,
+        'fromGallery': true,
+      };
+
+      // 异步调用回调，避免阻塞当前操作
+      Future.microtask(() {
+        if (widget.onStateChanged != null) {
+          widget.onStateChanged!(stateData);
+        }
+      });
+
+      print("SpineGalleryPage: 已通知状态变化 - girl=$_currentIndex");
+    }
+  }
+
   final List<SpineAssetInfo> _spineAssets = [
     SpineAssetInfo(
       name: "Girl 01",
@@ -54,6 +75,8 @@ class _SpineGalleryPageState extends State<SpineGalleryPage> {
                     setState(() {
                       _currentIndex = index;
                     });
+                    // 切换任何资源时都通知（包括女孩和Takeoff）
+                    _notifyStateChanged();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _currentIndex == index 

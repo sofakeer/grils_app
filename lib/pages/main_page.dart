@@ -21,6 +21,7 @@ import '../services/user_service.dart';
 import '../widgets/unlock_new_gril_dialog.dart';
 import '../widgets/gril_waiting_dialog.dart';
 import 'spine_preview_page.dart';
+import '../spine_gallery_page.dart';
 import '../tilt_test_page.dart';
 
 class MainPage extends ConsumerStatefulWidget {
@@ -684,6 +685,18 @@ class _MainPageState extends ConsumerState<MainPage>
     });
   }
 
+  void _navigateToSpineGallery() async {
+    await AudioManager().playPopupOpen();
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute(
+        builder: (context) => SpineGalleryPage(
+          onStateChanged: _handlePreviewStateChanged,
+        ),
+      ),
+    );
+  }
+
   void _navigateToGame() {
     Navigator.of(context)
         .push(
@@ -706,11 +719,34 @@ class _MainPageState extends ConsumerState<MainPage>
     await _loadGirlStateForBackground(nextIndex);
   }
 
+  // 处理预览页面状态变化
+  void _handlePreviewStateChanged(Map<String, dynamic> stateData) {
+    if (!mounted) return;
+
+    final girlIndex = stateData['girlIndex'] as int?;
+    final idleIndex = stateData['idleIndex'] as int?;
+    final skins = stateData['skins'] as Map<String, int>?;
+    final fromPreview = stateData['fromPreview'] as bool? ?? false;
+
+    if (girlIndex != null) {
+      print("MainPage: 收到预览页面状态变化 - girl=$girlIndex, idle=$idleIndex, skins=$skins");
+
+      // 更新背景女孩状态
+      _loadGirlStateForBackground(
+        girlIndex,
+        idleIndexOverride: idleIndex,
+        skinsOverride: skins,
+      );
+    }
+  }
+
   void _startTakeOff() {
     Navigator.of(context)
         .push(
       MaterialPageRoute(
-        builder: (context) => const SpinePreviewPage(),
+        builder: (context) => SpinePreviewPage(
+          onStateChanged: _handlePreviewStateChanged,
+        ),
       ),
     )
         .then((_) {
@@ -806,6 +842,31 @@ class _MainPageState extends ConsumerState<MainPage>
                       child: Image.asset(
                         Assets.mainMainBtnGameskin,
                         height: 60,
+                      ),
+                    ),
+                  ),
+
+                  // Spine画廊按钮
+                  GestureDetector(
+                    onTap: _navigateToSpineGallery,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const OutlinedTextWidget(
+                          text: 'Spine\n画廊',
+                          fontSize: 14,
+                          textColor: Colors.white,
+                          strokeColor: Colors.black,
+                          strokeWidth: 2.0,
+                          fontWeight: FontWeight.bold,
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                   ),
