@@ -164,8 +164,7 @@ class _MainPageState extends ConsumerState<MainPage>
           _normalizeIdleIndex(normalizedGirlIndex, storedIdle);
       _backgroundSkinSelections =
           _normalizeSkinSelections(normalizedGirlIndex, mergedSkins);
-      // 注意：不重置 _isBackgroundSpineReady，避免显示splash页面
-      // _isBackgroundSpineReady = false;
+      _isBackgroundSpineReady = false;
     });
 
     await GameStateManager().setCurrentGirlIndex(normalizedGirlIndex);
@@ -383,7 +382,6 @@ class _MainPageState extends ConsumerState<MainPage>
     if (mounted) {
       setState(() {
         _isBackgroundSpineReady = true;
-        _isPageReady = true; // 确保页面标记为就绪
       });
     }
   }
@@ -406,18 +404,13 @@ class _MainPageState extends ConsumerState<MainPage>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 当从其它页面返回到主界面时再次检查特殊关卡和刷新状态
+    // 当从其它页面返回到主界面时再次检查特殊关卡
     final route = ModalRoute.of(context);
     if (route != null && route.isCurrent) {
       // 延迟到当前帧结束，确保上下文稳定
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          // 检查特殊关卡
           _checkForSpecialStage();
-
-          // 刷新背景女孩状态以确保同步
-          _refreshBackgroundState();
-
           // 检查并播放待播放的爱心动画
           _checkAndPlayPendingHeartAnimation();
         }
@@ -672,8 +665,7 @@ class _MainPageState extends ConsumerState<MainPage>
         .then((_) {
       // 从商店页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
-      // 刷新背景女孩状态（商店中可能有皮肤变更）
-      _refreshBackgroundState();
+      // 不再重置已弹标记
     });
   }
 
@@ -718,72 +710,15 @@ class _MainPageState extends ConsumerState<MainPage>
     Navigator.of(context)
         .push(
       MaterialPageRoute(
-        builder: (context) => SpinePreviewPage(
-          onStateChanged: (stateData) {
-            // 当预览页面状态变化时，立即刷新背景状态
-            print("MainPage: 收到预览页面状态变化通知: $stateData");
-            _refreshBackgroundState();
-          },
-        ),
+        builder: (context) => const SpinePreviewPage(),
       ),
     )
         .then((_) {
       // 从预览页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
-      // 立即刷新背景女孩状态以同步SpinePreviewPage中的变更
-      _refreshBackgroundState();
       // 不再重置已弹标记，确保跨页面也只弹一次
+      _restoreBackgroundState();
     });
-  }
-
-  // 新增方法：专门用于刷新背景女孩状态
-  Future<void> _refreshBackgroundState() async {
-    if (!mounted) return;
-
-    print("MainPage: 刷新背景女孩状态");
-
-    // 重新初始化游戏状态管理器
-    await GameStateManager().init();
-
-    // 获取最新的女孩状态
-    final lastState = GameStateManager().getLastGirlState();
-    if (lastState != null) {
-      final int girlIndex = (lastState['girlIndex'] as int?) ?? 0;
-      final int idleIndex = (lastState['idleIndex'] as int?) ?? 0;
-
-      // 解析皮肤状态
-      final dynamic skins = lastState['skins'];
-      Map<String, int>? skinsOverride;
-      if (skins is Map) {
-        final map = <String, int>{};
-        skins.forEach((key, value) {
-          if (key is String) {
-            if (value is int) {
-              map[key] = value;
-            } else if (value is num) {
-              map[key] = value.toInt();
-            }
-          }
-        });
-        if (map.isNotEmpty) {
-          skinsOverride = map;
-        }
-      }
-
-      print("MainPage: 应用最新状态 - girl=$girlIndex, idle=$idleIndex, skins=$skinsOverride");
-
-      // 应用最新状态到背景女孩（不重置页面状态，避免显示splash）
-      await _loadGirlStateForBackground(
-        girlIndex,
-        idleIndexOverride: idleIndex,
-        skinsOverride: skinsOverride,
-        ensureInit: false,
-      );
-    } else {
-      print("MainPage: 没有找到保存的状态，使用默认状态");
-      // 如果没有保存的状态，重新初始化默认状态
-      await _restoreBackgroundState();
-    }
   }
 
   // 临时测试方法 - 播放金币和心特效
@@ -814,43 +749,6 @@ class _MainPageState extends ConsumerState<MainPage>
   @override
   Widget build(BuildContext context) {
     final currentGirlAsset = ref.watch(currentGirlAssetProvider);
-
-    // 如果页面还没准备好，显示加载界面
-    if (!_isPageReady || _backgroundSpineController == null) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage(Assets.loadingLoadingBg), // 使用加载页背景
-              fit: BoxFit.cover,
-            ),
-          ),
-          child: const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.pink),
-                  strokeWidth: 3,
-                ),
-                SizedBox(height: 20),
-                Text(
-                  '正在初始化...',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       resizeToAvoidBottomInset: false,

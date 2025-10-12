@@ -7,6 +7,7 @@ import '../widgets/outlined_text_widget.dart';
 import '../managers/game_state_manager.dart';
 import '../managers/audio_manager.dart';
 import '../managers/ad_manager.dart';
+import '../services/user_service.dart';
 import 'dart:async';
 
 class WinHeartPage extends StatefulWidget {
@@ -380,14 +381,19 @@ class _WinHeartPageState extends State<WinHeartPage>
 
   void _getReward() async {
     try {
-      // Add hearts to player's inventory
-      await GameStateManager().addHearts(_baseHeartReward * _currentMultiplier);
+      final rewardAmount = _baseHeartReward * _currentMultiplier;
+
+      // Add hearts to both GameStateManager and UserService
+      await GameStateManager().addHearts(rewardAmount);
+      await UserService.instance.addHearts(rewardAmount);
+
+      print('WinHeartPage: 添加了 $rewardAmount 个爱心到两个系统');
 
       await _markSpecialStageReadyIfPending();
       await GameStateManager().setTriggerSpecialOnReturn(true);
 
       // 存储需要在MainPage播放的动画信息
-      await GameStateManager().setPendingHeartAnimation(_baseHeartReward * _currentMultiplier);
+      await GameStateManager().setPendingHeartAnimation(rewardAmount);
 
       // Play reward sound
       await AudioManager().playHeartEffect();
@@ -418,10 +424,18 @@ class _WinHeartPageState extends State<WinHeartPage>
           print('翻倍奖励广告播放完成');
           // 广告完成后翻倍奖励
           if (mounted) {
+            final doubleRewardAmount = _baseHeartReward * _currentMultiplier * 2;
+
             setState(() {
               _hasDoubled = true;
-              _totalHeartReward = _baseHeartReward * _currentMultiplier * 2;
+              _totalHeartReward = doubleRewardAmount;
             });
+
+            // Add double hearts to both GameStateManager and UserService
+            await GameStateManager().addHearts(doubleRewardAmount);
+            await UserService.instance.addHearts(doubleRewardAmount);
+
+            print('WinHeartPage: 翻倍添加了 $doubleRewardAmount 个爱心到两个系统');
 
             await _markSpecialStageReadyIfPending();
             await GameStateManager().setTriggerSpecialOnReturn(true);
@@ -430,7 +444,7 @@ class _WinHeartPageState extends State<WinHeartPage>
             await AudioManager().playHeartEffect();
 
             // 存储需要在MainPage播放的动画信息
-            await GameStateManager().setPendingHeartAnimation(_baseHeartReward * _currentMultiplier * 2);
+            await GameStateManager().setPendingHeartAnimation(doubleRewardAmount);
 
             // 延迟2秒后自动回到主界面
             Future.delayed(const Duration(seconds: 2), () {
