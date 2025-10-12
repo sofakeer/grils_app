@@ -35,6 +35,9 @@ class _MainPageState extends ConsumerState<MainPage>
   late AnimationController _takeoffController;
   late Animation<double> _takeoffAnimation;
 
+  // 页面加载状态
+  bool _isPageReady = false;
+
   // 背景女孩Spine控制器
   spine.SpineWidgetController? _backgroundSpineController;
   bool _isBackgroundSpineReady = false;
@@ -67,27 +70,42 @@ class _MainPageState extends ConsumerState<MainPage>
 
   Future<void> _restoreBackgroundState() async {
     await GameStateManager().init();
+
+    // 优先尝试恢复上次保存的女孩状态
     final lastState = GameStateManager().getLastGirlState();
-    final int fallbackGirlIndex = GameStateManager().getCurrentGirlIndex();
-    final int targetGirlIndex =
-        (lastState?['girlIndex'] as int?) ?? fallbackGirlIndex;
-    final int? idleOverride = lastState?['idleIndex'] as int?;
+    int targetGirlIndex;
+    int idleOverride;
     Map<String, int>? skinsOverride;
-    final dynamic skins = lastState?['skins'];
-    if (skins is Map) {
-      final map = <String, int>{};
-      skins.forEach((key, value) {
-        if (key is String) {
-          if (value is int) {
-            map[key] = value;
-          } else if (value is num) {
-            map[key] = value.toInt();
+
+    if (lastState != null) {
+      // 如果有上次保存的状态，使用它
+      targetGirlIndex = (lastState['girlIndex'] as int?) ?? 0;
+      idleOverride = (lastState['idleIndex'] as int?) ?? 0;
+
+      // 解析皮肤状态
+      final dynamic skins = lastState['skins'];
+      if (skins is Map) {
+        final map = <String, int>{};
+        skins.forEach((key, value) {
+          if (key is String) {
+            if (value is int) {
+              map[key] = value;
+            } else if (value is num) {
+              map[key] = value.toInt();
+            }
           }
+        });
+        if (map.isNotEmpty) {
+          skinsOverride = map;
         }
-      });
-      if (map.isNotEmpty) {
-        skinsOverride = map;
       }
+      print("恢复上次保存的女孩状态: girl=$targetGirlIndex, idle=$idleOverride, skins=$skinsOverride");
+    } else {
+      // 如果没有保存的状态，使用当前StateManager的状态
+      targetGirlIndex = GameStateManager().getCurrentGirlIndex();
+      idleOverride = GameStateManager().getCurrentIdleIndex();
+      skinsOverride = GameStateManager().getCurrentSkins(targetGirlIndex);
+      print("使用StateManager当前状态: girl=$targetGirlIndex, idle=$idleOverride, skins=$skinsOverride");
     }
 
     await _loadGirlStateForBackground(
@@ -96,6 +114,17 @@ class _MainPageState extends ConsumerState<MainPage>
       skinsOverride: skinsOverride,
       ensureInit: false,
     );
+
+    // 更新StateManager状态
+    await GameStateManager().setCurrentGirlIndex(targetGirlIndex);
+    await GameStateManager().setCurrentIdleIndex(idleOverride);
+
+    // 标记页面准备就绪
+    if (mounted) {
+      setState(() {
+        _isPageReady = true;
+      });
+    }
   }
 
   Future<void> _loadGirlStateForBackground(
@@ -353,6 +382,7 @@ class _MainPageState extends ConsumerState<MainPage>
     if (mounted) {
       setState(() {
         _isBackgroundSpineReady = true;
+        _isPageReady = true; // 确保页面标记为就绪
       });
     }
   }
@@ -375,13 +405,20 @@ class _MainPageState extends ConsumerState<MainPage>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 当从其它页面返回到主界面时再次检查特殊关卡
+    // 当从其它页面返回到主界面时再次检查特殊关卡和刷新状态
     final route = ModalRoute.of(context);
     if (route != null && route.isCurrent) {
       // 延迟到当前帧结束，确保上下文稳定
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
+          // 检查特殊关卡
           _checkForSpecialStage();
+
+          // 刷新背景女孩状态以确保同步
+          _refreshBackgroundState();
+
+          // 检查并播放待播放的爱心动画
+          _checkAndPlayPendingHeartAnimation();
         }
       });
     }
@@ -553,6 +590,30 @@ class _MainPageState extends ConsumerState<MainPage>
     }
   }
 
+  // 检查并播放待播放的爱心动画
+  Future<void> _checkAndPlayPendingHeartAnimation() async {
+    try {
+      await GameStateManager().init();
+
+      final pendingAnimation = GameStateManager().getPendingHeartAnimation();
+      if (pendingAnimation != null && mounted) {
+        final int heartAmount = pendingAnimation['heartAmount'] ?? 0;
+
+        if (heartAmount > 0) {
+          print("MainPage: 播放待播放的爱心动画，数量: $heartAmount");
+
+          // 播放爱心动画，金币数量设为0
+          CommonHeader.playSignInEffects(context, 0, heartAmount);
+
+          // 清除待播放的动画标记
+          await GameStateManager().clearPendingHeartAnimation();
+        }
+      }
+    } catch (e) {
+      print("检查并播放爱心动画失败: $e");
+    }
+  }
+
   // 获取最新解锁的图片索引
   int _getLatestUnlockedImageIndex(SharedPreferences prefs) {
     // 总共75张图片，从后往前查找最新解锁的
@@ -610,7 +671,8 @@ class _MainPageState extends ConsumerState<MainPage>
         .then((_) {
       // 从商店页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
-      // 不再重置已弹标记
+      // 刷新背景女孩状态（商店中可能有皮肤变更）
+      _refreshBackgroundState();
     });
   }
 
@@ -661,9 +723,60 @@ class _MainPageState extends ConsumerState<MainPage>
         .then((_) {
       // 从预览页面返回时重新加载数据，可能有新图片解锁或新女孩解锁
       _loadUserData();
+      // 立即刷新背景女孩状态以同步SpinePreviewPage中的变更
+      _refreshBackgroundState();
       // 不再重置已弹标记，确保跨页面也只弹一次
-      _restoreBackgroundState();
     });
+  }
+
+  // 新增方法：专门用于刷新背景女孩状态
+  Future<void> _refreshBackgroundState() async {
+    if (!mounted) return;
+
+    print("MainPage: 刷新背景女孩状态");
+
+    // 重新初始化游戏状态管理器
+    await GameStateManager().init();
+
+    // 获取最新的女孩状态
+    final lastState = GameStateManager().getLastGirlState();
+    if (lastState != null) {
+      final int girlIndex = (lastState['girlIndex'] as int?) ?? 0;
+      final int idleIndex = (lastState['idleIndex'] as int?) ?? 0;
+
+      // 解析皮肤状态
+      final dynamic skins = lastState['skins'];
+      Map<String, int>? skinsOverride;
+      if (skins is Map) {
+        final map = <String, int>{};
+        skins.forEach((key, value) {
+          if (key is String) {
+            if (value is int) {
+              map[key] = value;
+            } else if (value is num) {
+              map[key] = value.toInt();
+            }
+          }
+        });
+        if (map.isNotEmpty) {
+          skinsOverride = map;
+        }
+      }
+
+      print("MainPage: 应用最新状态 - girl=$girlIndex, idle=$idleIndex, skins=$skinsOverride");
+
+      // 应用最新状态到背景女孩
+      await _loadGirlStateForBackground(
+        girlIndex,
+        idleIndexOverride: idleIndex,
+        skinsOverride: skinsOverride,
+        ensureInit: false,
+      );
+    } else {
+      print("MainPage: 没有找到保存的状态，使用默认状态");
+      // 如果没有保存的状态，重新初始化默认状态
+      await _restoreBackgroundState();
+    }
   }
 
   // 临时测试方法 - 播放金币和心特效
@@ -694,6 +807,43 @@ class _MainPageState extends ConsumerState<MainPage>
   @override
   Widget build(BuildContext context) {
     final currentGirlAsset = ref.watch(currentGirlAssetProvider);
+
+    // 如果页面还没准备好，显示加载界面
+    if (!_isPageReady || _backgroundSpineController == null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(Assets.loadingLoadingBg), // 使用加载页背景
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.pink),
+                  strokeWidth: 3,
+                ),
+                SizedBox(height: 20),
+                Text(
+                  '正在初始化...',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       resizeToAvoidBottomInset: false,

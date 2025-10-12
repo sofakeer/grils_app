@@ -11,6 +11,7 @@ import 'package:image_gallery_saver/image_gallery_saver.dart';
 import '../utils/energy_calculator.dart';
 import '../managers/audio_manager.dart';
 import '../widgets/outlined_text_widget.dart';
+import '../widgets/photo_unlock_effect_widget.dart';
 
 class NewPhotoPage extends StatefulWidget {
   final int level;
@@ -41,12 +42,11 @@ class _NewPhotoPageState extends State<NewPhotoPage>
 
   // Spine controllers
   spine.SpineWidgetController? _titleSpineController;
-  spine.SpineWidgetController? _unlockEffectController;
-  // 全屏特效 Overlay（标题和解锁特效使用）
   OverlayEntry? _titleSpineOverlayEntry;
-  OverlayEntry? _unlockEffectOverlayEntry;
   bool _isTitleSpineReady = false;
-  bool _isUnlockEffectReady = false;
+
+  // 解锁特效Widget引用
+  final GlobalKey _unlockEffectKey = GlobalKey();
 
   int _currentPhotoIndex = 0; // 当前照片索引 (0-79)
   static const int maxPhotos = 80; // 总共80张照片
@@ -58,10 +58,9 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     _initializeSpineControllers();
     _initAsync();
 
-    // 在首帧后插入全屏 Overlay，不参与排版
+    // 在首帧后插入标题 Overlay
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _insertTitleSpineOverlay();
-      _insertUnlockEffectOverlay();
     });
   }
 
@@ -190,47 +189,6 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     } catch (e) {
       print('Title spine controller creation failed: $e');
     }
-
-    // 初始化解锁特效Spine控制器
-    if (_unlockEffectController == null) {
-      try {
-        print('[UNLOCK_DEBUG] 🔧 Creating unlock effect controller...');
-        _unlockEffectController =
-            spine.SpineWidgetController(onInitialized: (controller) {
-          try {
-            print(
-                '[UNLOCK_DEBUG] 🎯 Controller initialization callback triggered');
-            controller.animationState.getData().setDefaultMix(0.2);
-            if (mounted) {
-              setState(() {
-                _isUnlockEffectReady = true;
-              });
-              print('[UNLOCK_DEBUG] ✅ Unlock effect controller ready');
-              if (_pendingUnlockEffect) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    _playUnlockEffect();
-                  }
-                });
-              }
-            } else {
-              print(
-                  '[UNLOCK_DEBUG] ❌ Widget not mounted during initialization');
-            }
-          } catch (e) {
-            print('[UNLOCK_DEBUG] ❌ Unlock effect initialization failed: $e');
-          }
-        });
-        print(
-            '[UNLOCK_DEBUG] 🔧 Unlock effect controller created successfully');
-      } catch (e) {
-        print(
-            '[UNLOCK_DEBUG] ❌ Unlock effect spine controller creation failed: $e');
-      }
-    } else {
-      print(
-          '[UNLOCK_DEBUG] 🔧 Unlock effect controller already exists, skipping creation');
-    }
   }
 
   void _insertTitleSpineOverlay() {
@@ -277,40 +235,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     } catch (_) {}
   }
 
-  void _insertUnlockEffectOverlay() {
-    if (!mounted || _unlockEffectOverlayEntry != null) return;
-    final overlay = Overlay.maybeOf(context);
-    if (overlay == null) return;
-
-    _unlockEffectOverlayEntry = OverlayEntry(
-      builder: (context) {
-        return IgnorePointer(
-          ignoring: true, // 仅展示特效，点击穿透
-          child: _showUnlockEffect && _unlockEffectController != null
-              ? Positioned.fill(
-                  child: spine.SpineWidget.fromAsset(
-                    "assets/spine/PhotoUnlock_Eff.atlas",
-                    "assets/spine/PhotoUnlock_Eff.skel",
-                    _unlockEffectController!,
-                    boundsProvider: const spine.SetupPoseBounds(),
-                    fit: BoxFit.contain,
-                  ),
-                )
-              : const SizedBox.shrink(),
-        );
-      },
-    );
-
-    overlay.insert(_unlockEffectOverlayEntry!);
-  }
-
-  void _removeUnlockEffectOverlay() {
-    try {
-      _unlockEffectOverlayEntry?.remove();
-      _unlockEffectOverlayEntry = null;
-    } catch (_) {}
-  }
-
+  
   void _initializeAnimations() {
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 1500),
@@ -468,120 +393,20 @@ class _NewPhotoPageState extends State<NewPhotoPage>
       });
     }
 
-    if (_showUnlockEffect) {
-      return;
-    }
-
-    _pendingUnlockEffect = true;
-
-    if (_isUnlockEffectReady) {
-      _playUnlockEffect();
-    }
+    // 触发解锁特效
+    final unlockEffectWidget = _unlockEffectKey.currentState as PhotoUnlockEffectWidgetState?;
+    unlockEffectWidget?.showEffect();
   }
-  void _playUnlockEffect() async {
-    print('[UNLOCK_DEBUG] 🎬 _playUnlockEffect called');
-    if (!mounted || _unlockEffectController == null || !_isUnlockEffectReady) {
-      print(
-          '[UNLOCK_DEBUG] ❌ Cannot play effect: mounted=$mounted, controller=${_unlockEffectController != null}, ready=$_isUnlockEffectReady');
-      return;
-    }
 
-    print('[UNLOCK_DEBUG] ✅ Starting unlock effect');
-    _pendingUnlockEffect = false;
-
-    setState(() {
-      _showUnlockEffect = true;
-    });
-    print('[UNLOCK_DEBUG] ✅ Effect state updated');
-
-    // 更新Overlay显示
-    _unlockEffectOverlayEntry?.markNeedsBuild();
-
-    try {
-      final data = _unlockEffectController!.skeleton.getData();
-      final animations = data?.getAnimations() ?? [];
-      print('[UNLOCK_DEBUG] 📜 Available animations: '
-          '${animations.map((a) => a.getName()).toList()}');
-
-      String? bornName = animations
-              .map((a) => a.getName())
-              .firstWhere((n) => n == 'PhotoUnlock_Eff_born', orElse: () => '')
-              .isNotEmpty
-          ? 'PhotoUnlock_Eff_born'
-          : null;
-      bornName ??= animations.map((a) => a.getName()).firstWhere(
-          (n) => n.toLowerCase().contains('born'),
-          orElse: () => '');
-      if (bornName?.isEmpty ?? true) bornName = null;
-
-      // 不再需要 idle 动画，因为我们只播放一次就消失
-
-      try {
-        _unlockEffectController!.animationState.clearTracks();
-        if (bornName != null && data?.findAnimation(bornName) != null) {
-          _unlockEffectController!.animationState
-              .setAnimationByName(0, bornName, false);
-          final duration =
-              (data?.findAnimation(bornName)?.getDuration() ?? 1.0);
-          print('✓ PhotoUnlock play once: $bornName, duration: $duration s');
-
-          AudioManager().playSettlementCoin();
-
-          // 等待动画播放完成后隐藏特效
-          await Future.delayed(
-              Duration(milliseconds: (duration * 1000).toInt()));
-          if (!mounted) return;
-
-          print('[UNLOCK_DEBUG] 🏁 Animation finished, hiding effect');
-          setState(() {
-            _showUnlockEffect = false;
-          });
-          // 更新Overlay隐藏特效
-          _unlockEffectOverlayEntry?.markNeedsBuild();
-        } else {
-          // 如果没有找到born动画，播放第一个动画（不循环）
-          final next = animations.first.getName();
-          if (next.isNotEmpty && data?.findAnimation(next) != null) {
-            _unlockEffectController!.animationState.setAnimationByName(0, next, false);
-            final duration = data?.findAnimation(next)?.getDuration() ?? 1.0;
-            print('✓ PhotoUnlock play fallback: $next, duration: $duration s');
-
-            AudioManager().playSettlementCoin();
-
-            // 等待动画播放完成后隐藏特效
-            await Future.delayed(
-                Duration(milliseconds: (duration * 1000).toInt()));
-            if (!mounted) return;
-
-            print('[UNLOCK_DEBUG] 🏁 Animation finished, hiding effect');
-            setState(() {
-              _showUnlockEffect = false;
-            });
-            // 更新Overlay隐藏特效
-            _unlockEffectOverlayEntry?.markNeedsBuild();
-          } else {
-            print('✗ PhotoUnlock no playable animation');
-          }
-        }
-      } catch (e) {
-        print('PhotoUnlock animations play failed: $e');
-        if (mounted) {
-          setState(() {
-            _showUnlockEffect = false;
-          });
-          // 更新Overlay隐藏特效
-          _unlockEffectOverlayEntry?.markNeedsBuild();
-        }
-      }
-    } catch (e) {
-      print('[UNLOCK_DEBUG] ❌ Unlock effect play failed: $e');
-      if (mounted) {
-        setState(() {
-          _showUnlockEffect = false;
-        });
-        // 更新Overlay隐藏特效
-        _unlockEffectOverlayEntry?.markNeedsBuild();
-      }
+  void _testUnlockEffect() {
+    print('🧪 Test button pressed - _unlockEffectKey=$_unlockEffectKey');
+    final unlockEffectWidget = _unlockEffectKey.currentState as PhotoUnlockEffectWidgetState?;
+    print('🧪 unlockEffectWidget = $unlockEffectWidget');
+    if (unlockEffectWidget != null) {
+      print('🧪 调用 showEffect()');
+      unlockEffectWidget.showEffect();
+    } else {
+      print('🧪 unlockEffectWidget 为 null，无法调用 showEffect()');
     }
   }
 
@@ -655,9 +480,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     _fadeController.dispose();
     _progressController.dispose();
     _removeTitleSpineOverlay();
-    _removeUnlockEffectOverlay();
     _titleSpineController = null;
-    _unlockEffectController = null;
     super.dispose();
   }
 
@@ -946,29 +769,29 @@ class _NewPhotoPageState extends State<NewPhotoPage>
                         ),
 
                         // 测试解锁特效按钮
-                        // GestureDetector(
-                        //   onTap: _testUnlockEffect,
-                        //   child: Container(
-                        //     width: 200,
-                        //     height: 50,
-                        //     margin: const EdgeInsets.only(bottom: 10),
-                        //     decoration: BoxDecoration(
-                        //       borderRadius: BorderRadius.circular(25),
-                        //       color: Colors.orange.withOpacity(0.8),
-                        //       border: Border.all(color: Colors.white, width: 2),
-                        //     ),
-                        //     child: const Center(
-                        //       child: OutlinedTextWidget(
-                        //         text: 'TEST UNLOCK EFFECT',
-                        //         fontSize: 14,
-                        //         textColor: Colors.white,
-                        //         strokeColor: Colors.black,
-                        //         strokeWidth: 1.0,
-                        //         fontWeight: FontWeight.bold,
-                        //       ),
-                        //     ),
-                        //   ),
-                        // ),
+                        GestureDetector(
+                          onTap: _testUnlockEffect,
+                          child: Container(
+                            width: 200,
+                            height: 50,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(25),
+                              color: Colors.orange.withOpacity(0.8),
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Center(
+                              child: OutlinedTextWidget(
+                                text: 'TEST UNLOCK EFFECT',
+                                fontSize: 14,
+                                textColor: Colors.white,
+                                strokeColor: Colors.black,
+                                strokeWidth: 1.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
 
                         // NEXT 按钮
                         GestureDetector(
@@ -995,6 +818,9 @@ class _NewPhotoPageState extends State<NewPhotoPage>
                 },
               ),
             ),
+
+            // 解锁特效 Widget
+            PhotoUnlockEffectWidget(key: _unlockEffectKey),
           ],
         ),
       ),

@@ -30,6 +30,8 @@ class GameStateManager {
   static const String _keySpecialStageReady = 'special_stage_ready';
   static const String _keyLastGirlState = 'last_girl_state';
   static const String _keyTriggerSpecialOnReturn = 'trigger_special_on_return';
+  static const String _keyPendingHeartAnimation = 'pending_heart_animation';
+  static const String _keyPendingHeartAmount = 'pending_heart_amount';
 
   // 初始化
   Future<void> init() async {
@@ -515,6 +517,30 @@ class GameStateManager {
 
   Future<void> setTriggerSpecialOnReturn(bool value) async {
     await _prefs.setBool(_keyTriggerSpecialOnReturn, value);
+  }
+
+  // 设置待播放的爱心动画
+  Future<void> setPendingHeartAnimation(int heartAmount) async {
+    await _prefs.setBool(_keyPendingHeartAnimation, true);
+    await _prefs.setInt(_keyPendingHeartAmount, heartAmount);
+  }
+
+  // 获取待播放的爱心动画信息
+  Map<String, dynamic>? getPendingHeartAnimation() {
+    final hasAnimation = _prefs.getBool(_keyPendingHeartAnimation) ?? false;
+    if (!hasAnimation) return null;
+
+    final amount = _prefs.getInt(_keyPendingHeartAmount) ?? 0;
+    return {
+      'playHeartAnimation': true,
+      'heartAmount': amount,
+    };
+  }
+
+  // 清除待播放的爱心动画信息
+  Future<void> clearPendingHeartAnimation() async {
+    await _prefs.remove(_keyPendingHeartAnimation);
+    await _prefs.remove(_keyPendingHeartAmount);
   }
 
   // 测试方法：解锁所有女生

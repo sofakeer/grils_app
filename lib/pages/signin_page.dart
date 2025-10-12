@@ -616,14 +616,14 @@ class _SignInPageState extends State<SignInPage>
                 if (reward['coins'] > 0) ...[
                   Image.asset(
                     Assets.mainMainIconCoin,
-                    height: 30,
+                    height: 25,
                   ),
                   const SizedBox(
                     height: 5
                   ),
                   OutlinedTextWidget(
                     text: 'X${reward['coins']}',
-                    fontSize: 15,
+                    fontSize: 13,
                     textColor: HexColor("#FF9B9B"),
                     strokeColor: Colors.black,
                     strokeWidth: 2,
@@ -634,14 +634,14 @@ class _SignInPageState extends State<SignInPage>
                 if (reward['hearts'] > 0) ...[
                   Image.asset(
                     Assets.imagesIconHeart2x,
-                    height: 30,
+                    height: 25,
                   ),
                   const SizedBox(
                     height: 5
                   ),
                   OutlinedTextWidget(
                     text: 'X${reward['hearts']}',
-                    fontSize: 15,
+                    fontSize: 13,
                     textColor: HexColor("#FF9B9B"),
                     strokeColor: Colors.black,
                     strokeWidth: 2,

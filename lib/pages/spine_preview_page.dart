@@ -1137,6 +1137,15 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
           _setGirl03DefaultSkin(controller);
         }
       }
+
+      // 皮肤应用完成后，立即保存状态以确保同步
+      _cacheCurrentGirlState();
+      // 异步保存，不阻塞UI
+      _saveCurrentGirlState().then((_) {
+        _log("Skin state saved successfully");
+      }).catchError((e) {
+        _log("Failed to save skin state: $e");
+      });
     }
   }
 
@@ -3035,6 +3044,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
     }
 
     _cacheCurrentGirlState();
+
+    // 立即保存完整状态到持久化存储，确保MainPage能同步
+    await _saveCurrentGirlState();
     _log("=== _nextIdleAnimation END ===");
   }
 

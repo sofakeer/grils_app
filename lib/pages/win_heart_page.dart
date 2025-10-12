@@ -379,10 +379,13 @@ class _WinHeartPageState extends State<WinHeartPage>
       await _markSpecialStageReadyIfPending();
       await GameStateManager().setTriggerSpecialOnReturn(true);
 
+      // 存储需要在MainPage播放的动画信息
+      await GameStateManager().setPendingHeartAnimation(_baseHeartReward * _currentMultiplier);
+
       // Play reward sound
       await AudioManager().playHeartEffect();
 
-      // 延迟1秒后回到主界面，让玩家看到奖励效果
+      // 延迟1秒后回到主界面
       Future.delayed(const Duration(seconds: 1), () {
         if (mounted) {
           Navigator.of(context).pop();
@@ -418,6 +421,9 @@ class _WinHeartPageState extends State<WinHeartPage>
 
             // 播放翻倍奖励音效
             await AudioManager().playHeartEffect();
+
+            // 存储需要在MainPage播放的动画信息
+            await GameStateManager().setPendingHeartAnimation(_baseHeartReward * _currentMultiplier * 2);
 
             // 延迟2秒后自动回到主界面
             Future.delayed(const Duration(seconds: 2), () {
