@@ -545,4 +545,17 @@ class GameStateManager {
     await _prefs.remove(_keyPendingHeartAmount);
   }
 
+  // 测试方法：解锁所有女生
+  Future<void> unlockAllGirlsForTesting() async {
+    List<int> allGirls = [0, 1, 2];
+    await _prefs.setString(_keyUnlockedGirls, json.encode(allGirls));
+    print("All girls unlocked for testing: $allGirls");
   }
+
+  // 测试方法：重置为只解锁第一个女生
+  Future<void> resetGirlUnlocksForTesting() async {
+    List<int> defaultUnlocked = [0];
+    await _prefs.setString(_keyUnlockedGirls, json.encode(defaultUnlocked));
+    print("Girl unlocks reset to default: $defaultUnlocked");
+  }
+}

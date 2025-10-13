@@ -2222,40 +2222,40 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
                               Row(
                                 children: [
                                   // 测试 Takeoff 引导按钮
-                                  GestureDetector(
-                                    onTap: _testShowTakeoffGuide,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(right: 8),
-                                      child: Container(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue,
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          'T',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                                  // GestureDetector(
+                                  //   onTap: _testShowTakeoffGuide,
+                                  //   child: Padding(
+                                  //     padding: const EdgeInsets.only(right: 8),
+                                  //     child: Container(
+                                  //       padding: EdgeInsets.symmetric(
+                                  //           horizontal: 8, vertical: 4),
+                                  //       decoration: BoxDecoration(
+                                  //         color: Colors.blue,
+                                  //         borderRadius:
+                                  //             BorderRadius.circular(4),
+                                  //       ),
+                                  //       child: Text(
+                                  //         'T',
+                                  //         style: TextStyle(
+                                  //           color: Colors.white,
+                                  //           fontSize: 12,
+                                  //           fontWeight: FontWeight.bold,
+                                  //         ),
+                                  //       ),
+                                  //     ),
+                                  //   ),
+                                  // ),
                                   // 重置按钮（测试用）
-                                  GestureDetector(
-                                    onTap: _resetPreviewState,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(right: 12),
-                                      child: Image.asset(
-                                        'assets/images/game/Game_Btn_refresh.png',
-                                        height: 42,
-                                      ),
-                                    ),
-                                  ),
+                                  // GestureDetector(
+                                  //   onTap: _resetPreviewState,
+                                  //   child: Padding(
+                                  //     padding: const EdgeInsets.only(right: 12),
+                                  //     child: Image.asset(
+                                  //       'assets/images/game/Game_Btn_refresh.png',
+                                  //       height: 42,
+                                  //     ),
+                                  //   ),
+                                  // ),
                                   // 返回按钮
                                   GestureDetector(
                                     onTap: () async {
