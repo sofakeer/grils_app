@@ -21,8 +21,6 @@ import '../services/user_service.dart';
 import '../widgets/unlock_new_gril_dialog.dart';
 import '../widgets/gril_waiting_dialog.dart';
 import 'spine_preview_page.dart';
-import '../spine_gallery_page.dart';
-import '../tilt_test_page.dart';
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -1063,20 +1061,20 @@ class _MainPageState extends ConsumerState<MainPage>
         // 标记已经弹过弹窗（持久化）
         await _setHasShownGrilWaitingDialogFlag(true);
 
-        // 显示提醒弹窗
+        // 【关键代码】解锁提示弹窗 - 当用户有足够爱心货币时显示
         await AudioManager().playPopupOpen();
-        // await GrilWaitingDialog.show(
-        //   context: context,
-        //   onAccept: () {
-        //     Navigator.of(context).pop();
-        //     // 用户选择去使用心币，导航到预览页面
-        //     _startTakeOff();
-        //   },
-        //   onDecline: () {
-        //     Navigator.of(context).pop();
-        //     // 用户拒绝，不做任何操作
-        //   },
-        // );
+        await GrilWaitingDialog.show(
+          context: context,
+          onAccept: () {
+            Navigator.of(context).pop();
+            // 用户选择去使用心币，导航到预览页面
+            _startTakeOff();
+          },
+          onDecline: () {
+            Navigator.of(context).pop();
+            // 用户拒绝，不做任何操作
+          },
+        );
       }
     }
   }
@@ -1181,18 +1179,7 @@ class _MainPageState extends ConsumerState<MainPage>
     });
   }
 
-  void _navigateToSpineGallery() async {
-    await AudioManager().playPopupOpen();
-    Navigator.of(context)
-        .push(
-      MaterialPageRoute(
-        builder: (context) => SpineGalleryPage(
-          onStateChanged: _handlePreviewStateChanged,
-        ),
-      ),
-    );
-  }
-
+  
   void _navigateToGame() {
     Navigator.of(context)
         .push(
@@ -1207,14 +1194,7 @@ class _MainPageState extends ConsumerState<MainPage>
     });
   }
 
-  void _switchToNextGirl() async {
-    await AudioManager().playSwitch();
-    final currentIndex = ref.read(currentGirlIndexProvider);
-    final spineAssets = ref.read(spineAssetsProvider);
-    final nextIndex = (currentIndex + 1) % spineAssets.length;
-    await _loadGirlStateForBackground(nextIndex);
-  }
-
+  
   // 处理预览页面状态变化
   void _handlePreviewStateChanged(Map<String, dynamic> stateData) {
     if (!mounted) return;
@@ -1266,23 +1246,8 @@ class _MainPageState extends ConsumerState<MainPage>
     });
   }
 
-  // 临时测试方法 - 播放金币和心特效
-  void _playCoinAndHeartEffects() async {
-    await AudioManager().playPopupOpen();
-
-    // 播放签到奖励特效（金币和爱心）
-    CommonHeader.playSignInEffects(context, 10, 5);
-  }
-
-  // 导航到倾斜测试页面
-  void _navigateToTiltTest() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => TiltTestPage(),
-      ),
-    );
-  }
-
+  
+  
   @override
   void dispose() {
     _takeoffController.dispose();
@@ -1371,31 +1336,7 @@ class _MainPageState extends ConsumerState<MainPage>
                     ),
                   ),
 
-                  // Spine画廊按钮
-                  GestureDetector(
-                    onTap: _navigateToSpineGallery,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 20),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const OutlinedTextWidget(
-                          text: 'Spine\n画廊',
-                          fontSize: 14,
-                          textColor: Colors.white,
-                          strokeColor: Colors.black,
-                          strokeWidth: 2.0,
-                          fontWeight: FontWeight.bold,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                  ),
-
+                  
                   // 图鉴按钮 - 显示最新选择的女孩
 
                   // 游戏按钮
@@ -1470,29 +1411,7 @@ class _MainPageState extends ConsumerState<MainPage>
               bottom: 150,
               child: Column(
                 children: [
-                  // 临时测试按钮 - 播放金币和心特效
-                  GestureDetector(
-                    onTap: _playCoinAndHeartEffects,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 20),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: const OutlinedTextWidget(
-                        text: '测试特效',
-                        fontSize: 14,
-                        textColor: Colors.white,
-                        strokeColor: Colors.black,
-                        strokeWidth: 2.0,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-
+                  
                   // 倾斜测试按钮
                   // GestureDetector(
                   //   onTap: _navigateToTiltTest,

@@ -1,5 +1,6 @@
 class CoinCalculator {
   static int calculateCoinsForLevel(int level) {
+    // 【关键代码】游戏过关获得金币 - 根据关卡调整金币奖励
     if (level <= 10) {
       return 10; // 0-10关，每关10硬币
     } else if (level <= 30) {

@@ -398,18 +398,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     unlockEffectWidget?.showEffect();
   }
 
-  void _testUnlockEffect() {
-    print('🧪 Test button pressed - _unlockEffectKey=$_unlockEffectKey');
-    final unlockEffectWidget = _unlockEffectKey.currentState as PhotoUnlockEffectWidgetState?;
-    print('🧪 unlockEffectWidget = $unlockEffectWidget');
-    if (unlockEffectWidget != null) {
-      print('🧪 调用 showEffect()');
-      unlockEffectWidget.showEffect();
-    } else {
-      print('🧪 unlockEffectWidget 为 null，无法调用 showEffect()');
-    }
-  }
-
+  
   void _downloadPhoto() {
     if (!_isUnlocked) return;
     _saveCurrentPhotoToGallery();
@@ -768,31 +757,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
                           ),
                         ),
 
-                        // 测试解锁特效按钮
-                        GestureDetector(
-                          onTap: _testUnlockEffect,
-                          child: Container(
-                            width: 200,
-                            height: 50,
-                            margin: const EdgeInsets.only(bottom: 10),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(25),
-                              color: Colors.orange.withOpacity(0.8),
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            child: const Center(
-                              child: OutlinedTextWidget(
-                                text: 'TEST UNLOCK EFFECT',
-                                fontSize: 14,
-                                textColor: Colors.white,
-                                strokeColor: Colors.black,
-                                strokeWidth: 1.0,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-
+                        
                         // NEXT 按钮
                         GestureDetector(
                           onTap: _nextPhoto,

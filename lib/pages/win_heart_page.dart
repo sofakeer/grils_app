@@ -58,13 +58,13 @@ class _WinHeartPageState extends State<WinHeartPage>
   // Calculate heart reward based on current level
   void _calculateHeartReward() {
     if (widget.fromSpecialPage) {
-      // 从 SpecialPage 进入时固定100个基础爱心
+      // 【关键代码】特殊关卡过关获得爱心货币 - 从 SpecialPage 进入时
       _baseHeartReward = 100;
     } else if (widget.isSpecialStage) {
-      // 特殊关卡使用单独的奖励配置，给予更高的基础奖励
+      // 【关键代码】特殊关卡过关获得爱心货币 - 特殊关卡基础奖励
       _baseHeartReward = 50; // 特殊关卡固定50个基础爱心
     } else {
-      // 普通关卡根据等级计算奖励
+      // 【关键代码】游戏过关获得爱心货币 - 根据关卡调整爱心奖励
       int level = widget.currentLevel;
 
       if (level <= 10) {

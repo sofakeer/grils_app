@@ -290,6 +290,7 @@ class GameStateManager {
 
   // 获取皮肤价格
   int getSkinPrice(int skinIndex) {
+    // 【关键代码】三个美女不同换装所需爱心货币值 - 调整此处数值改变换装消耗
     // 第一个皮肤免费，其他皮肤根据索引递增价格
     if (skinIndex == 0) return 0;
     return skinIndex * 5; // 第2个皮肤5心币，第3个10心币，第4个15心币
@@ -364,6 +365,7 @@ class GameStateManager {
 
   // 检查并解锁女生
   Future<int?> _checkAndUnlockGirls(int level) async {
+    // 【关键代码】三个美女解锁关卡设置 - 调整此处数值改变解锁条件
     // 100关解锁第二个女生
     if (level >= 100 && !isGirlUnlocked(1)) {
       await unlockGirl(1);
@@ -384,7 +386,7 @@ class GameStateManager {
 
   // 检查是否可以脱衣
   bool canTakeoff() {
-    // 需要5个心币才能脱衣
+    // 【关键代码】三个美女脱衣所需爱心货币值 - 调整此处数值改变脱衣消耗
     return canAffordAction(5);
   }
 
@@ -543,17 +545,4 @@ class GameStateManager {
     await _prefs.remove(_keyPendingHeartAmount);
   }
 
-  // 测试方法：解锁所有女生
-  Future<void> unlockAllGirlsForTesting() async {
-    List<int> allGirls = [0, 1, 2];
-    await _prefs.setString(_keyUnlockedGirls, json.encode(allGirls));
-    print("All girls unlocked for testing: $allGirls");
   }
-
-  // 测试方法：重置为只解锁第一个女生
-  Future<void> resetGirlUnlocksForTesting() async {
-    List<int> defaultUnlocked = [0];
-    await _prefs.setString(_keyUnlockedGirls, json.encode(defaultUnlocked));
-    print("Girl unlocks reset to default: $defaultUnlocked");
-  }
-}
