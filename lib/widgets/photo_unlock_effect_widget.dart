@@ -211,6 +211,12 @@ class PhotoUnlockEffectWidgetState extends State<PhotoUnlockEffectWidget> {
     // 使用 IgnorePointer 包装整个 SpineWidget 来避免布局问题
     return IgnorePointer(
       ignoring: true,
+        child: Transform.translate(
+          offset:Offset(70,-120),
+        child: SizedBox(
+
+          width: 1080,
+          height: 2340,
       child: spine.SpineWidget.fromAsset(
         "assets/spine/PhotoUnlock_Eff.atlas",
         "assets/spine/PhotoUnlock_Eff.skel",
@@ -218,6 +224,8 @@ class PhotoUnlockEffectWidgetState extends State<PhotoUnlockEffectWidget> {
         boundsProvider: const spine.SetupPoseBounds(),
         fit: BoxFit.contain,
       ),
+        ),
+        ),
     );
   }
 }

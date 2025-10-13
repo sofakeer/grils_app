@@ -36,6 +36,10 @@ class _MainPageState extends ConsumerState<MainPage>
   late AnimationController _takeoffController;
   late Animation<double> _takeoffAnimation;
 
+  // 修改：使用可空类型避免 LateInitializationError
+  AnimationController? _maskController;
+  Animation<double>? _maskAnimation;
+
   // 页面加载状态
   bool _isPageReady = false;
 
@@ -99,80 +103,80 @@ class _MainPageState extends ConsumerState<MainPage>
       print("[SPINE流程] 步骤1: 初始化GameStateManager");
       await GameStateManager().init();
 
-    print("[SPINE流程] 步骤2: 尝试获取上次保存的女孩状态");
-    // 优先尝试恢复上次保存的女孩状态
-    final lastState = GameStateManager().getLastGirlState();
-    int targetGirlIndex;
-    int idleOverride;
-    Map<String, int>? skinsOverride;
+      print("[SPINE流程] 步骤2: 尝试获取上次保存的女孩状态");
+      // 优先尝试恢复上次保存的女孩状态
+      final lastState = GameStateManager().getLastGirlState();
+      int targetGirlIndex;
+      int idleOverride;
+      Map<String, int>? skinsOverride;
 
-    if (lastState != null) {
-      print("[SPINE流程] 步骤2a: 找到保存的状态，正在解析...");
-      print("[SPINE流程] 原始状态数据: $lastState");
+      if (lastState != null) {
+        print("[SPINE流程] 步骤2a: 找到保存的状态，正在解析...");
+        print("[SPINE流程] 原始状态数据: $lastState");
 
-      // 如果有上次保存的状态，使用它
-      targetGirlIndex = (lastState['girlIndex'] as int?) ?? 0;
-      idleOverride = (lastState['idleIndex'] as int?) ?? 0;
+        // 如果有上次保存的状态，使用它
+        targetGirlIndex = (lastState['girlIndex'] as int?) ?? 0;
+        idleOverride = (lastState['idleIndex'] as int?) ?? 0;
 
-      print("[SPINE流程] 解析出的基础值 - 女孩索引: $targetGirlIndex, 待机索引: $idleOverride");
+        print("[SPINE流程] 解析出的基础值 - 女孩索引: $targetGirlIndex, 待机索引: $idleOverride");
 
-      // 解析皮肤状态
-      final dynamic skins = lastState['skins'];
-      if (skins is Map) {
-        print("[SPINE流程] 开始解析皮肤状态...");
-        final map = <String, int>{};
-        skins.forEach((key, value) {
-          if (key is String) {
-            if (value is int) {
-              map[key] = value;
-            } else if (value is num) {
-              map[key] = value.toInt();
+        // 解析皮肤状态
+        final dynamic skins = lastState['skins'];
+        if (skins is Map) {
+          print("[SPINE流程] 开始解析皮肤状态...");
+          final map = <String, int>{};
+          skins.forEach((key, value) {
+            if (key is String) {
+              if (value is int) {
+                map[key] = value;
+              } else if (value is num) {
+                map[key] = value.toInt();
+              }
             }
+          });
+          if (map.isNotEmpty) {
+            skinsOverride = map;
           }
-        });
-        if (map.isNotEmpty) {
-          skinsOverride = map;
+          print("[SPINE流程] 解析完成的皮肤状态: $skinsOverride");
+        } else {
+          print("[SPINE流程] 未找到皮肤状态或皮肤状态格式错误");
         }
-        print("[SPINE流程] 解析完成的皮肤状态: $skinsOverride");
+
+        print("[SPINE流程] 恢复上次保存的女孩状态: girl=$targetGirlIndex, idle=$idleOverride, skins=$skinsOverride");
       } else {
-        print("[SPINE流程] 未找到皮肤状态或皮肤状态格式错误");
+        print("[SPINE流程] 步骤2b: 未找到保存的状态，使用StateManager当前状态");
+        // 如果没有保存的状态，使用当前StateManager的状态
+        targetGirlIndex = GameStateManager().getCurrentGirlIndex();
+        idleOverride = GameStateManager().getCurrentIdleIndex();
+        skinsOverride = GameStateManager().getCurrentSkins(targetGirlIndex);
+        print("[SPINE流程] 使用StateManager当前状态: girl=$targetGirlIndex, idle=$idleOverride, skins=$skinsOverride");
       }
 
-      print("[SPINE流程] 恢复上次保存的女孩状态: girl=$targetGirlIndex, idle=$idleOverride, skins=$skinsOverride");
-    } else {
-      print("[SPINE流程] 步骤2b: 未找到保存的状态，使用StateManager当前状态");
-      // 如果没有保存的状态，使用当前StateManager的状态
-      targetGirlIndex = GameStateManager().getCurrentGirlIndex();
-      idleOverride = GameStateManager().getCurrentIdleIndex();
-      skinsOverride = GameStateManager().getCurrentSkins(targetGirlIndex);
-      print("[SPINE流程] 使用StateManager当前状态: girl=$targetGirlIndex, idle=$idleOverride, skins=$skinsOverride");
-    }
+      print("[SPINE流程] 步骤3: 调用_loadGirlStateForBackground加载女孩状态");
+      await _loadGirlStateForBackground(
+        targetGirlIndex,
+        idleIndexOverride: idleOverride,
+        skinsOverride: skinsOverride,
+        ensureInit: false,
+      );
 
-    print("[SPINE流程] 步骤3: 调用_loadGirlStateForBackground加载女孩状态");
-    await _loadGirlStateForBackground(
-      targetGirlIndex,
-      idleIndexOverride: idleOverride,
-      skinsOverride: skinsOverride,
-      ensureInit: false,
-    );
+      print("[SPINE流程] 步骤4: 更新GameStateManager状态");
+      // 更新StateManager状态
+      await GameStateManager().setCurrentGirlIndex(targetGirlIndex);
+      await GameStateManager().setCurrentIdleIndex(idleOverride);
 
-    print("[SPINE流程] 步骤4: 更新GameStateManager状态");
-    // 更新StateManager状态
-    await GameStateManager().setCurrentGirlIndex(targetGirlIndex);
-    await GameStateManager().setCurrentIdleIndex(idleOverride);
+      print("[SPINE流程] 步骤5: 标记页面准备就绪");
+      // 标记页面准备就绪
+      if (mounted) {
+        setState(() {
+          _isPageReady = true;
+        });
+        print("[SPINE流程] 页面状态已更新为准备就绪");
+      } else {
+        print("[SPINE流程] 警告: Widget已销毁，无法更新页面状态");
+      }
 
-    print("[SPINE流程] 步骤5: 标记页面准备就绪");
-    // 标记页面准备就绪
-    if (mounted) {
-      setState(() {
-        _isPageReady = true;
-      });
-      print("[SPINE流程] 页面状态已更新为准备就绪");
-    } else {
-      print("[SPINE流程] 警告: Widget已销毁，无法更新页面状态");
-    }
-
-    print("=== [SPINE流程] 背景女孩状态恢复完成 ===");
+      print("=== [SPINE流程] 背景女孩状态恢复完成 ===");
     } catch (e) {
       print("[SPINE流程] 错误: 状态恢复过程中发生异常: $e");
     } finally {
@@ -183,11 +187,11 @@ class _MainPageState extends ConsumerState<MainPage>
   }
 
   Future<void> _loadGirlStateForBackground(
-    int girlIndex, {
-    int? idleIndexOverride,
-    Map<String, int>? skinsOverride,
-    bool ensureInit = true,
-  }) async {
+      int girlIndex, {
+        int? idleIndexOverride,
+        Map<String, int>? skinsOverride,
+        bool ensureInit = true,
+      }) async {
     print("=== [SPINE流程] 开始加载女孩状态到背景 ===");
     print("[SPINE流程] 输入参数 - girlIndex: $girlIndex, idleIndexOverride: $idleIndexOverride, skinsOverride: $skinsOverride, ensureInit: $ensureInit");
 
@@ -209,7 +213,7 @@ class _MainPageState extends ConsumerState<MainPage>
 
     print("[SPINE流程] 步骤3: 规范化女孩索引和状态");
     final int normalizedGirlIndex =
-        girlIndex.clamp(0, assets.length - 1) as int;
+    girlIndex.clamp(0, assets.length - 1) as int;
     print("[SPINE流程] 原始女孩索引: $girlIndex, 规范化后: $normalizedGirlIndex");
 
     final int storedIdle = idleIndexOverride ??
@@ -217,7 +221,7 @@ class _MainPageState extends ConsumerState<MainPage>
     print("[SPINE流程] 使用的待机索引: $storedIdle (override: $idleIndexOverride)");
 
     final Map<String, int> storedSkins =
-        GameStateManager().getCurrentSkins(normalizedGirlIndex);
+    GameStateManager().getCurrentSkins(normalizedGirlIndex);
     print("[SPINE流程] 当前存储的皮肤: $storedSkins");
 
     final Map<String, int> mergedSkins = {...storedSkins};
@@ -409,6 +413,7 @@ class _MainPageState extends ConsumerState<MainPage>
       if (hasAnySkin) {
         skeleton.setSkin(customSkin);
         skeleton.setSlotsToSetupPose();
+
         print("[SPINE流程] 自定义皮肤应用成功");
       } else {
         print("[SPINE流程] 未找到任何自定义皮肤，尝试应用默认皮肤");
@@ -455,10 +460,37 @@ class _MainPageState extends ConsumerState<MainPage>
     print("[SPINE流程] 调用_applySkinSet应用皮肤...");
 
     _applySkinSet(controller, skinNames);
-
+// 新增：延迟1秒后重新应用皮肤参数
+    _scheduleDelayedSkinReapply(controller, girlIndex, isUnderwear);
     print("=== [SPINE流程] 背景皮肤应用完成 ===");
   }
 
+  void _scheduleDelayedSkinReapply(
+      spine.SpineWidgetController controller, int girlIndex, bool isUnderwear) {
+    print("[SPINE流程] 安排延迟1秒后重新应用皮肤...");
+
+    Future.delayed(Duration(milliseconds: 100 ), () {
+      if (!mounted || controller != _backgroundSpineController) {
+        print("[SPINE流程] 延迟应用: Widget已销毁或控制器已变更，跳过重新应用");
+        return;
+      }
+
+      print("[SPINE流程] 延迟1秒后重新应用皮肤参数");
+      print("[SPINE流程] 重新应用的皮肤选择: $_backgroundSkinSelections");
+
+      // 重新构建皮肤名称（可能参数已经更新）
+      final updatedSkinNames = isUnderwear
+          ? _buildUnderwearSkinNames(girlIndex, _backgroundSkinSelections)
+          : _buildDefaultSkinNames(girlIndex);
+
+      print("[SPINE流程] 重新生成的皮肤名称: $updatedSkinNames");
+
+      // 重新应用皮肤
+      _applySkinSet(controller, updatedSkinNames);
+
+      print("[SPINE流程] 延迟皮肤重新应用完成");
+    });
+  }
   void _applyBackgroundState(spine.SpineWidgetController controller) {
     print("=== [SPINE流程] 开始应用背景状态 ===");
 
@@ -628,7 +660,7 @@ class _MainPageState extends ConsumerState<MainPage>
   // 验证动画是否真的在播放
   void _verifyAnimationPlaying(spine.SpineWidgetController controller, String animationName) {
     // 再延迟200ms验证动画播放状态
-    Future.delayed(Duration(milliseconds: 200), () {
+    Future.delayed(Duration(milliseconds: 100), () {
       if (!mounted || controller != _backgroundSpineController) return;
 
       try {
@@ -781,16 +813,21 @@ class _MainPageState extends ConsumerState<MainPage>
   @override
   void initState() {
     super.initState();
+    print("[遮罩动画] initState 开始");
+
     _userService = UserService.instance;
+
+    // 先初始化动画
     _initializeAnimations();
+
+    print("[遮罩动画] 动画初始化后，准备加载数据");
+
     _loadUserData();
     _restoreBackgroundState();
-
-    // 初始化音频系统并播放主界面BGM
     _initializeAudio();
-
-    // 读取是否已经弹过GrilWaitingDialog的持久化标记
     _loadHasShownGrilWaitingDialogFlag();
+
+    print("[遮罩动画] initState 完成");
   }
 
   @override
@@ -815,6 +852,8 @@ class _MainPageState extends ConsumerState<MainPage>
   }
 
   void _initializeAnimations() {
+    print("[遮罩动画] 开始初始化动画控制器");
+
     _takeoffController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -828,8 +867,54 @@ class _MainPageState extends ConsumerState<MainPage>
       curve: Curves.easeInOut,
     ));
 
+    // 初始化黑色遮罩动画
+    _maskController = AnimationController(
+      duration: const Duration(milliseconds: 30), // 0.3秒
+      vsync: this,
+    );
+
+    _maskAnimation = Tween<double>(
+      begin: 1.0, // 完全不透明（黑色）
+      end: 0.0,   // 完全透明
+    ).animate(CurvedAnimation(
+      parent: _maskController!,
+      curve: Curves.easeOut,
+    ));
+
     // 开始循环播放takeoff动画
     _takeoffController.repeat();
+
+    print("[遮罩动画] 动画控制器初始化完成");
+
+    // 立即启动黑色遮罩动画
+    _startMaskAnimation();
+  }
+
+  // 启动遮罩动画
+  void _startMaskAnimation() {
+    print("[遮罩动画] 尝试启动遮罩动画");
+
+    // 检查动画是否已初始化
+    if (_maskController == null || _maskAnimation == null) {
+      print("[遮罩动画] 错误: 动画控制器未初始化");
+      return;
+    }
+
+    if (!mounted) {
+      print("[遮罩动画] 警告: Widget未挂载");
+      return;
+    }
+
+    print("[遮罩动画] 黑色遮罩开始淡出");
+
+    // 添加一个微小延迟确保构建完成
+    Future.delayed(Duration(milliseconds: 16), () {
+      if (mounted && _maskController != null) {
+        _maskController!.forward().then((_) {
+          print("[遮罩动画] 黑色遮罩淡出完成");
+        });
+      }
+    });
   }
 
   void _initializeBackgroundSpine() {
@@ -846,17 +931,18 @@ class _MainPageState extends ConsumerState<MainPage>
     }
 
     print("[SPINE流程] 步骤2: 创建新的SpineWidgetController");
+
     try {
       _backgroundSpineController =
           spine.SpineWidgetController(onInitialized: (controller) {
-        print("[SPINE流程] SpineWidgetController初始化回调触发");
-        print("[SPINE流程] 控制器对象: ${controller.runtimeType}");
-        print("[SPINE流程] 骨骼数据: ${controller.skeletonData?.runtimeType}");
-        print("[SPINE流程] 骨骼对象: ${controller.skeleton?.runtimeType}");
-        print("[SPINE流程] 动画状态: ${controller.animationState?.runtimeType}");
-        print("[SPINE流程] 开始应用背景状态...");
-        _applyBackgroundState(controller);
-      });
+            print("[SPINE流程] SpineWidgetController初始化回调触发");
+            print("[SPINE流程] 控制器对象: ${controller.runtimeType}");
+            print("[SPINE流程] 骨骼数据: ${controller.skeletonData?.runtimeType}");
+            print("[SPINE流程] 骨骼对象: ${controller.skeleton?.runtimeType}");
+            print("[SPINE流程] 动画状态: ${controller.animationState?.runtimeType}");
+            print("[SPINE流程] 开始应用背景状态...");
+            _applyBackgroundState(controller);
+          });
       print("[SPINE流程] SpineWidgetController创建成功");
     } catch (e) {
       print("[SPINE流程] 错误: 背景女孩控制器创建失败: $e");
@@ -1200,6 +1286,7 @@ class _MainPageState extends ConsumerState<MainPage>
   @override
   void dispose() {
     _takeoffController.dispose();
+    _maskController?.dispose(); // 使用安全调用
     _backgroundSpineController = null;
     _saveUserData();
     super.dispose();
@@ -1228,6 +1315,21 @@ class _MainPageState extends ConsumerState<MainPage>
                   currentGirlAsset.skeletonFile,
                   _backgroundSpineController!,
                   boundsProvider: const spine.SetupPoseBounds(),
+                ),
+              ),
+
+            // 新增：黑色遮罩层
+            if (_maskAnimation != null)
+              Positioned.fill(
+                child: AnimatedBuilder(
+                  animation: _maskAnimation!,
+                  builder: (context, child) {
+                    final opacity = _maskAnimation!.value;
+                    print("[遮罩动画] 当前透明度: $opacity");
+                    return Container(
+                      color: Colors.black.withOpacity(opacity),
+                    );
+                  },
                 ),
               ),
 
@@ -1446,7 +1548,7 @@ class _MainPageState extends ConsumerState<MainPage>
                         bottom: 15,
                         child: OutlinedTextWidget(
                           text:
-                              'Level ${_currentLevel.toString().padLeft(3, '0')}',
+                          'Level ${_currentLevel.toString().padLeft(3, '0')}',
                           fontSize: 11,
                           textColor: Colors.white,
                           strokeColor: Colors.black,
@@ -1500,44 +1602,44 @@ class _TakeoffButtonAnimationState extends State<TakeoffButtonAnimation> {
     try {
       _spineController =
           spine.SpineWidgetController(onInitialized: (controller) {
-        try {
-          // 设置默认过渡时间
-          controller.animationState.getData().setDefaultMix(0.2);
+            try {
+              // 设置默认过渡时间
+              controller.animationState.getData().setDefaultMix(0.2);
 
-          // 获取可用动画
-          final animations = controller.skeleton.getData()?.getAnimations();
-          print("=== btn_takeoff 可用动画 ===");
-          if (animations != null && animations.isNotEmpty) {
-            for (var anim in animations) {
-              print("动画名称: ${anim.getName()}");
-            }
+              // 获取可用动画
+              final animations = controller.skeleton.getData()?.getAnimations();
+              print("=== btn_takeoff 可用动画 ===");
+              if (animations != null && animations.isNotEmpty) {
+                for (var anim in animations) {
+                  print("动画名称: ${anim.getName()}");
+                }
 
-            if (mounted) {
-              setState(() {
-                _isControllerReady = true;
-              });
-            }
+                if (mounted) {
+                  setState(() {
+                    _isControllerReady = true;
+                  });
+                }
 
-            // 播放第一个可用的动画（循环播放）
-            if (animations.isNotEmpty) {
-              final firstAnimationName = animations.first.getName();
-              print("开始播放动画: $firstAnimationName");
-              if (firstAnimationName.isNotEmpty) {
-                controller.animationState
-                    .setAnimationByName(0, firstAnimationName, true);
-                print("btn_takeoff 动画播放成功");
+                // 播放第一个可用的动画（循环播放）
+                if (animations.isNotEmpty) {
+                  final firstAnimationName = animations.first.getName();
+                  print("开始播放动画: $firstAnimationName");
+                  if (firstAnimationName.isNotEmpty) {
+                    controller.animationState
+                        .setAnimationByName(0, firstAnimationName, true);
+                    print("btn_takeoff 动画播放成功");
+                  } else {
+                    print("动画名称为空");
+                  }
+                }
               } else {
-                print("动画名称为空");
+                print("btn_takeoff 没有找到动画");
               }
+              print("========================");
+            } catch (e) {
+              print("btn_takeoff 动画初始化失败: $e");
             }
-          } else {
-            print("btn_takeoff 没有找到动画");
-          }
-          print("========================");
-        } catch (e) {
-          print("btn_takeoff 动画初始化失败: $e");
-        }
-      });
+          });
     } catch (e) {
       print("btn_takeoff 控制器创建失败: $e");
     }
