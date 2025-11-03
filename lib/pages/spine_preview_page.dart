@@ -51,7 +51,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
   bool _isShowingTakeoffGuide = false;
 
   // 心形数量
-  int _heartCount = 10000;
+  int _heartCount = 0;
 
   // 弹窗状态
   int _pendingUnlockSkinIndex = -1; // 待解锁的皮肤索引
@@ -1957,6 +1957,17 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 实时同步爱心货币数量
+    if (mounted) {
+      setState(() {
+        _heartCount = GameStateManager().getHeartCount();
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _isDisposing = true;
 
@@ -2289,7 +2300,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
                                     width: 80,
                                     height: 80,
                                     child: Image.asset(
-                                      _getGirlIconPath(index, true), // 总是显示解锁状态
+                                      _getGirlIconPath(index, GameStateManager().isGirlUnlocked(index)),
                                       fit: BoxFit.cover,
                                     ),
                                   ),
@@ -2635,6 +2646,12 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
 
   // 切换到指定女孩
   void _switchToGirl(int index) {
+    // 检查女孩是否解锁
+    if (!GameStateManager().isGirlUnlocked(index)) {
+      _showLockedGirlMessage(index);
+      return;
+    }
+
     // 如果正在切换中，忽略新的切换请求
     if (_isLoading) return;
 
@@ -2802,12 +2819,16 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
     int maxIdleIndex = _currentIndex == 2 ? 5 : 4;
     _log("Max idle index for Girl $_currentIndex: $maxIdleIndex");
 
+    // 获取当前脱衣阶段的消耗值
+    int takeoffCost = GameStateManager().getTakeoffCost(_currentIndex, _currentIdleIndex);
+    _log("Takeoff cost for Girl $_currentIndex at idle $_currentIdleIndex: $takeoffCost");
+
     // 检查心形货币是否足够
-    if (_heartCount < 5) {
-      _log("Insufficient hearts: $_heartCount < 5, showing dialog");
+    if (_heartCount < takeoffCost) {
+      _log("Insufficient hearts: $_heartCount < $takeoffCost, showing dialog");
       // 心形不够，显示弹窗
       await AudioManager().playPopupOpen();
-      bool? gotCoins = await _showInsufficientHeartsDialog(5 - _heartCount);
+      bool? gotCoins = await _showInsufficientHeartsDialog(takeoffCost - _heartCount);
 
       if (gotCoins == true) {
         _log("Got coins from dialog, retrying");
@@ -2838,16 +2859,16 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
       _log(
           "=== NORMAL TRANSITION: idle${_currentIdleIndex + 1} -> idle${_currentIdleIndex + 2} ===");
 
-      // 消耗5个心形
-      _log("Attempting to consume 5 hearts");
-      bool consumed = await GameStateManager().consumeHearts(5);
+      // 消耗心形（使用配置的消耗值）
+      _log("Attempting to consume $takeoffCost hearts");
+      bool consumed = await GameStateManager().consumeHearts(takeoffCost);
       if (!consumed) {
         _log("Failed to consume hearts, showing dialog");
         // 消费失败，显示弹窗
-        await _showInsufficientHeartsDialog(5);
+        await _showInsufficientHeartsDialog(takeoffCost);
         return;
       }
-      _log("Successfully consumed 5 hearts");
+      _log("Successfully consumed $takeoffCost hearts");
 
       if (_isDisposing || !mounted) return;
       setState(() {

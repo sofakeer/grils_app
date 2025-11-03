@@ -51,7 +51,7 @@ class GameStateManager {
 
   // 获取心形货币数量
   int getHeartCount() {
-    return _prefs.getInt(_keyHeartCount) ?? 10000; // 初始给10000个心形
+    return _prefs.getInt(_keyHeartCount) ?? 0;
   }
 
   // 设置心形货币数量
@@ -384,10 +384,43 @@ class GameStateManager {
     return getHeartCount() >= requiredHearts;
   }
 
-  // 检查是否可以脱衣
-  bool canTakeoff() {
-    // 【关键代码】三个美女脱衣所需爱心货币值 - 调整此处数值改变脱衣消耗
-    return canAffordAction(5);
+  // 【关键代码】每个角色脱每件衣服所需爱心货币值配置
+  // 格式: Map<角色索引, List<每个脱衣阶段的消耗>>
+  // Girl01和Girl02有4次脱衣（0-3索引），Girl03有5次脱衣（0-4索引）
+  static const Map<int, List<int>> _takeoffCosts = {
+    0: [5, 5, 5, 5], // Girl0 每个脱衣阶段的消耗
+    1: [5, 5, 5, 5], // Girl1 每个脱衣阶段的消耗
+    2: [5, 5, 5, 5, 5], // Girl2 每个脱衣阶段的消耗（5次脱衣）
+  };
+
+  // 获取指定角色在指定脱衣阶段的消耗
+  int getTakeoffCost(int girlIndex, int idleIndex) {
+    // idleIndex 是当前阶段，脱衣后会变成 idleIndex + 1
+    // 所以消耗应该对应下一个阶段的成本
+    if (!_takeoffCosts.containsKey(girlIndex)) {
+      return 5; // 默认值
+    }
+    final costs = _takeoffCosts[girlIndex]!;
+    // idleIndex 范围是 0 到 max-1，消耗对应的是从当前阶段到下一阶段的成本
+    if (idleIndex >= 0 && idleIndex < costs.length) {
+      return costs[idleIndex];
+    }
+    return 5; // 默认值，超出范围时返回默认值
+  }
+
+  // 检查是否可以脱衣（使用当前女孩和当前idle索引）
+  bool canTakeoff({int? girlIndex, int? idleIndex}) {
+    final currentGirl = girlIndex ?? getCurrentGirlIndex();
+    final currentIdle = idleIndex ?? getGirlIdleIndex(currentGirl);
+    final cost = getTakeoffCost(currentGirl, currentIdle);
+    return canAffordAction(cost);
+  }
+
+  // 获取当前脱衣阶段的消耗（用于显示和检查）
+  int getCurrentTakeoffCost({int? girlIndex, int? idleIndex}) {
+    final currentGirl = girlIndex ?? getCurrentGirlIndex();
+    final currentIdle = idleIndex ?? getGirlIdleIndex(currentGirl);
+    return getTakeoffCost(currentGirl, currentIdle);
   }
 
   // 检查是否有可解锁的皮肤
