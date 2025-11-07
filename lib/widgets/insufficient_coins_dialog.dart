@@ -1,22 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
-import 'package:grils_app/widgets/animated_popup.dart';
-import 'package:grils_app/services/user_service.dart';
 import 'package:grils_app/managers/audio_manager.dart';
-import 'package:hexcolor/hexcolor.dart';
+import 'package:grils_app/services/user_service.dart';
+import 'package:grils_app/widgets/animated_popup.dart';
 import 'outlined_text_widget.dart';
+import '../managers/game_state_manager.dart';
+import 'package:hexcolor/hexcolor.dart';
+
+enum RewardCurrency { coin, heart }
 
 /// 金币不足弹窗组件
 class InsufficientCoinsDialog extends StatefulWidget {
   final String title;
   final int requiredCoins;
-  final VoidCallback? onGetPressed;
+  final Future<void> Function()? onGetPressed;
+  final RewardCurrency rewardCurrency;
+  final int rewardAmount;
 
   const InsufficientCoinsDialog({
     super.key,
     this.title = 'More Coin',
     required this.requiredCoins,
     this.onGetPressed,
+    this.rewardCurrency = RewardCurrency.coin,
+    this.rewardAmount = 100,
   });
 
   /// 显示金币不足弹窗
@@ -24,7 +31,9 @@ class InsufficientCoinsDialog extends StatefulWidget {
     required BuildContext context,
     String title = 'More Coin',
     required int requiredCoins,
-    VoidCallback? onGetPressed,
+    Future<void> Function()? onGetPressed,
+    RewardCurrency rewardCurrency = RewardCurrency.coin,
+    int rewardAmount = 100,
   }) {
     return AnimatedPopup.show<bool>(
       context: context,
@@ -32,6 +41,8 @@ class InsufficientCoinsDialog extends StatefulWidget {
         title: title,
         requiredCoins: requiredCoins,
         onGetPressed: onGetPressed,
+        rewardCurrency: rewardCurrency,
+        rewardAmount: rewardAmount,
       ),
       barrierDismissible: true,
     );
@@ -82,6 +93,15 @@ class _InsufficientCoinsDialogState extends State<InsufficientCoinsDialog> with 
 
   @override
   Widget build(BuildContext context) {
+    final isHeartReward = widget.rewardCurrency == RewardCurrency.heart;
+    final currencyAsset = isHeartReward
+        ? Assets.imagesIconHeart2x
+        : Assets.mainMainIconCoin;
+    final strokeColor =
+        isHeartReward ? HexColor("#B94C62") : HexColor("#760E0E");
+    final rewardTextColor =
+        isHeartReward ? Colors.white : Colors.white;
+
     return AnimatedBuilder(
       animation: _scaleAnimation,
       builder: (context, child) {
@@ -128,15 +148,15 @@ class _InsufficientCoinsDialogState extends State<InsufficientCoinsDialog> with 
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Image.asset(
-                            Assets.mainMainIconCoin,
+                            currencyAsset,
                             height: 50,
                           ),
                           const SizedBox(width: 10),
                           OutlinedTextWidget(
-                            text: 'X 100',
+                            text: 'X ${widget.rewardAmount}',
                             fontSize: 25,
-                            textColor: Colors.white,
-                            strokeColor: HexColor("#760E0E"),
+                            textColor: rewardTextColor,
+                            strokeColor: strokeColor,
                             strokeWidth: 4,
                             fontWeight: FontWeight.w600,
                           ),
@@ -146,16 +166,19 @@ class _InsufficientCoinsDialogState extends State<InsufficientCoinsDialog> with 
                     const SizedBox(height: 30),
                     GestureDetector(
                       onTap: () async {
-                        // 播放金币获得音效
-                        await AudioManager().playCoinEffect();
-                        
-                        // 固定增加100金币（观看广告奖励）
-                        final userService = UserService.instance;
-                        await userService.addCoins(100);
-                        
-                        // 返回true表示获得了金币，可以尝试购买
+                        if (isHeartReward) {
+                          await AudioManager().playHeartEffect();
+                          await GameStateManager().addHearts(widget.rewardAmount);
+                        } else {
+                          await AudioManager().playCoinEffect();
+                          final userService = UserService.instance;
+                          await userService.addCoins(widget.rewardAmount);
+                        }
+
                         Navigator.of(context).pop(true);
-                        widget.onGetPressed?.call();
+                        if (widget.onGetPressed != null) {
+                          await widget.onGetPressed!.call();
+                        }
                       },
                       child: Container(
                         width: 120,

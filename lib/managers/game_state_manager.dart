@@ -1,5 +1,7 @@
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+
+import 'package:grils_app/services/user_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class GameStateManager {
   static final GameStateManager _instance = GameStateManager._internal();
@@ -8,6 +10,7 @@ class GameStateManager {
 
   late SharedPreferences _prefs;
   Map<String, dynamic>? _lastGirlStateCache;
+  bool _isInitialized = false;
 
   // 游戏状态键值
   static const String _keyHeartCount = 'heart_count';
@@ -35,7 +38,13 @@ class GameStateManager {
 
   // 初始化
   Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
+    if (!_isInitialized) {
+      _prefs = await SharedPreferences.getInstance();
+      await UserService.instance.initialize();
+      await _synchronizeHeartCurrency();
+      _isInitialized = true;
+    }
+
     if (_lastGirlStateCache == null) {
       final stored = getLastGirlState(preferCache: false);
       if (stored == null) {
@@ -49,25 +58,50 @@ class GameStateManager {
     }
   }
 
+  Future<void> _synchronizeHeartCurrency() async {
+    final userService = UserService.instance;
+    final storedHearts = _prefs.getInt(_keyHeartCount);
+    final userHearts = userService.heartCount;
+
+    if (storedHearts == null) {
+      await _prefs.setInt(_keyHeartCount, userHearts);
+    } else if (storedHearts != userHearts) {
+      await userService.updateUserData(heartCount: storedHearts);
+    }
+  }
+
   // 获取心形货币数量
   int getHeartCount() {
-    return _prefs.getInt(_keyHeartCount) ?? 0;
+    final hearts = UserService.instance.heartCount;
+    if (_isInitialized) {
+      final cached = _prefs.getInt(_keyHeartCount);
+      if (cached != hearts) {
+        _prefs.setInt(_keyHeartCount, hearts);
+      }
+    }
+    return hearts;
   }
 
   // 设置心形货币数量
   Future<void> setHeartCount(int count) async {
+    if (!_isInitialized) {
+      await init();
+    }
     await _prefs.setInt(_keyHeartCount, count);
+    await UserService.instance.updateUserData(heartCount: count);
   }
 
   // 增加心形货币
   Future<void> addHearts(int amount) async {
-    int current = getHeartCount();
+    if (amount <= 0) return;
+    final current = getHeartCount();
     await setHeartCount(current + amount);
   }
 
   // 消耗心形货币
   Future<bool> consumeHearts(int amount) async {
-    int current = getHeartCount();
+    if (amount <= 0) return true;
+    final current = getHeartCount();
     if (current >= amount) {
       await setHeartCount(current - amount);
       return true;

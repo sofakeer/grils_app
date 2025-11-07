@@ -1,0 +1,344 @@
+Subject: [PATCH] 优化配置
+---
+Index: lib/managers/game_state_manager.dart
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lib/managers/game_state_manager.dart b/lib/managers/game_state_manager.dart
+--- a/lib/managers/game_state_manager.dart	(revision a686fa3a56af50f214bd6c7c021cb5ae4c72af36)
++++ b/lib/managers/game_state_manager.dart	(date 1762236541681)
+@@ -1,6 +1,8 @@
+-import 'package:shared_preferences/shared_preferences.dart';
+ import 'dart:convert';
+ 
++import 'package:grils_app/services/user_service.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++
+ class GameStateManager {
+   static final GameStateManager _instance = GameStateManager._internal();
+   factory GameStateManager() => _instance;
+@@ -8,6 +10,7 @@
+ 
+   late SharedPreferences _prefs;
+   Map<String, dynamic>? _lastGirlStateCache;
++  bool _isInitialized = false;
+ 
+   // 游戏状态键值
+   static const String _keyHeartCount = 'heart_count';
+@@ -35,7 +38,13 @@
+ 
+   // 初始化
+   Future<void> init() async {
+-    _prefs = await SharedPreferences.getInstance();
++    if (!_isInitialized) {
++      _prefs = await SharedPreferences.getInstance();
++      await UserService.instance.initialize();
++      await _synchronizeHeartCurrency();
++      _isInitialized = true;
++    }
++
+     if (_lastGirlStateCache == null) {
+       final stored = getLastGirlState(preferCache: false);
+       if (stored == null) {
+@@ -49,25 +58,50 @@
+     }
+   }
+ 
++  Future<void> _synchronizeHeartCurrency() async {
++    final userService = UserService.instance;
++    final storedHearts = _prefs.getInt(_keyHeartCount);
++    final userHearts = userService.heartCount;
++
++    if (storedHearts == null) {
++      await _prefs.setInt(_keyHeartCount, userHearts);
++    } else if (storedHearts != userHearts) {
++      await userService.updateUserData(heartCount: storedHearts);
++    }
++  }
++
+   // 获取心形货币数量
+   int getHeartCount() {
+-    return _prefs.getInt(_keyHeartCount) ?? 0;
++    final hearts = UserService.instance.heartCount;
++    if (_isInitialized) {
++      final cached = _prefs.getInt(_keyHeartCount);
++      if (cached != hearts) {
++        _prefs.setInt(_keyHeartCount, hearts);
++      }
++    }
++    return hearts;
+   }
+ 
+   // 设置心形货币数量
+   Future<void> setHeartCount(int count) async {
++    if (!_isInitialized) {
++      await init();
++    }
+     await _prefs.setInt(_keyHeartCount, count);
++    await UserService.instance.updateUserData(heartCount: count);
+   }
+ 
+   // 增加心形货币
+   Future<void> addHearts(int amount) async {
+-    int current = getHeartCount();
++    if (amount <= 0) return;
++    final current = getHeartCount();
+     await setHeartCount(current + amount);
+   }
+ 
+   // 消耗心形货币
+   Future<bool> consumeHearts(int amount) async {
+-    int current = getHeartCount();
++    if (amount <= 0) return true;
++    final current = getHeartCount();
+     if (current >= amount) {
+       await setHeartCount(current - amount);
+       return true;
+Index: lib/widgets/insufficient_coins_dialog.dart
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lib/widgets/insufficient_coins_dialog.dart b/lib/widgets/insufficient_coins_dialog.dart
+--- a/lib/widgets/insufficient_coins_dialog.dart	(revision a686fa3a56af50f214bd6c7c021cb5ae4c72af36)
++++ b/lib/widgets/insufficient_coins_dialog.dart	(date 1762237999695)
+@@ -1,22 +1,29 @@
+ import 'package:flutter/material.dart';
+ import 'package:grils_app/generated/assets.dart';
+-import 'package:grils_app/widgets/animated_popup.dart';
++import 'package:grils_app/managers/audio_manager.dart';
+ import 'package:grils_app/services/user_service.dart';
+-import 'package:grils_app/managers/audio_manager.dart';
++import 'package:grils_app/widgets/animated_popup.dart';
++import 'outlined_text_widget.dart';
++import '../managers/game_state_manager.dart';
+ import 'package:hexcolor/hexcolor.dart';
+-import 'outlined_text_widget.dart';
++
++enum RewardCurrency { coin, heart }
+ 
+ /// 金币不足弹窗组件
+ class InsufficientCoinsDialog extends StatefulWidget {
+   final String title;
+   final int requiredCoins;
+-  final VoidCallback? onGetPressed;
++  final Future<void> Function()? onGetPressed;
++  final RewardCurrency rewardCurrency;
++  final int rewardAmount;
+ 
+   const InsufficientCoinsDialog({
+     super.key,
+     this.title = 'More Coin',
+     required this.requiredCoins,
+     this.onGetPressed,
++    this.rewardCurrency = RewardCurrency.coin,
++    this.rewardAmount = 100,
+   });
+ 
+   /// 显示金币不足弹窗
+@@ -24,7 +31,9 @@
+     required BuildContext context,
+     String title = 'More Coin',
+     required int requiredCoins,
+-    VoidCallback? onGetPressed,
++    Future<void> Function()? onGetPressed,
++    RewardCurrency rewardCurrency = RewardCurrency.coin,
++    int rewardAmount = 100,
+   }) {
+     return AnimatedPopup.show<bool>(
+       context: context,
+@@ -32,6 +41,8 @@
+         title: title,
+         requiredCoins: requiredCoins,
+         onGetPressed: onGetPressed,
++        rewardCurrency: rewardCurrency,
++        rewardAmount: rewardAmount,
+       ),
+       barrierDismissible: true,
+     );
+@@ -82,6 +93,15 @@
+ 
+   @override
+   Widget build(BuildContext context) {
++    final isHeartReward = widget.rewardCurrency == RewardCurrency.heart;
++    final currencyAsset = isHeartReward
++        ? Assets.imagesIconHeart2x
++        : Assets.mainMainIconCoin;
++    final strokeColor =
++        isHeartReward ? HexColor("#B94C62") : HexColor("#760E0E");
++    final rewardTextColor =
++        isHeartReward ? Colors.white : Colors.white;
++
+     return AnimatedBuilder(
+       animation: _scaleAnimation,
+       builder: (context, child) {
+@@ -128,15 +148,15 @@
+                         crossAxisAlignment: CrossAxisAlignment.center,
+                         children: [
+                           Image.asset(
+-                            Assets.mainMainIconCoin,
++                            currencyAsset,
+                             height: 50,
+                           ),
+                           const SizedBox(width: 10),
+                           OutlinedTextWidget(
+-                            text: 'X 100',
++                            text: 'X ${widget.rewardAmount}',
+                             fontSize: 25,
+-                            textColor: Colors.white,
+-                            strokeColor: HexColor("#760E0E"),
++                            textColor: rewardTextColor,
++                            strokeColor: strokeColor,
+                             strokeWidth: 4,
+                             fontWeight: FontWeight.w600,
+                           ),
+@@ -146,16 +166,19 @@
+                     const SizedBox(height: 30),
+                     GestureDetector(
+                       onTap: () async {
+-                        // 播放金币获得音效
+-                        await AudioManager().playCoinEffect();
+-                        
+-                        // 固定增加100金币（观看广告奖励）
+-                        final userService = UserService.instance;
+-                        await userService.addCoins(100);
+-                        
+-                        // 返回true表示获得了金币，可以尝试购买
++                        if (isHeartReward) {
++                          await AudioManager().playHeartEffect();
++                          await GameStateManager().addHearts(widget.rewardAmount);
++                        } else {
++                          await AudioManager().playCoinEffect();
++                          final userService = UserService.instance;
++                          await userService.addCoins(widget.rewardAmount);
++                        }
++
+                         Navigator.of(context).pop(true);
+-                        widget.onGetPressed?.call();
++                        if (widget.onGetPressed != null) {
++                          await widget.onGetPressed!.call();
++                        }
+                       },
+                       child: Container(
+                         width: 120,
+Index: lib/pages/spine_preview_page.dart
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lib/pages/spine_preview_page.dart b/lib/pages/spine_preview_page.dart
+--- a/lib/pages/spine_preview_page.dart	(revision a686fa3a56af50f214bd6c7c021cb5ae4c72af36)
++++ b/lib/pages/spine_preview_page.dart	(date 1762238006009)
+@@ -2630,11 +2630,9 @@
+       context: context,
+       title: 'Get More', // needMore <= 3 ? 'Almost There!' :
+       requiredCoins: needMore,
++      rewardCurrency: RewardCurrency.heart,
++      rewardAmount: 20,
+       onGetPressed: () async {
+-        // 这里是点击GET按钮后的回调
+-        // 实际已经在弹窗内部处理了增加心币
+-        // 此处只需更新本地显示
+-        await GameStateManager().addHearts(10); // 看广告获得10个心币
+         setState(() {
+           _heartCount = GameStateManager().getHeartCount();
+         });
+Index: lib/pages/win_heart_page.dart
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lib/pages/win_heart_page.dart b/lib/pages/win_heart_page.dart
+--- a/lib/pages/win_heart_page.dart	(revision a686fa3a56af50f214bd6c7c021cb5ae4c72af36)
++++ b/lib/pages/win_heart_page.dart	(date 1762236467561)
+@@ -7,7 +7,6 @@
+ import '../managers/game_state_manager.dart';
+ import '../managers/audio_manager.dart';
+ import '../managers/ad_manager.dart';
+-import '../services/user_service.dart';
+ import 'dart:async';
+ 
+ class WinHeartPage extends StatefulWidget {
+@@ -383,11 +382,10 @@
+     try {
+       final rewardAmount = _baseHeartReward * _currentMultiplier;
+ 
+-      // Add hearts to both GameStateManager and UserService
++      // Add hearts to shared state
+       await GameStateManager().addHearts(rewardAmount);
+-      await UserService.instance.addHearts(rewardAmount);
+ 
+-      print('WinHeartPage: 添加了 $rewardAmount 个爱心到两个系统');
++      print('WinHeartPage: 添加了 $rewardAmount 个爱心到全局状态');
+ 
+       await _markSpecialStageReadyIfPending();
+       await GameStateManager().setTriggerSpecialOnReturn(true);
+@@ -431,11 +429,10 @@
+               _totalHeartReward = doubleRewardAmount;
+             });
+ 
+-            // Add double hearts to both GameStateManager and UserService
++            // Add double hearts to shared state
+             await GameStateManager().addHearts(doubleRewardAmount);
+-            await UserService.instance.addHearts(doubleRewardAmount);
+ 
+-            print('WinHeartPage: 翻倍添加了 $doubleRewardAmount 个爱心到两个系统');
++            print('WinHeartPage: 翻倍添加了 $doubleRewardAmount 个爱心到全局状态');
+ 
+             await _markSpecialStageReadyIfPending();
+             await GameStateManager().setTriggerSpecialOnReturn(true);
+Index: lib/pages/win_page.dart
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lib/pages/win_page.dart b/lib/pages/win_page.dart
+--- a/lib/pages/win_page.dart	(revision a686fa3a56af50f214bd6c7c021cb5ae4c72af36)
++++ b/lib/pages/win_page.dart	(date 1762236510391)
+@@ -9,6 +9,7 @@
+ import '../utils/coin_calculator.dart';
+ import '../managers/audio_manager.dart';
+ import '../widgets/outlined_text_widget.dart';
++import '../services/user_service.dart';
+ 
+ class WinPage extends StatefulWidget {
+   final int level;
+@@ -32,6 +33,7 @@
+   // 保留占位：未来若需要基于初始化完成再做UI切换可恢复使用
+   // bool _isSpineReady = false;
+   int _coinReward = 0;
++  bool _isClaimingReward = false;
+ 
+   @override
+   void initState() {
+@@ -254,8 +256,20 @@
+   }
+ 
+   void _getReward() async {
++    if (_isClaimingReward) return;
++    setState(() {
++      _isClaimingReward = true;
++    });
++
+     // 播放获得金币特效音效
+     await AudioManager().playCoinEffect();
++
++    // 增加金币到用户数据
++    await UserService.instance.initialize();
++    if (_coinReward > 0) {
++      await UserService.instance.addCoins(_coinReward);
++      print('WinPage: Added coin reward $_coinReward');
++    }
+     
+     // 检查是否所有80张照片都已解锁
+     final prefs = await SharedPreferences.getInstance();
+@@ -386,7 +400,7 @@
+                 minimum: const EdgeInsets.only(bottom: 16),
+                 child: Center(
+                   child: GestureDetector(
+-                    onTap: _getReward,
++                    onTap: _isClaimingReward ? null : _getReward,
+                     child: Container(
+                       width: 220,
+                       height: 74,

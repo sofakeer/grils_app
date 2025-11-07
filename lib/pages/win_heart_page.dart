@@ -7,7 +7,6 @@ import '../widgets/outlined_text_widget.dart';
 import '../managers/game_state_manager.dart';
 import '../managers/audio_manager.dart';
 import '../managers/ad_manager.dart';
-import '../services/user_service.dart';
 import 'dart:async';
 
 class WinHeartPage extends StatefulWidget {
@@ -84,7 +83,7 @@ class _WinHeartPageState extends State<WinHeartPage>
       }
     }
 
-    _totalHeartReward = _baseHeartReward;
+    _totalHeartReward = _baseHeartReward * _currentMultiplier;
     print('WinHeartPage: totalHeartReward=$_totalHeartReward (fromSpecialPage=${widget.fromSpecialPage})');
   }
 
@@ -188,138 +187,6 @@ class _WinHeartPageState extends State<WinHeartPage>
     }
   }
 
-  // Play the born animation
-  void _playBornAnimation() async {
-    if (_spineController == null || !_isSpineReady) return;
-
-    try {
-      // Get all available animations
-      final animations = _spineController!.skeleton.getData()?.getAnimations();
-      String? bornAnimName;
-      String? idleAnimName;
-
-      if (animations != null) {
-        print("=== Available Animations ===");
-        for (var anim in animations) {
-          String name = anim.getName();
-          if (name.isNotEmpty) {
-            print("Found animation: $name");
-
-            // Look for born animation (various possible names)
-            if (name.toLowerCase().contains('born') ||
-                name.toLowerCase().contains('start') ||
-                name.toLowerCase().contains('appear')) {
-              bornAnimName ??= name;
-            }
-
-            // Look for idle animation (various possible names)
-            if (name.toLowerCase().contains('idle') ||
-                name.toLowerCase().contains('loop') ||
-                name.toLowerCase().contains('wait')) {
-              idleAnimName ??= name;
-            }
-          }
-        }
-        print("=== End Animation List ===");
-      }
-
-      if (bornAnimName != null) {
-        // Play born animation (non-looping)
-        print("Playing born animation: $bornAnimName");
-        _spineController!.animationState
-            .setAnimationByName(0, bornAnimName, false);
-
-        // Get animation duration
-        final animation =
-            _spineController!.skeleton.getData()?.findAnimation(bornAnimName);
-        double duration = 2.0; // Default 2 seconds
-        if (animation != null) {
-          duration = animation.getDuration();
-        }
-
-        print("Born animation duration: ${duration}s");
-
-        // Wait for born animation to complete
-        await Future.delayed(Duration(milliseconds: (duration * 1000).toInt()));
-
-        // Show UI elements after born animation completes
-        if (mounted) {
-          setState(() {
-            _showButtons = true;
-          });
-
-          // Start playing idle animation loop
-          if (idleAnimName != null) {
-            _playIdleAnimation(idleAnimName);
-          }
-        }
-      } else if (animations != null && animations.isNotEmpty) {
-        // No born animation found, play first available animation
-        final firstAnim = animations.first.getName();
-        print("No born animation found, playing first animation: $firstAnim");
-        _spineController!.animationState.setAnimationByName(0, firstAnim, true);
-
-        // Show UI immediately
-        setState(() {
-          _showButtons = true;
-        });
-      } else {
-        // No animations found at all
-        print("No animations found in spine file!");
-        setState(() {
-          _showButtons = true;
-        });
-      }
-    } catch (e) {
-      print("Failed to play born animation: $e");
-      // Fallback: show UI immediately
-      setState(() {
-        _showButtons = true;
-      });
-    }
-  }
-
-  // Play the idle animation loop
-  void _playIdleAnimation([String? animName]) {
-    if (_spineController == null || !_isSpineReady) return;
-
-    try {
-      if (animName != null) {
-        // Use provided animation name
-        _spineController!.animationState.setAnimationByName(0, animName, true);
-        print("Playing idle animation: $animName (looping)");
-      } else {
-        // Try to find any idle-like animation
-        final animations =
-            _spineController!.skeleton.getData()?.getAnimations();
-        if (animations != null) {
-          for (var anim in animations) {
-            String name = anim.getName();
-            if (name.isNotEmpty &&
-                (name.toLowerCase().contains('idle') ||
-                    name.toLowerCase().contains('loop') ||
-                    name.toLowerCase().contains('wait'))) {
-              _spineController!.animationState
-                  .setAnimationByName(0, name, true);
-              print("Playing idle animation: $name (looping)");
-              return;
-            }
-          }
-
-          // If no idle animation found, loop the first animation
-          if (animations.isNotEmpty) {
-            final firstAnim = animations.first.getName();
-            _spineController!.animationState
-                .setAnimationByName(0, firstAnim, true);
-            print(
-                "No idle animation found, looping first animation: $firstAnim");
-          }
-        }
-      }
-    } catch (e) {
-      print("Failed to play idle animation: $e");
-    }
-  }
 
   Future<void> _markSpecialStageReadyIfPending() async {
     await GameStateManager().init();
@@ -374,6 +241,9 @@ class _WinHeartPageState extends State<WinHeartPage>
       if (nextMultiplier != _currentMultiplier) {
         setState(() {
           _currentMultiplier = nextMultiplier;
+          if (!_hasDoubled) {
+            _totalHeartReward = _baseHeartReward * _currentMultiplier;
+          }
         });
       }
     });
@@ -383,11 +253,10 @@ class _WinHeartPageState extends State<WinHeartPage>
     try {
       final rewardAmount = _baseHeartReward * _currentMultiplier;
 
-      // Add hearts to both GameStateManager and UserService
+      // Add hearts to shared state
       await GameStateManager().addHearts(rewardAmount);
-      await UserService.instance.addHearts(rewardAmount);
 
-      print('WinHeartPage: 添加了 $rewardAmount 个爱心到两个系统');
+      print('WinHeartPage: 添加了 $rewardAmount 个爱心到全局状态');
 
       await _markSpecialStageReadyIfPending();
       await GameStateManager().setTriggerSpecialOnReturn(true);
@@ -431,11 +300,10 @@ class _WinHeartPageState extends State<WinHeartPage>
               _totalHeartReward = doubleRewardAmount;
             });
 
-            // Add double hearts to both GameStateManager and UserService
+            // Add double hearts to shared state
             await GameStateManager().addHearts(doubleRewardAmount);
-            await UserService.instance.addHearts(doubleRewardAmount);
 
-            print('WinHeartPage: 翻倍添加了 $doubleRewardAmount 个爱心到两个系统');
+            print('WinHeartPage: 翻倍添加了 $doubleRewardAmount 个爱心到全局状态');
 
             await _markSpecialStageReadyIfPending();
             await GameStateManager().setTriggerSpecialOnReturn(true);

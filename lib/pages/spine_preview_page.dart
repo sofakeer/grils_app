@@ -2630,11 +2630,9 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
       context: context,
       title: 'Get More', // needMore <= 3 ? 'Almost There!' :
       requiredCoins: needMore,
+      rewardCurrency: RewardCurrency.heart,
+      rewardAmount: 20,
       onGetPressed: () async {
-        // 这里是点击GET按钮后的回调
-        // 实际已经在弹窗内部处理了增加心币
-        // 此处只需更新本地显示
-        await GameStateManager().addHearts(10); // 看广告获得10个心币
         setState(() {
           _heartCount = GameStateManager().getHeartCount();
         });

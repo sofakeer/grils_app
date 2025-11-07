@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/coin_calculator.dart';
 import '../managers/audio_manager.dart';
 import '../widgets/outlined_text_widget.dart';
+import '../services/user_service.dart';
 
 class WinPage extends StatefulWidget {
   final int level;
@@ -32,6 +33,7 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
   // 保留占位：未来若需要基于初始化完成再做UI切换可恢复使用
   // bool _isSpineReady = false;
   int _coinReward = 0;
+  bool _isClaimingReward = false;
 
   @override
   void initState() {
@@ -254,8 +256,20 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
   }
 
   void _getReward() async {
+    if (_isClaimingReward) return;
+    setState(() {
+      _isClaimingReward = true;
+    });
+
     // 播放获得金币特效音效
     await AudioManager().playCoinEffect();
+
+    // 增加金币到用户数据
+    await UserService.instance.initialize();
+    if (_coinReward > 0) {
+      await UserService.instance.addCoins(_coinReward);
+      print('WinPage: Added coin reward $_coinReward');
+    }
     
     // 检查是否所有80张照片都已解锁
     final prefs = await SharedPreferences.getInstance();
@@ -386,7 +400,7 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
                 minimum: const EdgeInsets.only(bottom: 16),
                 child: Center(
                   child: GestureDetector(
-                    onTap: _getReward,
+                    onTap: _isClaimingReward ? null : _getReward,
                     child: Container(
                       width: 220,
                       height: 74,
