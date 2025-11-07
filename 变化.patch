@@ -1,0 +1,343 @@
+Subject: [PATCH] 变化
+---
+Index: lib/pages/spine_preview_page.dart
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lib/pages/spine_preview_page.dart b/lib/pages/spine_preview_page.dart
+--- a/lib/pages/spine_preview_page.dart	(revision 40f18ade688e314315525658fa767ec8f3f89c3a)
++++ b/lib/pages/spine_preview_page.dart	(date 1762489886704)
+@@ -70,6 +70,7 @@
+ 
+   // 当前idle动画索引
+   int _currentIdleIndex = 0;
++  int? _pendingIdleIndexForCost;
+ 
+   // 当前选中的underwear按钮索引 (-1表示未选中)
+   int _selectedUnderwearButton = -1;
+@@ -441,6 +442,7 @@
+       _currentIndex = lastSelectedGirl; // 使用最后选择的女孩，而不是硬编码Girl03
+       _currentIdleIndex =
+           _girlIdleIndexCache[_currentIndex] ?? 0; // 从缓存中获取当前女孩的idle索引
++      _pendingIdleIndexForCost = null;
+       // 不预先显示引导；在首次脱衣操作时再显示一次引导
+       _showTakeoffOverlay = false;
+ 
+@@ -2069,6 +2071,17 @@
+ 
+   @override
+   Widget build(BuildContext context) {
++    final bool isGirlThree = _currentIndex == 2;
++    final int maxIdleIndexForGirl = isGirlThree ? 5 : 4;
++    final bool isUnderwearState = _currentIdleIndex >= maxIdleIndexForGirl;
++    final int effectiveIdleIndexForCost =
++        _pendingIdleIndexForCost ?? _currentIdleIndex;
++    final bool reachedUnderwearForCost =
++        effectiveIdleIndexForCost >= maxIdleIndexForGirl;
++    final int? nextTakeoffCost = reachedUnderwearForCost
++        ? null
++        : GameStateManager()
++            .getTakeoffCost(_currentIndex, effectiveIdleIndexForCost);
+     final scaffold = Scaffold(
+       resizeToAvoidBottomInset: false,
+       extendBodyBehindAppBar: true,
+@@ -2100,9 +2113,7 @@
+             // 只在非underwear模式下且需要显示时展示
+             // Girl01/Girl02: underwear = idleIndex == 4
+             // Girl03: underwear = idleIndex == 5
+-            if (_showTakeoffOverlay &&
+-                !((_currentIndex == 2 && _currentIdleIndex == 5) ||
+-                    (_currentIndex != 2 && _currentIdleIndex == 4)))
++            if (_showTakeoffOverlay && !isUnderwearState)
+               GestureDetector(
+                 onTap: () async {
+                   // 点击后隐藏引导
+@@ -2319,41 +2330,78 @@
+               ),
+             ),
+             // Girl01和Girl02的underwear模式是index 4，Girl03的underwear模式是index 5
+-            if (!((_currentIndex == 2 && _currentIdleIndex == 5) ||
+-                (_currentIndex != 2 && _currentIdleIndex == 4)))
++            if (!isUnderwearState)
+               Positioned(
+                 left: 0,
+                 right: 0,
+                 bottom: 100,
+                 child: Column(
+                   children: [
+-                    // 爱心图标和数量显示
+-                    Row(
+-                      mainAxisAlignment: MainAxisAlignment.center,
+-                      children: [
+-                        Image.asset(Assets.imagesIconHeart2x, height: 50),
+-                        SizedBox(width: 8), // 间距
+-                        // x 字符 - 使用自定义发光效果
+-                        OutlinedTextWidget.glow(
+-                          text: 'x',
+-                          fontSize: 48,
+-                          textColor: Colors.white,
+-                          glowColor: Colors.red,
+-                          glowRadius: 15,
+-                          fontWeight: FontWeight.bold,
+-                        ),
+-                        SizedBox(width: 4), // 小间距
+-                        // 数字 - 使用自定义发光效果
+-                        OutlinedTextWidget.glow(
+-                          text: '$_heartCount',
+-                          fontSize: 48,
+-                          textColor: Colors.white,
+-                          glowColor: Colors.red,
+-                          glowRadius: 15,
+-                          fontWeight: FontWeight.bold,
++                    // // 爱心图标和数量显示
++                    // Row(
++                    //   mainAxisAlignment: MainAxisAlignment.center,
++                    //   children: [
++                    //     Image.asset(Assets.imagesIconHeart2x, height: 50),
++                    //     SizedBox(width: 8), // 间距
++                    //     // x 字符 - 使用自定义发光效果
++                    //     OutlinedTextWidget.glow(
++                    //       text: 'x',
++                    //       fontSize: 48,
++                    //       textColor: Colors.white,
++                    //       glowColor: Colors.red,
++                    //       glowRadius: 15,
++                    //       fontWeight: FontWeight.bold,
++                    //     ),
++                    //     SizedBox(width: 4), // 小间距
++                    //     // 数字 - 使用自定义发光效果
++                    //     OutlinedTextWidget.glow(
++                    //       text: '$_heartCount',
++                    //       fontSize: 48,
++                    //       textColor: Colors.white,
++                    //       glowColor: Colors.red,
++                    //       glowRadius: 15,
++                    //       fontWeight: FontWeight.bold,
++                    //     ),
++                    //   ],
++                    // ),
++                    if (nextTakeoffCost != null) ...[
++                      const SizedBox(height: 6),
++                      Container(
++                        padding: const EdgeInsets.symmetric(
++                            horizontal: 20, vertical: 6),
++                        // decoration: BoxDecoration(
++                        //   color: Colors.black.withOpacity(0.35),
++                        //   borderRadius: BorderRadius.circular(30),
++                        // ),
++                        child: Row(
++                          mainAxisSize: MainAxisSize.min,
++                          children: [
++                            // OutlinedTextWidget.glow(
++                            //   text: '需要',
++                            //   fontSize: 26,
++                            //   textColor: Colors.white,
++                            //   glowColor: Colors.redAccent,
++                            //   glowRadius: 12,
++                            //   fontWeight: FontWeight.bold,
++                            // ),
++                            const SizedBox(width: 6),
++                            Image.asset(
++                              Assets.imagesIconHeart2x,
++                              height: 50,
++                            ),
++                            const SizedBox(width: 6),
++                            OutlinedTextWidget.glow(
++                              text: 'x$nextTakeoffCost',
++                              fontSize: 48,
++                              textColor: Colors.white,
++                              glowColor: Colors.redAccent,
++                              glowRadius: 15,
++                              fontWeight: FontWeight.bold,
++                            ),
++                          ],
+                         ),
+-                      ],
+-                    ),
++                      ),
++                    ],
+                     SizedBox(height: 10), // 间距
+                     // 脱衣按钮 - 只在非underwear状态显示
+ 
+@@ -2366,9 +2414,7 @@
+               ),
+             // 只有在underwear模式且选中了某个按钮时才显示底部皮肤选择区域
+             // Girl01和Girl02的underwear模式是index 4，Girl03的underwear模式是index 5
+-            if (((_currentIndex == 2 && _currentIdleIndex == 5) ||
+-                    (_currentIndex != 2 && _currentIdleIndex == 4)) &&
+-                _selectedUnderwearButton != -1)
++            if (isUnderwearState && _selectedUnderwearButton != -1)
+               Positioned(
+                 left: 0,
+                 right: 0,
+@@ -2394,8 +2440,7 @@
+               ),
+             // Underwear状态下的四周按钮
+             // Girl01和Girl02的underwear模式是index 4，Girl03的underwear模式是index 5
+-            if ((_currentIndex == 2 && _currentIdleIndex == 5) ||
+-                (_currentIndex != 2 && _currentIdleIndex == 4))
++            if (isUnderwearState)
+               _buildUnderwearButtons(),
+           ],
+         ),
+@@ -2450,6 +2495,7 @@
+       _atlasInfo = null;
+       _isAnimating = false;
+       _isLoading = true; // 强制显示loading状态
++      _pendingIdleIndexForCost = null;
+ 
+       // 恢复新女孩的状态 - 立即恢复该女孩的idle进度
+       _currentIdleIndex = _loadGirlIdleIndexSync(index); // 立即恢复该女孩的脱衣进度
+@@ -2869,8 +2915,13 @@
+       _log("Successfully consumed $takeoffCost hearts");
+ 
+       if (_isDisposing || !mounted) return;
++      int upcomingIdleIndex = _currentIdleIndex + 1;
++      if (upcomingIdleIndex > maxIdleIndex) {
++        upcomingIdleIndex = maxIdleIndex;
++      }
+       setState(() {
+         _heartCount = GameStateManager().getHeartCount();
++        _pendingIdleIndexForCost = upcomingIdleIndex;
+       });
+       _log("Updated heart count to: $_heartCount");
+ 
+@@ -2962,6 +3013,7 @@
+       _log("Updating idle index: $_currentIdleIndex -> $newIdleIndex");
+       setState(() {
+         _currentIdleIndex = newIdleIndex;
++        _pendingIdleIndexForCost = null;
+       });
+       _log("State updated - new idle index: $_currentIdleIndex");
+ 
+Index: lib/pages/win_heart_page.dart
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/lib/pages/win_heart_page.dart b/lib/pages/win_heart_page.dart
+--- a/lib/pages/win_heart_page.dart	(revision 40f18ade688e314315525658fa767ec8f3f89c3a)
++++ b/lib/pages/win_heart_page.dart	(date 1762486234016)
+@@ -38,6 +38,7 @@
+   int _baseHeartReward = 0;
+   int _totalHeartReward = 0;
+   bool _hasDoubled = false;
++  int? _lockedDoubleMultiplier;
+ 
+   // 动态倍数与计时
+   int _currentMultiplier = 2;
+@@ -241,7 +242,7 @@
+       if (nextMultiplier != _currentMultiplier) {
+         setState(() {
+           _currentMultiplier = nextMultiplier;
+-          if (!_hasDoubled) {
++          if (!_hasDoubled && _lockedDoubleMultiplier == null) {
+             _totalHeartReward = _baseHeartReward * _currentMultiplier;
+           }
+         });
+@@ -282,7 +283,25 @@
+     }
+   }
+ 
+-  void _doubleReward() async {
++  void _handleDoubleTap() {
++    if (_hasDoubled || _lockedDoubleMultiplier != null) return;
++    final multiplierSnapshot = _currentMultiplier;
++    setState(() {
++      _lockedDoubleMultiplier = multiplierSnapshot;
++      _totalHeartReward = _baseHeartReward * multiplierSnapshot;
++    });
++    _doubleReward(multiplierSnapshot);
++  }
++
++  void _restoreDynamicMultiplier() {
++    if (!mounted || _lockedDoubleMultiplier == null || _hasDoubled) return;
++    setState(() {
++      _lockedDoubleMultiplier = null;
++      _totalHeartReward = _baseHeartReward * _currentMultiplier;
++    });
++  }
++
++  void _doubleReward(int multiplierSnapshot) async {
+     if (_hasDoubled) return;
+ 
+     try {
+@@ -293,11 +312,13 @@
+           print('翻倍奖励广告播放完成');
+           // 广告完成后翻倍奖励
+           if (mounted) {
+-            final doubleRewardAmount = _baseHeartReward * _currentMultiplier * 2;
++            final doubleRewardAmount =
++                _baseHeartReward * multiplierSnapshot * 2;
+ 
+             setState(() {
+               _hasDoubled = true;
+               _totalHeartReward = doubleRewardAmount;
++              _lockedDoubleMultiplier = null;
+             });
+ 
+             // Add double hearts to shared state
+@@ -325,6 +346,7 @@
+         onAdFailed: () {
+           print('翻倍奖励广告播放失败');
+           if (mounted) {
++            _restoreDynamicMultiplier();
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(
+                 content: Text('广告播放失败，请重试'),
+@@ -337,10 +359,12 @@
+ 
+       if (!adCompleted) {
+         print('用户取消翻倍奖励广告');
++        _restoreDynamicMultiplier();
+       }
+     } catch (e) {
+       print('翻倍奖励广告失败: $e');
+       if (mounted) {
++        _restoreDynamicMultiplier();
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(
+             content: Text('广告播放失败: $e'),
+@@ -398,13 +422,15 @@
+                 top: MediaQuery.of(context).size.height * 0.32, // 避开头部
+                 left: 0,
+                 right: 0,
+-                child: Center(
++              child: Center(
+                   child: OutlinedTextWidget(
+-                    text: '+$_totalHeartReward',
+-                    fontSize: MediaQuery.of(context).size.width * 0.08,
+-                    textColor: HexColor("#ff2f2f"),
+-                    strokeColor: Colors.white,
+-                    strokeWidth: 10,
++                    text: _hasDoubled
++                        ? '+$_totalHeartReward'
++                        : '+${_baseHeartReward * (_lockedDoubleMultiplier ?? _currentMultiplier)}',
++                  fontSize: MediaQuery.of(context).size.width * 0.08,
++                  textColor: HexColor("#ff2f2f"),
++                  strokeColor: Colors.white,
++                  strokeWidth: 10,
+                     fontWeight: FontWeight.bold,
+                     shadows: const [
+                       Shadow(
+@@ -427,7 +453,9 @@
+                   children: [
+                     // Double reward button
+                     GestureDetector(
+-                      onTap: !_hasDoubled ? _doubleReward : null,
++                      onTap: (!_hasDoubled && _lockedDoubleMultiplier == null)
++                          ? _handleDoubleTap
++                          : null,
+                       child: Container(
+                         width: 200,
+                         height: 60,
+@@ -451,7 +479,7 @@
+                             OutlinedTextWidget(
+                               text: _hasDoubled
+                                   ? '已翻倍'
+-                                  : '+${_baseHeartReward * _currentMultiplier}',
++                                  : '+${_baseHeartReward * (_lockedDoubleMultiplier ?? _currentMultiplier)}',
+                               fontSize: 20,
+                               textColor: _hasDoubled ? Colors.grey : Colors.red,
+                               strokeColor: Colors.white,

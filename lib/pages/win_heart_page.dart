@@ -38,6 +38,7 @@ class _WinHeartPageState extends State<WinHeartPage>
   int _baseHeartReward = 0;
   int _totalHeartReward = 0;
   bool _hasDoubled = false;
+  int? _lockedDoubleMultiplier;
 
   // 动态倍数与计时
   int _currentMultiplier = 2;
@@ -241,7 +242,7 @@ class _WinHeartPageState extends State<WinHeartPage>
       if (nextMultiplier != _currentMultiplier) {
         setState(() {
           _currentMultiplier = nextMultiplier;
-          if (!_hasDoubled) {
+          if (!_hasDoubled && _lockedDoubleMultiplier == null) {
             _totalHeartReward = _baseHeartReward * _currentMultiplier;
           }
         });
@@ -282,7 +283,25 @@ class _WinHeartPageState extends State<WinHeartPage>
     }
   }
 
-  void _doubleReward() async {
+  void _handleDoubleTap() {
+    if (_hasDoubled || _lockedDoubleMultiplier != null) return;
+    final multiplierSnapshot = _currentMultiplier;
+    setState(() {
+      _lockedDoubleMultiplier = multiplierSnapshot;
+      _totalHeartReward = _baseHeartReward * multiplierSnapshot;
+    });
+    _doubleReward(multiplierSnapshot);
+  }
+
+  void _restoreDynamicMultiplier() {
+    if (!mounted || _lockedDoubleMultiplier == null || _hasDoubled) return;
+    setState(() {
+      _lockedDoubleMultiplier = null;
+      _totalHeartReward = _baseHeartReward * _currentMultiplier;
+    });
+  }
+
+  void _doubleReward(int multiplierSnapshot) async {
     if (_hasDoubled) return;
 
     try {
@@ -293,11 +312,13 @@ class _WinHeartPageState extends State<WinHeartPage>
           print('翻倍奖励广告播放完成');
           // 广告完成后翻倍奖励
           if (mounted) {
-            final doubleRewardAmount = _baseHeartReward * _currentMultiplier * 2;
+            final doubleRewardAmount =
+                _baseHeartReward * multiplierSnapshot * 2;
 
             setState(() {
               _hasDoubled = true;
               _totalHeartReward = doubleRewardAmount;
+              _lockedDoubleMultiplier = null;
             });
 
             // Add double hearts to shared state
@@ -325,6 +346,7 @@ class _WinHeartPageState extends State<WinHeartPage>
         onAdFailed: () {
           print('翻倍奖励广告播放失败');
           if (mounted) {
+            _restoreDynamicMultiplier();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('广告播放失败，请重试'),
@@ -337,10 +359,12 @@ class _WinHeartPageState extends State<WinHeartPage>
 
       if (!adCompleted) {
         print('用户取消翻倍奖励广告');
+        _restoreDynamicMultiplier();
       }
     } catch (e) {
       print('翻倍奖励广告失败: $e');
       if (mounted) {
+        _restoreDynamicMultiplier();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('广告播放失败: $e'),
@@ -398,13 +422,15 @@ class _WinHeartPageState extends State<WinHeartPage>
                 top: MediaQuery.of(context).size.height * 0.32, // 避开头部
                 left: 0,
                 right: 0,
-                child: Center(
+              child: Center(
                   child: OutlinedTextWidget(
-                    text: '+$_totalHeartReward',
-                    fontSize: MediaQuery.of(context).size.width * 0.08,
-                    textColor: HexColor("#ff2f2f"),
-                    strokeColor: Colors.white,
-                    strokeWidth: 10,
+                    text: _hasDoubled
+                        ? '+$_totalHeartReward'
+                        : '+${_baseHeartReward * (_lockedDoubleMultiplier ?? _currentMultiplier)}',
+                  fontSize: MediaQuery.of(context).size.width * 0.08,
+                  textColor: HexColor("#ff2f2f"),
+                  strokeColor: Colors.white,
+                  strokeWidth: 10,
                     fontWeight: FontWeight.bold,
                     shadows: const [
                       Shadow(
@@ -427,7 +453,9 @@ class _WinHeartPageState extends State<WinHeartPage>
                   children: [
                     // Double reward button
                     GestureDetector(
-                      onTap: !_hasDoubled ? _doubleReward : null,
+                      onTap: (!_hasDoubled && _lockedDoubleMultiplier == null)
+                          ? _handleDoubleTap
+                          : null,
                       child: Container(
                         width: 200,
                         height: 60,
@@ -451,7 +479,7 @@ class _WinHeartPageState extends State<WinHeartPage>
                             OutlinedTextWidget(
                               text: _hasDoubled
                                   ? '已翻倍'
-                                  : '+${_baseHeartReward * _currentMultiplier}',
+                                  : '+${_baseHeartReward * (_lockedDoubleMultiplier ?? _currentMultiplier)}',
                               fontSize: 20,
                               textColor: _hasDoubled ? Colors.grey : Colors.red,
                               strokeColor: Colors.white,

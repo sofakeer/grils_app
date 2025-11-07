@@ -70,6 +70,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
 
   // 当前idle动画索引
   int _currentIdleIndex = 0;
+  int? _pendingIdleIndexForCost;
 
   // 当前选中的underwear按钮索引 (-1表示未选中)
   int _selectedUnderwearButton = -1;
@@ -441,6 +442,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
       _currentIndex = lastSelectedGirl; // 使用最后选择的女孩，而不是硬编码Girl03
       _currentIdleIndex =
           _girlIdleIndexCache[_currentIndex] ?? 0; // 从缓存中获取当前女孩的idle索引
+      _pendingIdleIndexForCost = null;
       // 不预先显示引导；在首次脱衣操作时再显示一次引导
       _showTakeoffOverlay = false;
 
@@ -2069,6 +2071,17 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
 
   @override
   Widget build(BuildContext context) {
+    final bool isGirlThree = _currentIndex == 2;
+    final int maxIdleIndexForGirl = isGirlThree ? 5 : 4;
+    final bool isUnderwearState = _currentIdleIndex >= maxIdleIndexForGirl;
+    final int effectiveIdleIndexForCost =
+        _pendingIdleIndexForCost ?? _currentIdleIndex;
+    final bool reachedUnderwearForCost =
+        effectiveIdleIndexForCost >= maxIdleIndexForGirl;
+    final int? nextTakeoffCost = reachedUnderwearForCost
+        ? null
+        : GameStateManager()
+            .getTakeoffCost(_currentIndex, effectiveIdleIndexForCost);
     final scaffold = Scaffold(
       resizeToAvoidBottomInset: false,
       extendBodyBehindAppBar: true,
@@ -2100,9 +2113,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
             // 只在非underwear模式下且需要显示时展示
             // Girl01/Girl02: underwear = idleIndex == 4
             // Girl03: underwear = idleIndex == 5
-            if (_showTakeoffOverlay &&
-                !((_currentIndex == 2 && _currentIdleIndex == 5) ||
-                    (_currentIndex != 2 && _currentIdleIndex == 4)))
+            if (_showTakeoffOverlay && !isUnderwearState)
               GestureDetector(
                 onTap: () async {
                   // 点击后隐藏引导
@@ -2319,41 +2330,78 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
               ),
             ),
             // Girl01和Girl02的underwear模式是index 4，Girl03的underwear模式是index 5
-            if (!((_currentIndex == 2 && _currentIdleIndex == 5) ||
-                (_currentIndex != 2 && _currentIdleIndex == 4)))
+            if (!isUnderwearState)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 100,
                 child: Column(
                   children: [
-                    // 爱心图标和数量显示
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(Assets.imagesIconHeart2x, height: 50),
-                        SizedBox(width: 8), // 间距
-                        // x 字符 - 使用自定义发光效果
-                        OutlinedTextWidget.glow(
-                          text: 'x',
-                          fontSize: 48,
-                          textColor: Colors.white,
-                          glowColor: Colors.red,
-                          glowRadius: 15,
-                          fontWeight: FontWeight.bold,
+                    // // 爱心图标和数量显示
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.center,
+                    //   children: [
+                    //     Image.asset(Assets.imagesIconHeart2x, height: 50),
+                    //     SizedBox(width: 8), // 间距
+                    //     // x 字符 - 使用自定义发光效果
+                    //     OutlinedTextWidget.glow(
+                    //       text: 'x',
+                    //       fontSize: 48,
+                    //       textColor: Colors.white,
+                    //       glowColor: Colors.red,
+                    //       glowRadius: 15,
+                    //       fontWeight: FontWeight.bold,
+                    //     ),
+                    //     SizedBox(width: 4), // 小间距
+                    //     // 数字 - 使用自定义发光效果
+                    //     OutlinedTextWidget.glow(
+                    //       text: '$_heartCount',
+                    //       fontSize: 48,
+                    //       textColor: Colors.white,
+                    //       glowColor: Colors.red,
+                    //       glowRadius: 15,
+                    //       fontWeight: FontWeight.bold,
+                    //     ),
+                    //   ],
+                    // ),
+                    if (nextTakeoffCost != null) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 6),
+                        // decoration: BoxDecoration(
+                        //   color: Colors.black.withOpacity(0.35),
+                        //   borderRadius: BorderRadius.circular(30),
+                        // ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // OutlinedTextWidget.glow(
+                            //   text: '需要',
+                            //   fontSize: 26,
+                            //   textColor: Colors.white,
+                            //   glowColor: Colors.redAccent,
+                            //   glowRadius: 12,
+                            //   fontWeight: FontWeight.bold,
+                            // ),
+                            const SizedBox(width: 6),
+                            Image.asset(
+                              Assets.imagesIconHeart2x,
+                              height: 50,
+                            ),
+                            const SizedBox(width: 6),
+                            OutlinedTextWidget.glow(
+                              text: 'x$nextTakeoffCost',
+                              fontSize: 48,
+                              textColor: Colors.white,
+                              glowColor: Colors.redAccent,
+                              glowRadius: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ],
                         ),
-                        SizedBox(width: 4), // 小间距
-                        // 数字 - 使用自定义发光效果
-                        OutlinedTextWidget.glow(
-                          text: '$_heartCount',
-                          fontSize: 48,
-                          textColor: Colors.white,
-                          glowColor: Colors.red,
-                          glowRadius: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                     SizedBox(height: 10), // 间距
                     // 脱衣按钮 - 只在非underwear状态显示
 
@@ -2366,9 +2414,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
               ),
             // 只有在underwear模式且选中了某个按钮时才显示底部皮肤选择区域
             // Girl01和Girl02的underwear模式是index 4，Girl03的underwear模式是index 5
-            if (((_currentIndex == 2 && _currentIdleIndex == 5) ||
-                    (_currentIndex != 2 && _currentIdleIndex == 4)) &&
-                _selectedUnderwearButton != -1)
+            if (isUnderwearState && _selectedUnderwearButton != -1)
               Positioned(
                 left: 0,
                 right: 0,
@@ -2394,8 +2440,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
               ),
             // Underwear状态下的四周按钮
             // Girl01和Girl02的underwear模式是index 4，Girl03的underwear模式是index 5
-            if ((_currentIndex == 2 && _currentIdleIndex == 5) ||
-                (_currentIndex != 2 && _currentIdleIndex == 4))
+            if (isUnderwearState)
               _buildUnderwearButtons(),
           ],
         ),
@@ -2450,6 +2495,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
       _atlasInfo = null;
       _isAnimating = false;
       _isLoading = true; // 强制显示loading状态
+      _pendingIdleIndexForCost = null;
 
       // 恢复新女孩的状态 - 立即恢复该女孩的idle进度
       _currentIdleIndex = _loadGirlIdleIndexSync(index); // 立即恢复该女孩的脱衣进度
@@ -2869,8 +2915,13 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
       _log("Successfully consumed $takeoffCost hearts");
 
       if (_isDisposing || !mounted) return;
+      int upcomingIdleIndex = _currentIdleIndex + 1;
+      if (upcomingIdleIndex > maxIdleIndex) {
+        upcomingIdleIndex = maxIdleIndex;
+      }
       setState(() {
         _heartCount = GameStateManager().getHeartCount();
+        _pendingIdleIndexForCost = upcomingIdleIndex;
       });
       _log("Updated heart count to: $_heartCount");
 
@@ -2962,6 +3013,7 @@ class _SpinePreviewPageState extends State<SpinePreviewPage>
       _log("Updating idle index: $_currentIdleIndex -> $newIdleIndex");
       setState(() {
         _currentIdleIndex = newIdleIndex;
+        _pendingIdleIndexForCost = null;
       });
       _log("State updated - new idle index: $_currentIdleIndex");
 
