@@ -49,8 +49,9 @@ class _NewPhotoPageState extends State<NewPhotoPage>
   // 解锁特效Widget引用
   final GlobalKey _unlockEffectKey = GlobalKey();
 
-  int _currentPhotoIndex = 0; // 当前照片索引 (0-79)
-  static const int maxPhotos = 80; // 总共80张照片
+  int _currentPhotoIndex = 0; // 当前照片索引 (0-74)
+  static const int maxPhotos = 75; // 图片库共75张图片
+  static const int _defaultUnlockedPhotos = 5;
 
   @override
   void initState() {
@@ -69,16 +70,36 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     await _findNextUnlockedPhoto();
     await _loadPhotoProgress();
     if (!mounted) return;
-    if (kDebugMode) {
-      await _forceUnlockForDebug();
-    } else {
-      await _calculateNewProgress();
-    }
+    await _calculateNewProgress();
   }
 
   String _getCurrentPhotoAsset() {
     final imageNumber = (_currentPhotoIndex + 1).toString().padLeft(2, '0');
     return 'assets/images/grils_list/Bg_$imageNumber.png';
+  }
+
+  Future<void> _updateAllPhotosUnlockedFlag(
+      [SharedPreferences? existingPrefs]) async {
+    final prefs = existingPrefs ?? await SharedPreferences.getInstance();
+    if (prefs.getBool('all_photos_unlocked') ?? false) {
+      return;
+    }
+
+    if (_areAllPhotosUnlocked(prefs)) {
+      await prefs.setBool('all_photos_unlocked', true);
+    }
+  }
+
+  bool _areAllPhotosUnlocked(SharedPreferences prefs) {
+    for (int i = 0; i < maxPhotos; i++) {
+      if (i < _defaultUnlockedPhotos) {
+        continue; // 前5张默认视为解锁
+      }
+      if (!(prefs.getBool('photo_unlocked_$i') ?? false)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   Future<void> _findNextUnlockedPhoto() async {
@@ -101,7 +122,10 @@ class _NewPhotoPageState extends State<NewPhotoPage>
       }
     }
 
-    // 如果所有照片都已解锁，回到第一张
+    // 如果所有照片都已解锁，更新标记
+    await _updateAllPhotosUnlockedFlag(prefs);
+
+    // 若仍显示此页面，回到第一张以避免越界
     if (mounted) {
       setState(() {
         _currentPhotoIndex = 0;
@@ -319,8 +343,12 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     // final allPhotosUnlocked = prefs.getBool('all_photos_unlocked') ?? false;
 
     final storedEnergy = prefs.getDouble(photoKey) ?? 0.0;
-    final storedProgress = EnergyCalculator.calculateProgress(storedEnergy);
-    final unlocked = EnergyCalculator.isCompleted(storedEnergy);
+    final normalizedEnergy = EnergyCalculator.normalizeEnergy(storedEnergy);
+    if (storedEnergy != normalizedEnergy) {
+      await prefs.setDouble(photoKey, normalizedEnergy);
+    }
+    final storedProgress = EnergyCalculator.calculateProgress(normalizedEnergy);
+    final unlocked = EnergyCalculator.isCompleted(normalizedEnergy);
      if (unlocked) {
       final unlockKey = 'photo_unlocked_${_currentPhotoIndex}';
       if (!(prefs.getBool(unlockKey) ?? false)) {
@@ -330,7 +358,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
 
     if (mounted) {
       setState(() {
-        _currentEnergy = storedEnergy;
+        _currentEnergy = normalizedEnergy;
         _progress = storedProgress;
         _startProgress = storedProgress;
         _targetProgress = storedProgress;
@@ -368,9 +396,11 @@ class _NewPhotoPageState extends State<NewPhotoPage>
   Future<void> _savePhotoProgress(double energy) async {
     final prefs = await SharedPreferences.getInstance();
     final photoKey = 'photo_${_currentPhotoIndex}_energy';
-    await prefs.setDouble(photoKey, energy);
-    if (EnergyCalculator.isCompleted(energy)) {
+    final normalizedEnergy = EnergyCalculator.normalizeEnergy(energy);
+    await prefs.setDouble(photoKey, normalizedEnergy);
+    if (EnergyCalculator.isCompleted(normalizedEnergy)) {
       await prefs.setBool('photo_unlocked_${_currentPhotoIndex}', true);
+      await _updateAllPhotosUnlockedFlag(prefs);
     }
   }
 
@@ -399,7 +429,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
   }
 
   Future<void> _debugIncreaseProgressHalf() async {
-    const double debugEnergyBoost = 50.0; // 直接增加50%进度
+    const double debugEnergyBoost = 0.5; // 直接增加50%进度
     final newEnergy =
         EnergyCalculator.addEnergy(_currentEnergy, debugEnergyBoost);
     final startProgress =
@@ -423,7 +453,7 @@ class _NewPhotoPageState extends State<NewPhotoPage>
   }
 
   Future<void> _forceUnlockForDebug() async {
-    const double maxEnergy = 100.0;
+    const double maxEnergy = 1.0;
     final startProgress =
         (_debugProgress ?? _progress).clamp(0.0, 1.0).toDouble();
     await _savePhotoProgress(maxEnergy);

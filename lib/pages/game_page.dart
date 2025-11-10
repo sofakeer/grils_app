@@ -69,7 +69,8 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
 
   void _passStage() async {
     // 通关逻辑
-    int newLevel = await GameStateManager().passLevel();
+    final newLevel = await GameStateManager().passLevel();
+    final completedLevel = newLevel > 1 ? newLevel - 1 : 1;
     
     // 检查是否解锁新女生
     _checkForNewGirlUnlock(newLevel);
@@ -81,7 +82,7 @@ class _GamePageState extends State<GamePage> with SingleTickerProviderStateMixin
     
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (context) => const WinPage(),
+        builder: (context) => WinPage(level: completedLevel),
       ),
     );
   }

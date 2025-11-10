@@ -28,6 +28,11 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
   // 视频广告状态
   bool _isShowingAd = false;
 
+  void _disposeSpecialEffectResources() {
+    _removeSpineOverlay();
+    _spineController = null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -214,6 +219,7 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
     }
 
     // 广告播放完成，进入特殊关卡
+    _disposeSpecialEffectResources();
     Navigator.of(context).pop();
 
     Navigator.of(context)
@@ -223,47 +229,20 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
           fromSpecialPage: true,
         ),
       ),
-    )
-        .then((_) {
-      if (mounted) {
-        _showHeartRewardDialog();
+    ).then((_) {
+      if (!mounted) {
+        return;
       }
-    });
-  }
-
-  // 显示爱心货币奖励弹窗
-  void _showHeartRewardDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Special Stage Complete!'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.favorite, size: 64, color: Colors.red),
-            SizedBox(height: 16),
-            Text('Congratulations! You completed the special stage!\n\nYou earned double heart rewards!'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // 跳转到爱心货币界面
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const WinHeartPage(
-                    fromSpecialPage: true,
-                  ),
-                ),
-              );
-            },
-            child: const Text('Claim Rewards'),
+      _disposeSpecialEffectResources();
+      Navigator.of(context).pop();
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const WinHeartPage(
+            fromSpecialPage: true,
           ),
-        ],
-      ),
-    );
+        ),
+      );
+    });
   }
 
   void _skipSpecial() {
@@ -274,8 +253,7 @@ class _SpecialPageState extends State<SpecialPage> with TickerProviderStateMixin
   @override
   void dispose() {
     _scaleController.dispose();
-    _removeSpineOverlay();
-    _spineController = null;
+    _disposeSpecialEffectResources();
     super.dispose();
   }
 

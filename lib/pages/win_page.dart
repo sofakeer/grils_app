@@ -21,6 +21,8 @@ class WinPage extends StatefulWidget {
 }
 
 class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
+  static const int _totalPhotoCount = 75;
+  static const int _defaultUnlockedPhotos = 5;
   late AnimationController _scaleController;
   late AnimationController _fadeController;
   late Animation<double> _scaleAnimation;
@@ -255,6 +257,25 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
     }
   }
 
+  Future<bool> _areAllGalleryPhotosUnlocked() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('all_photos_unlocked') ?? false) {
+      return true;
+    }
+
+    for (int i = 0; i < _totalPhotoCount; i++) {
+      if (i < _defaultUnlockedPhotos) {
+        continue; // 前5张默认解锁
+      }
+      if (!(prefs.getBool('photo_unlocked_$i') ?? false)) {
+        return false;
+      }
+    }
+
+    await prefs.setBool('all_photos_unlocked', true);
+    return true;
+  }
+
   void _getReward() async {
     if (_isClaimingReward) return;
     setState(() {
@@ -271,10 +292,8 @@ class _WinPageState extends State<WinPage> with TickerProviderStateMixin {
       print('WinPage: Added coin reward $_coinReward');
     }
     
-    // 检查是否所有80张照片都已解锁
-    final prefs = await SharedPreferences.getInstance();
-    final allPhotosUnlocked = prefs.getBool('all_photos_unlocked') ?? false;
-    
+    final allPhotosUnlocked = await _areAllGalleryPhotosUnlocked();
+
     if (allPhotosUnlocked) {
       // 如果所有照片都解锁了，直接跳转到爱心货币界面
       Navigator.of(context).pushReplacement(

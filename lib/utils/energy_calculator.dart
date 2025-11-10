@@ -16,20 +16,33 @@ class EnergyCalculator {
     }
   }
 
-  /// 计算进度百分比（0.0 到 1.0）
-  static double calculateProgress(double currentEnergy) {
-    // 能量上限为100，返回0.0到1.0的进度
-    return (currentEnergy / 100.0).clamp(0.0, 1.0);
+  /// 归一化能量值，兼容旧版(0-100)和新版(0-1)存储
+  static double normalizeEnergy(double energy) {
+    if (energy.isNaN || energy <= 0.0) {
+      return 0.0;
+    }
+    if (energy > 1.0) {
+      // 旧版本使用0-100区间，转换为0-1
+      return (energy / 100.0).clamp(0.0, 1.0);
+    }
+    return energy.clamp(0.0, 1.0);
   }
 
-  /// 添加能量值，确保不超过上限100
+  /// 计算进度百分比（0.0 到 1.0）
+  static double calculateProgress(double currentEnergy) {
+    return normalizeEnergy(currentEnergy).clamp(0.0, 1.0);
+  }
+
+  /// 添加能量值，确保不超过 1.0
   static double addEnergy(double currentEnergy, double addedEnergy) {
-    return (currentEnergy + addedEnergy).clamp(0.0, 100.0);
+    final normalizedCurrent = normalizeEnergy(currentEnergy);
+    final safeAdded = addedEnergy.isNaN ? 0.0 : addedEnergy;
+    return (normalizedCurrent + safeAdded).clamp(0.0, 1.0);
   }
 
   /// 检查是否达到100%完成度
   static bool isCompleted(double currentEnergy) {
-    return currentEnergy >= 100.0;
+    return normalizeEnergy(currentEnergy) >= 1.0;
   }
 
   /// 获取关卡对应的能量奖励描述
