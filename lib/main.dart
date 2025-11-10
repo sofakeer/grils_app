@@ -9,6 +9,7 @@ import 'dart:async';
 import 'models/girl_state.dart';
 import 'pages/loading_page.dart';
 import 'managers/audio_manager.dart';
+import 'pages/gallery_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,7 @@ class MyApp extends StatelessWidget {
       ),
       home: const LoadingPage(),
       debugShowCheckedModeBanner: false, // 移除调试标记
+      navigatorObservers: [galleryRouteObserver],
     );
   }
 }

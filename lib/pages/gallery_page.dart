@@ -7,6 +7,10 @@ import 'package:grils_app/services/user_service.dart';
 import 'dart:async';
 import '../widgets/outlined_text_widget.dart';
 
+// 全局路由观察者
+final RouteObserver<ModalRoute<void>> galleryRouteObserver =
+    RouteObserver<ModalRoute<void>>();
+
 class GalleryPage extends StatefulWidget {
   const GalleryPage({super.key});
 
@@ -15,21 +19,21 @@ class GalleryPage extends StatefulWidget {
 }
 
 class _GalleryPageState extends State<GalleryPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
-  
+
   final ScrollController _scrollController = ScrollController();
-  
+
   // 总共75张图片 (grils_list文件夹中有Bg_01.png到Bg_75.png)
   static const int totalImages = 75;
-  
+
   List<bool> _unlockedImages = [];
   double _scrollProgress = 0.0;
-  
+
   // 用户服务
   late UserService _userService;
-  
+
   // 性能优化相关
   Timer? _scrollDebounceTimer;
   bool _isScrolling = false;
@@ -37,10 +41,35 @@ class _GalleryPageState extends State<GalleryPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeAnimations();
     _loadUnlockData();
     _setupScrollListener();
     _initializeUserService();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final modalRoute = ModalRoute.of(context);
+    if (modalRoute is PageRoute) {
+      galleryRouteObserver.subscribe(this, modalRoute);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // 当应用返回前台时，重新加载解锁数据
+    if (state == AppLifecycleState.resumed) {
+      _loadUnlockData();
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // 当从其他页面返回到此页面时，重新加载解锁数据
+    _loadUnlockData();
   }
 
   void _initializeAnimations() {
@@ -91,8 +120,7 @@ class _GalleryPageState extends State<GalleryPage>
     if (mounted) {
       setState(() {
         _unlockedImages = List.generate(totalImages, (index) {
-          // 默认解锁前5张图片作为示例
-          if (index < 5) return true;
+          // 所有图片默认都是锁定状态，只有通过游戏解锁后才能查看
           return prefs.getBool('photo_unlocked_$index') ?? false;
         });
       });
@@ -120,7 +148,10 @@ class _GalleryPageState extends State<GalleryPage>
           },
         ),
       ),
-    );
+    ).then((_) {
+      // 从详情页返回时，重新加载解锁数据以确保显示最新状态
+      _loadUnlockData();
+    });
   }
 
   void _close() {
@@ -131,6 +162,8 @@ class _GalleryPageState extends State<GalleryPage>
 
   @override
   void dispose() {
+    galleryRouteObserver.unsubscribe(this);
+    WidgetsBinding.instance.removeObserver(this);
     _animationController.dispose();
     _scrollController.dispose();
     _scrollDebounceTimer?.cancel();

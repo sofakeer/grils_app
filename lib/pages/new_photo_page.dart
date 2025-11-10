@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:grils_app/generated/assets.dart';
 import 'package:grils_app/pages/win_heart_page.dart';
@@ -68,7 +69,11 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     await _findNextUnlockedPhoto();
     await _loadPhotoProgress();
     if (!mounted) return;
-    await _calculateNewProgress();
+    if (kDebugMode) {
+      await _forceUnlockForDebug();
+    } else {
+      await _calculateNewProgress();
+    }
   }
 
   String _getCurrentPhotoAsset() {
@@ -316,6 +321,12 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     final storedEnergy = prefs.getDouble(photoKey) ?? 0.0;
     final storedProgress = EnergyCalculator.calculateProgress(storedEnergy);
     final unlocked = EnergyCalculator.isCompleted(storedEnergy);
+     if (unlocked) {
+      final unlockKey = 'photo_unlocked_${_currentPhotoIndex}';
+      if (!(prefs.getBool(unlockKey) ?? false)) {
+        await prefs.setBool(unlockKey, true);
+      }
+    }
 
     if (mounted) {
       setState(() {
@@ -358,6 +369,9 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     final prefs = await SharedPreferences.getInstance();
     final photoKey = 'photo_${_currentPhotoIndex}_energy';
     await prefs.setDouble(photoKey, energy);
+    if (EnergyCalculator.isCompleted(energy)) {
+      await prefs.setBool('photo_unlocked_${_currentPhotoIndex}', true);
+    }
   }
 
   void _setDebugProgress(double value) {
@@ -382,6 +396,50 @@ class _NewPhotoPageState extends State<NewPhotoPage>
     if (!_progressController.isAnimating && _progressController.value < 1.0) {
       _progressController.forward();
     }
+  }
+
+  Future<void> _debugIncreaseProgressHalf() async {
+    const double debugEnergyBoost = 50.0; // 直接增加50%进度
+    final newEnergy =
+        EnergyCalculator.addEnergy(_currentEnergy, debugEnergyBoost);
+    final startProgress =
+        (_debugProgress ?? _progress).clamp(0.0, 1.0).toDouble();
+    final newProgress = EnergyCalculator.calculateProgress(newEnergy);
+
+    await _savePhotoProgress(newEnergy);
+    if (!mounted) return;
+
+    setState(() {
+      _currentEnergy = newEnergy;
+      _startProgress = startProgress;
+      _targetProgress = newProgress;
+      _progress = startProgress;
+    });
+
+    _progressController
+      ..stop()
+      ..reset()
+      ..forward();
+  }
+
+  Future<void> _forceUnlockForDebug() async {
+    const double maxEnergy = 100.0;
+    final startProgress =
+        (_debugProgress ?? _progress).clamp(0.0, 1.0).toDouble();
+    await _savePhotoProgress(maxEnergy);
+    if (!mounted) return;
+
+    setState(() {
+      _currentEnergy = maxEnergy;
+      _startProgress = startProgress;
+      _targetProgress = 1.0;
+      _progress = startProgress;
+    });
+
+    _progressController
+      ..stop()
+      ..reset()
+      ..forward();
   }
 
   void _triggerUnlockEffect() {
@@ -783,6 +841,16 @@ class _NewPhotoPageState extends State<NewPhotoPage>
                 },
               ),
             ),
+
+            if (kDebugMode)
+              Positioned(
+                bottom: 30,
+                right: 20,
+                child: ElevatedButton(
+                  onPressed: _debugIncreaseProgressHalf,
+                  child: const Text('DEBUG +50%'),
+                ),
+              ),
 
             // 解锁特效 Widget
             PhotoUnlockEffectWidget(key: _unlockEffectKey),
